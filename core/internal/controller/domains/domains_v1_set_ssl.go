@@ -1,8 +1,10 @@
 package domains
 
 import (
+	"billionmail-core/internal/consts"
 	"billionmail-core/internal/service/domains"
 	"billionmail-core/internal/service/mail_service"
+	"billionmail-core/internal/service/public"
 	"context"
 	"fmt"
 
@@ -32,6 +34,12 @@ func (c *ControllerV1) SetSSL(ctx context.Context, req *v1.SetSSLReq) (res *v1.S
 		res.SetError(fmt.Errorf("fail to set ssl: %w", err))
 		return
 	}
+
+	_ = public.WriteLog(ctx, public.LogParams{
+		Type: consts.LOGTYPE.Domain,
+		Log:  "Set SSL for domain :" + req.Domain + " successfully",
+		Data: req,
+	})
 
 	res.SetSuccess("Success")
 	return

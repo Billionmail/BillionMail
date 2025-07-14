@@ -1,6 +1,7 @@
 package mail_services
 
 import (
+	"billionmail-core/internal/consts"
 	"billionmail-core/internal/service/mail_service"
 	"billionmail-core/internal/service/public"
 	"context"
@@ -57,20 +58,26 @@ func (c *ControllerV1) AddMailForward(ctx context.Context, req *v1.AddMailForwar
 	}
 
 	now := time.Now().Unix()
-
-	_, err = g.DB().Model("alias").Insert(g.Map{
+	insert_data := g.Map{
 		"address":     req.Address,
 		"goto":        strings.Join(forwardUsers, ","),
 		"domain":      domain,
 		"create_time": now,
 		"update_time": now,
 		"active":      req.Active,
-	})
+	}
+	_, err = g.DB().Model("alias").Insert(insert_data)
 
 	if err != nil {
 		res.SetError(gerror.New(public.LangCtx(ctx, "add mail forward failed: {}", err.Error())))
 		return res, nil
 	}
+
+	_ = public.WriteLog(ctx, public.LogParams{
+		Type: consts.LOGTYPE.MailForward,
+		Log:  "Add mail forward :" + req.Address + " successfully",
+		Data: insert_data,
+	})
 
 	res.SetSuccess(public.LangCtx(ctx, "add mail forward success"))
 	return res, nil

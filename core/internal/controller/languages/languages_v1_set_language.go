@@ -1,8 +1,10 @@
 package languages
 
 import (
+	"billionmail-core/internal/consts"
 	"billionmail-core/internal/service/public"
 	"context"
+	"fmt"
 	"github.com/gogf/gf/v2/frame/g"
 	"strings"
 
@@ -73,7 +75,11 @@ func (c *ControllerV1) SetLanguage(ctx context.Context, req *v1.SetLanguageReq) 
 	// update the cache
 	public.SetCache("language", lang, 3600)
 
-	g.Log().Info(ctx, "Language changed to:", lang)
+	_ = public.WriteLog(ctx, public.LogParams{
+		Type: consts.LOGTYPE.Contacts,
+		Log:  fmt.Sprintf("Language changed to: %s ", lang),
+	})
+
 	res.SetSuccess(public.LangCtx(ctx, "Setup successful"))
 	return
 }

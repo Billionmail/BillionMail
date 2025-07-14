@@ -2,7 +2,9 @@ package mail_boxes
 
 import (
 	"billionmail-core/api/mail_boxes/v1"
+	"billionmail-core/internal/consts"
 	"billionmail-core/internal/service/mail_boxes"
+	"billionmail-core/internal/service/public"
 	"context"
 )
 
@@ -24,6 +26,11 @@ func (c *ControllerV1) UpdateMailbox(ctx context.Context, req *v1.UpdateMailboxR
 		return nil, err
 	}
 
+	_ = public.WriteLog(ctx, public.LogParams{
+		Type: consts.LOGTYPE.Mailboxes,
+		Log:  "Updated mailbox:" + mailbox.Username + " successfully",
+		Data: mailbox,
+	})
 	res.SetSuccess("Mailbox updated successfully")
 	return
 }

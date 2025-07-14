@@ -1,6 +1,7 @@
 package settings
 
 import (
+	"billionmail-core/internal/consts"
 	"billionmail-core/internal/service/public"
 	"context"
 	"database/sql"
@@ -30,6 +31,10 @@ func (c *ControllerV1) SetIPWhitelist(ctx context.Context, req *v1.SetIPWhitelis
 	if len(req.IPList) == 0 {
 		_, err = tx.Model("bm_console_ip_whitelist").Where("1=1").Delete()
 		if err != nil {
+			_ = public.WriteLog(ctx, public.LogParams{
+				Type: consts.LOGTYPE.Settings,
+				Log:  "Clear the whitelist ip successfully",
+			})
 			return nil, err
 		}
 
@@ -41,7 +46,6 @@ func (c *ControllerV1) SetIPWhitelist(ctx context.Context, req *v1.SetIPWhitelis
 			return nil, err
 		}
 
-		// 找出需要删除的IP（在当前列表中但不在新列表中）
 		ipsToDelete := make([]string, 0)
 		for _, currentIP := range currentIPs {
 			found := false
@@ -77,7 +81,6 @@ func (c *ControllerV1) SetIPWhitelist(ctx context.Context, req *v1.SetIPWhitelis
 				ipType = 2 // IPv6
 			}
 
-			// 检查是否已存在，避免重复插入
 			var count int
 			count, err = tx.Model("bm_console_ip_whitelist").Where("ip", ip).Count()
 			if err != nil {

@@ -1,6 +1,8 @@
 package domains
 
 import (
+	"billionmail-core/internal/consts"
+	"billionmail-core/internal/service/public"
 	"context"
 
 	"github.com/gogf/gf/v2/errors/gerror"
@@ -30,6 +32,12 @@ func (c *ControllerV1) UpdateDomain(ctx context.Context, req *v1.UpdateDomainReq
 	if err = domains.Update(ctx, domain); err != nil {
 		return nil, err
 	}
+
+	_ = public.WriteLog(ctx, public.LogParams{
+		Type: consts.LOGTYPE.Domain,
+		Log:  "Update domain :" + req.Domain + " successfully",
+		Data: domain,
+	})
 
 	res.SetSuccess("Domain updated successfully")
 	return

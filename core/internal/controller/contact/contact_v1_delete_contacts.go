@@ -1,11 +1,13 @@
 package contact
 
 import (
+	"billionmail-core/internal/consts"
 	"billionmail-core/internal/service/public"
 	"context"
 	"github.com/gogf/gf/v2/database/gdb"
 	"github.com/gogf/gf/v2/errors/gerror"
 	"github.com/gogf/gf/v2/frame/g"
+	"strings"
 
 	"billionmail-core/api/contact/v1"
 )
@@ -50,7 +52,12 @@ func (c *ControllerV1) DeleteContacts(ctx context.Context, req *v1.DeleteContact
 		res.SetError(gerror.New(public.LangCtx(ctx, "Failed to delete contacts: {}", err.Error())))
 		return
 	}
-
+	emailsStr := strings.Join(req.Emails, ", ")
+	_ = public.WriteLog(ctx, public.LogParams{
+		Type: consts.LOGTYPE.Contacts,
+		Log:  "Delete contacts :" + emailsStr + " successfully",
+		Data: req.Emails,
+	})
 	res.SetSuccess(public.LangCtx(ctx, "Contacts deleted successfully"))
 	return
 }

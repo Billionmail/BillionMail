@@ -1,6 +1,7 @@
 package contact
 
 import (
+	"billionmail-core/internal/consts"
 	"billionmail-core/internal/model/entity"
 	"billionmail-core/internal/service/contact"
 	"billionmail-core/internal/service/public"
@@ -132,6 +133,12 @@ func (c *ControllerV1) MergeContactsGroups(ctx context.Context, req *v1.MergeCon
 		res.SetError(gerror.New(public.LangCtx(ctx, "Failed to merge contact groups: {}", err.Error())))
 		return
 	}
+
+	_ = public.WriteLog(ctx, public.LogParams{
+		Type: consts.LOGTYPE.ContactsGroup,
+		Log:  "Contact groups merged successfully",
+		Data: req,
+	})
 
 	res.SetSuccess(public.LangCtx(ctx, "Contact groups merged successfully"))
 	return

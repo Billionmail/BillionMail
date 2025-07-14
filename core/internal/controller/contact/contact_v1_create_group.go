@@ -2,6 +2,7 @@ package contact
 
 import (
 	"billionmail-core/api/contact/v1"
+	"billionmail-core/internal/consts"
 	"billionmail-core/internal/service/contact"
 	"billionmail-core/internal/service/public"
 	"context"
@@ -58,6 +59,11 @@ func (c *ControllerV1) CreateGroup(ctx context.Context, req *v1.CreateGroupReq) 
 		if req.FileData == "" {
 			//Allow 2 to create an empty group
 			if req.CreateType == 2 {
+				_ = public.WriteLog(ctx, public.LogParams{
+					Type: consts.LOGTYPE.ContactsGroup,
+					Log:  "Created group :" + req.Name + " successfully",
+				})
+
 				res.SetSuccess(public.LangCtx(ctx, "Group created successfully"))
 				return
 			}
@@ -86,6 +92,11 @@ func (c *ControllerV1) CreateGroup(ctx context.Context, req *v1.CreateGroupReq) 
 			res.SetError(gerror.New(public.LangCtx(ctx, "Failed to import contacts {}", err.Error())))
 			return
 		}
+		_ = public.WriteLog(ctx, public.LogParams{
+			Type: consts.LOGTYPE.ContactsGroup,
+			Log:  "Created group :" + req.Name + " successfully",
+			Data: contacts,
+		})
 	}
 
 	// set success message according to different situations

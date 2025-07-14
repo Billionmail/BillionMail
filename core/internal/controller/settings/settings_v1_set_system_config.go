@@ -65,8 +65,14 @@ func (c *ControllerV1) SetSystemConfig(ctx context.Context, req *v1.SetSystemCon
 			res.SetError(gerror.New(public.LangCtx(ctx, "Failed to restart container: {}", err)))
 			return res, nil
 		}
-	}
 
+		_ = public.WriteLog(ctx, public.LogParams{
+			Type: consts.LOGTYPE.Settings,
+			Log:  "Updated system configuration",
+			Data: req,
+		})
+
+	}
 	res.SetSuccess(public.LangCtx(ctx, "Configuration updated successfully"))
 	return res, nil
 }

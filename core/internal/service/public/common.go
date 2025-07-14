@@ -1,6 +1,7 @@
 package public
 
 import (
+	v1 "billionmail-core/api/domains/v1"
 	docker "billionmail-core/internal/service/dockerapi"
 	"billionmail-core/utility/types/api_v1"
 	"bufio"
@@ -150,6 +151,7 @@ var CodeMap = map[int]api_v1.StandardRes{
 }
 
 var HostWorkDir string //Host working directory
+var LogTypeMap map[string]string
 
 // Convert string to integer
 func IpToLong(ip string) int64 {
@@ -2149,11 +2151,37 @@ func GetLocalIP() (string, error) {
 		return "", err
 	}
 
+	localIp := ""
+
 	for _, addr := range addrs {
 		if ipNet, ok := addr.(*net.IPNet); ok && !ipNet.IP.IsLoopback() && ipNet.IP.To4() != nil {
-			return ipNet.IP.String(), nil
+			localIp = ipNet.IP.String()
+			break
 		}
 	}
+
+	if strings.HasPrefix(localIp, "172.") {
+		dk, err := docker.NewDockerAPI()
+
+		if err == nil {
+			defer dk.Close()
+			// If the local IP starts with 172., it may be a Docker container, so we try to get the host's IP
+			res, err := dk.ExecHostShellCommand(context.Background(), "ip addr | grep -E -o '[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}' | grep -E -v \"^127\\.|^255\\.|^0\\.\" | head -n 1")
+
+			if err == nil && res != nil {
+				res.Output = SanitizeIPChars(res.Output)
+
+				if IsIpAddr(res.Output) {
+					localIp = res.Output
+				}
+			}
+		}
+	}
+
+	if localIp != "" {
+		return localIp, nil
+	}
+
 	return "", errors.New("local IP not found")
 }
 
@@ -2586,6 +2614,19 @@ func SanitizeUTF8(s string) string {
 	return string(result)
 }
 
+// SanitizeIPChars clean up invalid IPv4 characters in a string
+func SanitizeIPChars(s string) string {
+	// substitute invalid UTF-8 characters with a replacement character
+	result := make([]rune, 0, len(s))
+	for _, r := range s {
+		if (r >= '0' && r <= '9') || (r >= 'a' && r <= 'z') || r == '.' || r == ':' {
+			result = append(result, r)
+		}
+	}
+
+	return string(result)
+}
+
 func AddUnsubscribeButton(content string) string {
 	// Unsubscribe button HTML
 	unsubscribeButton := `<div style="padding: 16px 0; text-align: center"><a href="{{ UnsubscribeURL . }}" style="color: #ccc; font-size: 12px">Unsubscribe</a></div>`
@@ -2647,16 +2688,81 @@ func LoadEnvFile() (map[string]string, error) {
 }
 
 func GethostUrl() string {
-	hostname := MustGetDockerEnv("BILLIONMAIL_HOSTNAME", "")
-	var hostUrl string
-	if hostname == "" || hostname == "mail.example.com" {
-		serverIP, _ := GetServerIP()
-		serverPort := MustGetDockerEnv("HTTPS_PORT", "443")
-		hostUrl = fmt.Sprintf("https://%s:%s", serverIP, serverPort)
-	} else {
-		hostUrl = fmt.Sprintf("https://%s", hostname)
+	scheme := "https"
+	serverPort := 443
+	if p := g.Server(consts.DEFAULT_SERVER_NAME).GetListenedHTTPSPort(); p != -1 {
+		serverPort = p
+	} else if p := g.Server(consts.DEFAULT_SERVER_NAME).GetListenedPort(); p != -1 {
+		scheme = "http"
+		serverPort = p
 	}
 
-	return hostUrl
+	withPort := true
+	if serverPort == 80 || serverPort == 443 {
+		withPort = false
+	}
 
+	serverIP, localIP, err := GetServerIPAndLocalIP()
+	if err != nil {
+		return ""
+	}
+
+	if appEnv, err := DockerEnv("APP_ENV"); err == nil && appEnv != "" {
+		switch appEnv {
+		case "development":
+			hostUrl := scheme + "://" + localIP
+			if withPort {
+				hostUrl += ":" + fmt.Sprintf("%d", serverPort)
+			}
+			return hostUrl
+		}
+	}
+
+	hostname := MustGetDockerEnv("BILLIONMAIL_HOSTNAME", "")
+	if hostname == "" {
+		hostname, _ = DockerEnv("BILLIONMAIL_HOSTNAME")
+	}
+
+	if hostname != "" && hostname != "mail.example.com" {
+		record := v1.DNSRecord{
+			Type:  "A",
+			Host:  hostname,
+			Value: serverIP,
+			Valid: true,
+		}
+
+		if ValidateARecord(record) {
+			hostUrl := scheme + "://" + hostname
+			if withPort {
+				hostUrl += ":" + fmt.Sprintf("%d", serverPort)
+			}
+			return hostUrl
+		}
+	}
+	hostUrl := scheme + "://" + serverIP
+	if withPort {
+		hostUrl += ":" + fmt.Sprintf("%d", serverPort)
+	}
+	return hostUrl
+}
+
+func ValidateARecord(record v1.DNSRecord) bool {
+	if strings.ToUpper(record.Type) != "A" && strings.ToUpper(record.Type) != "AAAA" {
+		return false
+	}
+
+	// Query A records
+	ips, err := net.LookupIP(record.Host)
+	if err != nil {
+		return false
+	}
+
+	// Check if any IP matches the expected server IP
+	for _, ip := range ips {
+		if ip.String() == record.Value {
+			return true
+		}
+	}
+
+	return false
 }

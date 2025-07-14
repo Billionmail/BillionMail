@@ -74,6 +74,7 @@ func (c *ControllerV1) Unsubscribe(ctx context.Context, req *v1.UnsubscribeReq) 
 				g.Log().Error(ctx, "Failed to record unsubscribe: %v", err)
 				return err
 			}
+
 		}
 
 		return nil

@@ -90,6 +90,12 @@ func (c *ControllerV1) SetSSLConfig(ctx context.Context, req *v1.SetSSLConfigReq
 		return res, nil
 	}
 
+	_ = public.WriteLog(ctx, public.LogParams{
+		Type: consts.LOGTYPE.Settings,
+		Log:  "SSL certificate updated successfully",
+		Data: req,
+	})
+
 	res.SetSuccess(public.LangCtx(ctx, "SSL certificate updated successfully"))
 	return res, nil
 }

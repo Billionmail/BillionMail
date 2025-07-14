@@ -1,6 +1,7 @@
 package batch_mail
 
 import (
+	"billionmail-core/internal/consts"
 	"billionmail-core/internal/service/batch_mail"
 	"billionmail-core/internal/service/public"
 	"context"
@@ -33,6 +34,12 @@ func (c *ControllerV1) CreateTask(ctx context.Context, req *v1.CreateTaskReq) (r
 		res.SetError(err)
 		return
 	}
+
+	_ = public.WriteLog(ctx, public.LogParams{
+		Type: consts.LOGTYPE.Task,
+		Log:  "Create task :" + req.Subject + " successfully",
+		Data: req,
+	})
 
 	res.SetSuccess(public.LangCtx(ctx, "Task created successfully"))
 	return

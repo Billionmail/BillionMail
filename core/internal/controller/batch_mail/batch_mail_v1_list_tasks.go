@@ -53,6 +53,7 @@ func (c *ControllerV1) ListTasks(ctx context.Context, req *v1.ListTasksReq) (res
 
 			actualCount, err := batch_mail.GetActualRecipientCount(ctx, task.Id)
 			if err == nil && actualCount > 0 {
+
 				// Update the recipient count in the database
 				_ = batch_mail.UpdateRecipientCount(ctx, task.Id, actualCount)
 				detail.RecipientCount = actualCount
@@ -71,8 +72,10 @@ func (c *ControllerV1) ListTasks(ctx context.Context, req *v1.ListTasksReq) (res
 		}
 
 		// Calculate progress with safeguards against division by zero
+		sentp, _ := batch_mail.GetSentCount(ctx, task.Id)
+
 		if task.RecipientCount > 0 {
-			detail.Progress = int(float64(sentCount) / float64(task.RecipientCount) * 100)
+			detail.Progress = int(float64(sentp) / float64(task.RecipientCount) * 100)
 			// Ensure progress is between 0 and 100
 			if detail.Progress > 100 {
 				detail.Progress = 100

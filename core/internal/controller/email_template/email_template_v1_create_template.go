@@ -1,6 +1,7 @@
 package email_template
 
 import (
+	"billionmail-core/internal/consts"
 	"billionmail-core/internal/service/public"
 	"context"
 	"github.com/gogf/gf/v2/errors/gerror"
@@ -32,10 +33,11 @@ func (c *ControllerV1) CreateTemplate(ctx context.Context, req *v1.CreateTemplat
 			res.SetError(gerror.New(public.LangCtx(ctx, "File data is required for upload type")))
 			return
 		}
-
 		content = req.Content
-
-	} else { // Drag to generate
+	} else if req.AddType == 2 { // AI
+		content = req.Content
+		render = ""
+	} else { // Drag
 		if req.Content == "" || req.Render == "" {
 			res.Code = 400
 			res.SetError(gerror.New(public.LangCtx(ctx, "Content and render data are required for drag type")))
@@ -46,12 +48,18 @@ func (c *ControllerV1) CreateTemplate(ctx context.Context, req *v1.CreateTemplat
 	}
 
 	// Create template
-	id, err := email_template.CreateTemplate(ctx, req.TempName, req.AddType, content, render)
+	id, err := email_template.CreateTemplate(ctx, req.TempName, req.AddType, content, render, req.Chat_id)
 	if err != nil {
 		res.Code = 500
 		res.SetError(gerror.New(public.LangCtx(ctx, "Failed to create template")))
 		return
 	}
+
+	_ = public.WriteLog(ctx, public.LogParams{
+		Type: consts.LOGTYPE.Template,
+		Log:  "Create template :" + req.TempName + " successfully",
+		Data: req,
+	})
 
 	res.Data.Id = id
 	res.SetSuccess(public.LangCtx(ctx, "Template created successfully"))

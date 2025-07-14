@@ -2,6 +2,7 @@ package relay
 
 import (
 	v1 "billionmail-core/api/relay/v1"
+	"billionmail-core/internal/consts"
 	"billionmail-core/internal/service/public"
 	"billionmail-core/internal/service/relay"
 	"context"
@@ -128,6 +129,12 @@ func (c *ControllerV1) CreateRelayConfig(ctx context.Context, req *v1.CreateRela
 			Value: spfRecord,
 		}
 	}
+
+	_ = public.WriteLog(ctx, public.LogParams{
+		Type: consts.LOGTYPE.SMTP,
+		Log:  "Relay configuration created successfully :" + req.SmtpName + "--" + req.SenderDomain,
+		Data: req,
+	})
 
 	if req.Active == 1 {
 		res.SetSuccess(public.LangCtx(ctx, "Relay configuration created and enabled successfully"))

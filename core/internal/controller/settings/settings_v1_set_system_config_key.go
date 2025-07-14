@@ -43,7 +43,7 @@ func (c *ControllerV1) SetSystemConfigKey(ctx context.Context, req *v1.SetSystem
 	}
 
 	// 2. Find the corresponding environment variable name based on the key
-	_, modified := convertJsonKeyToEnvKey(req.Key, req.Value, envMap)
+	envKey, modified := convertJsonKeyToEnvKey(req.Key, req.Value, envMap)
 	if !modified {
 		res.SetError(gerror.New(public.LangCtx(ctx, "Invalid configuration item or value not changed")))
 		return res, nil
@@ -63,6 +63,12 @@ func (c *ControllerV1) SetSystemConfigKey(ctx context.Context, req *v1.SetSystem
 			return
 		}
 
+	})
+
+	_ = public.WriteLog(ctx, public.LogParams{
+		Type: consts.LOGTYPE.Settings,
+		Log:  "Changed the configuration successfully: " + envKey + " changed to " + req.Value,
+		Data: req,
 	})
 
 	res.SetSuccess(public.LangCtx(ctx, "Configuration updated successfully"))

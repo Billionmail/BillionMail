@@ -1,6 +1,8 @@
 package mail_boxes
 
 import (
+	"billionmail-core/internal/consts"
+	"billionmail-core/internal/service/public"
 	"context"
 
 	"billionmail-core/api/mail_boxes/v1"
@@ -24,6 +26,12 @@ func (c *ControllerV1) AddMailbox(ctx context.Context, req *v1.AddMailboxReq) (r
 	if err = mail_boxes.Add(ctx, mailbox); err != nil {
 		return nil, err
 	}
+
+	_ = public.WriteLog(ctx, public.LogParams{
+		Type: consts.LOGTYPE.Mailboxes,
+		Log:  "Add email address :" + req.FullName + "@" + req.Domain + " successfully",
+		Data: mailbox,
+	})
 
 	res.SetSuccess("Mailbox added successfully")
 	return

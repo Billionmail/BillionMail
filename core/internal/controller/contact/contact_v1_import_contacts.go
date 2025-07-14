@@ -3,6 +3,7 @@ package contact
 
 import (
 	"billionmail-core/api/contact/v1"
+	"billionmail-core/internal/consts"
 	"billionmail-core/internal/model/entity"
 	"billionmail-core/internal/service/contact"
 	"billionmail-core/internal/service/public"
@@ -305,6 +306,18 @@ func (c *ControllerV1) ImportContacts(ctx context.Context, req *v1.ImportContact
 			successCount += count
 		}
 	}
+	var groups []*entity.ContactGroup
+	err = g.DB().Model("bm_contact_groups").Ctx(ctx).WhereIn("id", req.GroupIds).Scan(&groups)
+	groupNames := make([]string, 0, len(groups))
+	for _, group := range groups {
+		groupNames = append(groupNames, group.Name)
+	}
+	groupNamesStr := strings.Join(groupNames, ", ")
+	_ = public.WriteLog(ctx, public.LogParams{
+		Type: consts.LOGTYPE.Contacts,
+		Log:  fmt.Sprintf("Import contacts: %s successfully", groupNamesStr),
+		Data: contactList,
+	})
 
 	res.Data.ImportedCount = successCount
 	res.SetSuccess(public.LangCtx(ctx, "Successfully imported {} contacts", successCount))

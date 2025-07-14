@@ -2,6 +2,8 @@ package contact
 
 import (
 	"billionmail-core/api/contact/v1"
+	"billionmail-core/internal/consts"
+	"billionmail-core/internal/model/entity"
 	"billionmail-core/internal/service/public"
 	"context"
 	"encoding/json"
@@ -54,8 +56,9 @@ func (c *ControllerV1) EditContactsNDP(ctx context.Context, req *v1.EditContacts
 		}
 	}
 
+	updateData := make(map[string]interface{})
 	err = g.DB().Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
-		updateData := make(map[string]interface{})
+
 		if req.Active != 0 && req.Active != 1 {
 			// 不修改active
 		} else {
@@ -84,6 +87,13 @@ func (c *ControllerV1) EditContactsNDP(ctx context.Context, req *v1.EditContacts
 		return
 	}
 
+	var contact entity.Contact
+	err = g.DB().Model("bm_contacts").Where("id", req.Id).Scan(&contact)
+	_ = public.WriteLog(ctx, public.LogParams{
+		Type: consts.LOGTYPE.Contacts,
+		Log:  fmt.Sprintf("Edit contact: %s successfully", contact.Email),
+		Data: contact,
+	})
 	res.SetSuccess(public.LangCtx(ctx, "Contact updated successfully"))
 	return
 }

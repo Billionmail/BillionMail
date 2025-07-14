@@ -75,3 +75,12 @@ func Delete(ctx context.Context, id int) error {
 
 	return nil
 }
+
+func GetAbnormalRecipient(ctx context.Context, id int) (*entity.AbnormalRecipient, error) {
+	var recipient entity.AbnormalRecipient
+	err := g.DB().Model("abnormal_recipient").Where("id", id).Scan(&recipient)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get exception recipient: %w", err)
+	}
+	return &recipient, nil
+}

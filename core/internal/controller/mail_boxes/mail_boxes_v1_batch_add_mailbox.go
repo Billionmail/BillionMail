@@ -1,6 +1,8 @@
 package mail_boxes
 
 import (
+	"billionmail-core/internal/consts"
+	"billionmail-core/internal/service/public"
 	"context"
 	"fmt"
 
@@ -22,8 +24,13 @@ func (c *ControllerV1) BatchAddMailbox(ctx context.Context, req *v1.BatchAddMail
 	}
 
 	successMsg := fmt.Sprintf("%d email accounts were successfully created", len(createdEmails))
+
+	_ = public.WriteLog(ctx, public.LogParams{
+		Type: consts.LOGTYPE.Mailboxes,
+		Log:  "Batch email creation was successful",
+		Data: req,
+	})
 	res.SetSuccess(successMsg)
 	res.Data = createdEmails
-
 	return res, nil
 }

@@ -2,10 +2,12 @@ package contact
 
 import (
 	"billionmail-core/api/contact/v1"
+	"billionmail-core/internal/consts"
 	"billionmail-core/internal/service/contact"
 	"billionmail-core/internal/service/public"
 	"context"
 	"database/sql"
+	"fmt"
 	"github.com/gogf/gf/v2/errors/gerror"
 	"github.com/gogf/gf/v2/frame/g"
 )
@@ -61,7 +63,7 @@ func (c *ControllerV1) UpdateGroup(ctx context.Context, req *v1.UpdateGroupReq) 
 		return
 	}
 
-	_, err = contact.GetGroup(ctx, req.GroupId)
+	oldGroup, err := contact.GetGroup(ctx, req.GroupId)
 	if err != nil && err != sql.ErrNoRows {
 		res.Code = 404
 		res.SetError(gerror.New(public.LangCtx(ctx, "Group not found")))
@@ -74,6 +76,19 @@ func (c *ControllerV1) UpdateGroup(ctx context.Context, req *v1.UpdateGroupReq) 
 		res.SetError(gerror.New(public.LangCtx(ctx, "Failed to update group: {}", err.Error())))
 		return
 	}
+	var log string
+	if req.Name != "" {
+		log = fmt.Sprintf("Updated group: %s successfully", req.Name)
+	} else {
+		//Update the subscription link Settings for group aad
+		log = fmt.Sprintf("Update the subscription link Settings for group: %s ", oldGroup.Name)
+	}
+	_ = public.WriteLog(ctx, public.LogParams{
+		Type: consts.LOGTYPE.ContactsGroup,
+		Log:  log,
+		Data: updateData,
+	})
+
 	res.SetSuccess(public.LangCtx(ctx, "Group updated successfully"))
 	return
 }

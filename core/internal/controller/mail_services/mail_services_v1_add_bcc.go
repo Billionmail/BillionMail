@@ -2,6 +2,7 @@ package mail_services
 
 import (
 	"billionmail-core/api/mail_services/v1"
+	"billionmail-core/internal/consts"
 	"billionmail-core/internal/service/mail_service"
 	"billionmail-core/internal/service/public"
 	"context"
@@ -33,7 +34,7 @@ func (c *ControllerV1) AddBcc(ctx context.Context, req *v1.AddBccReq) (res *v1.A
 	}
 
 	now := time.Now().Unix()
-	_, err = g.DB().Model("bm_bcc").Insert(g.Map{
+	insertdata := g.Map{
 		"type":        req.Type,
 		"address":     req.Address,
 		"goto":        req.Goto,
@@ -41,7 +42,8 @@ func (c *ControllerV1) AddBcc(ctx context.Context, req *v1.AddBccReq) (res *v1.A
 		"create_time": now,
 		"update_time": now,
 		"active":      req.Active,
-	})
+	}
+	_, err = g.DB().Model("bm_bcc").Insert(insertdata)
 
 	if err != nil {
 		res.SetError(gerror.New(public.LangCtx(ctx, "add bcc rule failed: {}", err.Error())))
@@ -54,6 +56,11 @@ func (c *ControllerV1) AddBcc(ctx context.Context, req *v1.AddBccReq) (res *v1.A
 		res.SetError(gerror.New(public.LangCtx(ctx, "add success but sync config failed: {}", err.Error())))
 		return res, nil
 	}
+	_ = public.WriteLog(ctx, public.LogParams{
+		Type: consts.LOGTYPE.BCC,
+		Log:  "Add bcc rule :" + req.Address + " successfully",
+		Data: insertdata,
+	})
 
 	// set return data
 	res.SetSuccess(public.LangCtx(ctx, "add bcc rule success"))

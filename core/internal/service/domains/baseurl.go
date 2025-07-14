@@ -69,17 +69,18 @@ func UpdateBaseURL(ctx context.Context, domain ...string) {
 	go func() {
 		defer wg.Done()
 		baseurl = buildBaseURL("")
+		g.Log().Debug(ctx, "UpdateBaseURL --> Base URL updated:", baseurl)
 	}()
 
 	for _, d := range domains {
 		wg.Add(1)
 		go func(domain string) {
 			defer wg.Done()
-			g.Log().Debug(ctx, "UpdateBaseURL --> Updating base URL for domain:", domain)
 			url := buildBaseURL(domain)
 			baseurlMapMu.Lock()
 			baseurlMap[domain] = url
 			baseurlMapMu.Unlock()
+			g.Log().Debug(ctx, "UpdateBaseURL --> Updating base URL for domain:", domain, " URL:", url)
 		}(d)
 	}
 

@@ -361,6 +361,7 @@ func (e *TaskExecutor) ProcessTask(ctx context.Context) error {
 		}
 		completeMsg := fmt.Sprintf("task %d is successfully marked as completed", task.Id)
 		g.Log().Info(ctx, completeMsg)
+		RemoveTaskExecutor(task.Id) // The executor is removed at the end of the task
 	}
 
 	return nil
@@ -577,7 +578,8 @@ func (e *TaskExecutor) getNextRecipientBatch(ctx context.Context, taskId, lastId
 	err := g.DB().Model("recipient_info").
 		Where("task_id", taskId).
 		Where("is_sent", 0).
-		Where("sent_time = 0 OR sent_time < ?", time.Now().Unix()). // not sent yet
+		//Where("sent_time = 0 OR sent_time < ?", time.Now().Unix()). // not sent yet
+		Where("sent_time = 0").
 		Where("id > ?", lastId).
 		Order("id ASC").
 		Limit(batchSize).

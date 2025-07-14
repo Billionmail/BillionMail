@@ -49,7 +49,8 @@ func init() {
 			`CREATE TABLE IF NOT EXISTS email_templates (
                 id SERIAL PRIMARY KEY,
                 temp_name VARCHAR(255),
-                add_type SMALLINT NOT NULL DEFAULT 0,
+                chat_id VARCHAR(255),  -- ai chat id
+                add_type SMALLINT NOT NULL DEFAULT 0,  -- // 0 html  1 drag  2 AI
                 content TEXT NOT NULL DEFAULT '',
                 render TEXT NOT NULL DEFAULT '',
                 create_time INTEGER NOT NULL DEFAULT EXTRACT(EPOCH FROM NOW()),
@@ -100,10 +101,7 @@ func init() {
                 group_id INTEGER,
                 template_id INTEGER,
                 task_id INTEGER,
-                unsubscribe_time INTEGER NOT NULL DEFAULT EXTRACT(EPOCH FROM NOW()),
-                FOREIGN KEY (group_id) REFERENCES bm_contact_groups(id) ON DELETE SET NULL,
-                FOREIGN KEY (template_id) REFERENCES email_templates(id) ON DELETE SET NULL,
-                FOREIGN KEY (task_id) REFERENCES email_tasks(id) ON DELETE SET NULL
+                unsubscribe_time INTEGER NOT NULL DEFAULT EXTRACT(EPOCH FROM NOW())
             )`,
 
 			`CREATE TABLE IF NOT EXISTS abnormal_recipient (
@@ -199,6 +197,14 @@ func init() {
 		_ = AddColumnIfNotExists("bm_contact_groups", "confirm_subject", "TEXT", "''", false)
 		_ = AddColumnIfNotExists("bm_contact_groups", "welcome_subject", "TEXT", "''", false)
 		_ = AddColumnIfNotExists("bm_contact_groups", "send_welcome_email", "SMALLINT", "0", true)
+
+		//email_templates
+		_ = AddColumnIfNotExists("email_templates", "chat_id", "VARCHAR(255)", "''", false)
+
+		// unsubscribe_records
+		_ = DropForeignKeyIfExists("unsubscribe_records", "group_id")
+		_ = DropForeignKeyIfExists("unsubscribe_records", "template_id")
+		_ = DropForeignKeyIfExists("unsubscribe_records", "task_id")
 
 		g.Log().Info(context.Background(), "Batch mail tables initialized successfully")
 	})

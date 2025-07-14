@@ -22,12 +22,12 @@ func (c *ControllerV1) DeleteIPWhitelist(ctx context.Context, req *v1.DeleteIPWh
 	}
 
 	// Check if it exists
-	count, err := g.DB().Model("bm_console_ip_whitelist").Where("id", req.ID).Count()
+	info, err := g.DB().Model("bm_console_ip_whitelist").Where("id", req.ID).One()
 	if err != nil {
 		res.SetError(gerror.New(public.LangCtx(ctx, "Failed to query IP whitelist: {}", err)))
 		return
 	}
-	if count == 0 {
+	if info.IsEmpty() {
 		res.SetError(gerror.New(public.LangCtx(ctx, "The IP whitelist does not exist")))
 		return
 	}
@@ -39,7 +39,7 @@ func (c *ControllerV1) DeleteIPWhitelist(ctx context.Context, req *v1.DeleteIPWh
 	}
 
 	//  Check whether the whitelist is empty, if it is empty, then automatically turn off the ip whitelist switch
-	count, err = g.DB().Model("bm_console_ip_whitelist").Count()
+	count, err := g.DB().Model("bm_console_ip_whitelist").Count()
 	if err == nil && count == 0 {
 		err = public.SetDockerEnv("IP_WHITELIST_ENABLE", "false")
 		if err != nil {
@@ -54,7 +54,10 @@ func (c *ControllerV1) DeleteIPWhitelist(ctx context.Context, req *v1.DeleteIPWh
 
 		})
 	}
-
+	_ = public.WriteLog(ctx, public.LogParams{
+		Type: consts.LOGTYPE.Settings,
+		Log:  "Removed whitelist ip :" + info["ip"].String() + "successfully",
+	})
 	res.SetSuccess(public.LangCtx(ctx, "IP removed from whitelist successfully"))
 	return res, nil
 }

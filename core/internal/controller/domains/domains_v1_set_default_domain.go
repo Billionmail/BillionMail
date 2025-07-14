@@ -1,6 +1,7 @@
 package domains
 
 import (
+	"billionmail-core/internal/consts"
 	"billionmail-core/internal/service/public"
 	"context"
 	"github.com/gogf/gf/v2/frame/g"
@@ -44,6 +45,11 @@ func (c *ControllerV1) SetDefaultDomain(ctx context.Context, req *v1.SetDefaultD
 		res.SetError(gerror.New(public.LangCtx(ctx, "Failed to set default sender domain: {}", err.Error())))
 		return
 	}
+
+	_ = public.WriteLog(ctx, public.LogParams{
+		Type: consts.LOGTYPE.Domain,
+		Log:  "Set default sender domain :" + req.Domain + " successfully",
+	})
 
 	res.SetSuccess(public.LangCtx(ctx, "Default sender domain set successfully"))
 	return

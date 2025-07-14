@@ -299,7 +299,6 @@ type EditContactsRes struct {
 	api_v1.StandardRes
 }
 
-// 新获取联系人列表  contact/list_ndp  邮箱不去重  Active 默认-1
 type ListContactsNDPReq struct {
 	g.Meta        `path:"/contact/list_ndp" method:"get" tags:"Contact" summary:"List all contacts"`
 	Authorization string `json:"authorization" dc:"Authorization" in:"header"`
@@ -307,7 +306,7 @@ type ListContactsNDPReq struct {
 	PageSize      int    `json:"page_size" v:"required|min:1" dc:"Page Size"`
 	GroupId       int    `json:"group_id" dc:"Group ID(Optional)"`
 	Keyword       string `json:"keyword" dc:"Search Email"`
-	Active        int    `json:"active" v:"required|in:0,1,-1" dc:"Active(1:Subscribed 0:Unsubscribed -1:all)" default:"-1"` //  原来的status  (避免和联系人确认状态混淆)
+	Active        int    `json:"active" v:"required|in:0,1,-1" dc:"Active(1:Subscribed 0:Unsubscribed -1:all)" default:"-1"`
 }
 
 type ListContactsNDPRes struct {
@@ -318,7 +317,6 @@ type ListContactsNDPRes struct {
 	} `json:"data"`
 }
 
-// 新编辑联系人  contact/edit_ndp
 type EditContactsNDPReq struct {
 	g.Meta        `path:"/contact/edit_ndp" method:"post" tags:"Contact" summary:"Edit contact"`
 	Authorization string `json:"authorization" dc:"Authorization" in:"header"`
@@ -332,7 +330,6 @@ type EditContactsNDPRes struct {
 	api_v1.StandardRes
 }
 
-// 新删除联系人   contact/delete_ndp
 type DeleteContactsNDPReq struct {
 	g.Meta        `path:"/contact/delete_ndp" method:"post" tags:"Contact" summary:"Delete contacts"`
 	Authorization string   `json:"authorization" dc:"Authorization" in:"header"`

@@ -1,6 +1,7 @@
 package settings
 
 import (
+	"billionmail-core/internal/consts"
 	"billionmail-core/internal/service/public"
 	"context"
 	"github.com/gogf/gf/v2/frame/g"
@@ -51,6 +52,11 @@ func (c *ControllerV1) AddIPWhitelist(ctx context.Context, req *v1.AddIPWhitelis
 		res.SetError(gerror.New(public.LangCtx(ctx, "Failed to add IP to whitelist: {}", err)))
 		return
 	}
+
+	_ = public.WriteLog(ctx, public.LogParams{
+		Type: consts.LOGTYPE.Settings,
+		Log:  "Add whitelist ip :" + ip + "successfully",
+	})
 
 	res.SetSuccess(public.LangCtx(ctx, "IP added to whitelist successfully"))
 	return res, nil

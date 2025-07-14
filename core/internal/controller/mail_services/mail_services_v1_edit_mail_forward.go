@@ -1,6 +1,7 @@
 package mail_services
 
 import (
+	"billionmail-core/internal/consts"
 	"billionmail-core/internal/service/mail_service"
 	"billionmail-core/internal/service/public"
 	"context"
@@ -50,6 +51,12 @@ func (c *ControllerV1) EditMailForward(ctx context.Context, req *v1.EditMailForw
 		res.SetError(gerror.New(public.LangCtx(ctx, "modify mail forward failed: {}", err.Error())))
 		return res, nil
 	}
+
+	_ = public.WriteLog(ctx, public.LogParams{
+		Type: consts.LOGTYPE.MailForward,
+		Log:  "Modify mail forward :" + req.Address + " successfully",
+		Data: update,
+	})
 
 	res.SetSuccess(public.LangCtx(ctx, "modify mail forward success"))
 	return res, nil

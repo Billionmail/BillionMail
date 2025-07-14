@@ -2,6 +2,7 @@ package relay
 
 import (
 	"billionmail-core/api/relay/v1"
+	"billionmail-core/internal/consts"
 	"billionmail-core/internal/service/public"
 	"billionmail-core/internal/service/relay"
 	"context"
@@ -32,6 +33,11 @@ func (c *ControllerV1) DeleteRelayConfig(ctx context.Context, req *v1.DeleteRela
 		res.SetError(gerror.New(public.LangCtx(ctx, "Deleted successfully but failed to sync configuration: {}", err.Error())))
 		return res, nil
 	}
+	_ = public.WriteLog(ctx, public.LogParams{
+		Type: consts.LOGTYPE.SMTP,
+		Log:  "Relay configuration deleted successfully :" + info["smtp_name"].String() + "--" + info["sender_domain"].String(),
+	})
+
 	res.SetSuccess(public.LangCtx(ctx, "Relay configuration deleted successfully"))
 	return res, nil
 }

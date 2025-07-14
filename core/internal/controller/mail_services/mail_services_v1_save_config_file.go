@@ -1,6 +1,7 @@
 package mail_services
 
 import (
+	"billionmail-core/internal/consts"
 	"billionmail-core/internal/service/public"
 	"context"
 	"os"
@@ -59,6 +60,12 @@ func (c *ControllerV1) SaveConfigFile(ctx context.Context, req *v1.SaveConfigFil
 		res.SetError(gerror.New(public.LangCtx(ctx, "Failed to save file: {}", err.Error())))
 		return nil, err
 	}
+
+	_ = public.WriteLog(ctx, public.LogParams{
+		Type: consts.LOGTYPE.Service,
+		Log:  "The" + req.ServiceType + " configuration file was saved successfully",
+		Data: req,
+	})
 
 	res.SetSuccess(public.LangCtx(ctx, "The configuration file was saved successfully"))
 	return

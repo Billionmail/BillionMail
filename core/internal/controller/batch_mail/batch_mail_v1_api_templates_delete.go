@@ -2,6 +2,8 @@ package batch_mail
 
 import (
 	"billionmail-core/api/batch_mail/v1"
+	"billionmail-core/internal/consts"
+	"billionmail-core/internal/model/entity"
 	"billionmail-core/internal/service/public"
 	"context"
 	"github.com/gogf/gf/v2/database/gdb"
@@ -22,7 +24,8 @@ func (c *ControllerV1) ApiTemplatesDelete(ctx context.Context, req *v1.ApiTempla
 	}
 
 	// start transaction
-
+	var apiTemplate entity.ApiTemplates
+	_ = g.DB().Model("api_templates").Where("id", req.ID).Scan(&apiTemplate)
 	err = g.DB().Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
 		// delete API related send logs
 		_, err = tx.Model("api_mail_logs").Where("api_id", req.ID).Delete()
@@ -42,6 +45,12 @@ func (c *ControllerV1) ApiTemplatesDelete(ctx context.Context, req *v1.ApiTempla
 	if err != nil {
 		return nil, err
 	}
+
+	_ = public.WriteLog(ctx, public.LogParams{
+		Type: consts.LOGTYPE.SendAPI,
+		Log:  "Delete API template :" + apiTemplate.ApiName + " successfully",
+		Data: apiTemplate,
+	})
 
 	res.SetSuccess(public.LangCtx(ctx, "Delete API successfully"))
 	return res, nil

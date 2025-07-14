@@ -20,10 +20,10 @@ const (
 	StatusSuccess = 2
 	StatusFailed  = 3
 
-	BatchSize    = 100 // Number of items to process per batch
-	WorkerCount  = 20  // Number of worker goroutines
-	QueryTimeout = 15  // Query timeout duration (seconds)
-	SendTimeout  = 15  // Send timeout duration (seconds)
+	BatchSize    = 1000 // Number of items to process per batch
+	WorkerCount  = 20   // Number of worker goroutines
+	QueryTimeout = 15   // Query timeout duration (seconds)
+	SendTimeout  = 15   // Send timeout duration (seconds)
 	LockKey      = "api_mail_queue_lock"
 	LockTimeout  = 60 // Lock timeout duration (seconds)
 )
@@ -50,16 +50,19 @@ type WorkerPool struct {
 	jobs    chan ApiMailLog
 	wg      sync.WaitGroup
 	cache   *CacheData
+	//rateLimiter <-chan time.Time
 }
 
 // Create a new worker pool
-func NewWorkerPool(workers int, cache *CacheData) *WorkerPool {
-	return &WorkerPool{
-		workers: workers,
-		jobs:    make(chan ApiMailLog, BatchSize),
-		cache:   cache,
-	}
-}
+//func NewWorkerPool(workers int, cache *CacheData, ratePerMinute int) *WorkerPool {
+//	//interval := time.Minute / time.Duration(ratePerMinute)
+//	return &WorkerPool{
+//		workers: workers,
+//		jobs:    make(chan ApiMailLog, BatchSize),
+//		cache:   cache,
+//		//rateLimiter: time.Tick(interval), // The interval between each email
+//	}
+//}
 
 // Start the worker pool
 func (p *WorkerPool) Start(ctx context.Context) {
@@ -173,7 +176,7 @@ func ProcessApiMailQueue(ctx context.Context) {
 	ctx, cancel := context.WithTimeout(ctx, QueryTimeout*time.Second)
 	defer cancel()
 
-	// Process all pending emails in batche
+	// Process all pending emails in batches
 	offset := 0
 	for {
 		// Get a batch of pending emails
@@ -190,6 +193,12 @@ func ProcessApiMailQueue(ctx context.Context) {
 			break
 		}
 
+		// Group by sender
+		addresserMap := make(map[string][]ApiMailLog)
+		for _, log := range mailLogs {
+			addresserMap[log.Addresser] = append(addresserMap[log.Addresser], log)
+		}
+
 		// Preload data
 		cache, err := preloadData(ctx, mailLogs)
 		if err != nil {
@@ -197,27 +206,122 @@ func ProcessApiMailQueue(ctx context.Context) {
 			break
 		}
 
-		pool := NewWorkerPool(WorkerCount, cache)
-		pool.Start(ctx)
+		var wg sync.WaitGroup
+		maxSenderGoroutinesPerAddresser := 5
+		for addresser, logs := range addresserMap {
+			wg.Add(1)
+			go func(addresser string, logs []ApiMailLog) {
+				defer wg.Done()
 
-		// Add emails to the worker pool
-		for _, log := range mailLogs {
-			select {
-			case <-ctx.Done():
-				return
-			case pool.jobs <- log:
-			}
+				// 1. Create N senders
+				senders := make([]*mail_service.EmailSender, maxSenderGoroutinesPerAddresser)
+				for i := 0; i < maxSenderGoroutinesPerAddresser; i++ {
+					sender, err := mail_service.NewEmailSenderWithLocal(addresser)
+					if err != nil {
+
+						for _, log := range logs {
+							updateLogStatus(ctx, log.Id, StatusFailed, "Failed to create sender: "+err.Error())
+						}
+						return
+					}
+					senders[i] = sender
+				}
+
+				// 2. Divided into N parts
+				batchSize := (len(logs) + maxSenderGoroutinesPerAddresser - 1) / maxSenderGoroutinesPerAddresser
+				var innerWg sync.WaitGroup
+				for i := 0; i < maxSenderGoroutinesPerAddresser; i++ {
+					start := i * batchSize
+					end := start + batchSize
+					if start >= len(logs) {
+						break
+					}
+					if end > len(logs) {
+						end = len(logs)
+					}
+					batch := logs[start:end]
+					sender := senders[i]
+					innerWg.Add(1)
+					go func(batch []ApiMailLog, sender *mail_service.EmailSender) {
+						defer innerWg.Done()
+						for _, log := range batch {
+							apiTemplate, ok := cache.ApiTemplates[log.ApiId]
+							if !ok {
+								err := g.DB().Model("api_templates").Where("id", log.ApiId).Ctx(ctx).Scan(&apiTemplate)
+								if err != nil {
+									updateLogStatus(ctx, log.Id, StatusFailed, "Failed to get API template: "+err.Error())
+									continue
+								}
+								cache.ApiTemplates[log.ApiId] = apiTemplate
+							}
+							emailTemplate, ok := cache.EmailTemplates[apiTemplate.TemplateId]
+							if !ok {
+								err := g.DB().Model("email_templates").Where("id", apiTemplate.TemplateId).Ctx(ctx).Scan(&emailTemplate)
+								if err != nil {
+									updateLogStatus(ctx, log.Id, StatusFailed, "Failed to get email template: "+err.Error())
+									continue
+								}
+								cache.EmailTemplates[apiTemplate.TemplateId] = emailTemplate
+							}
+							contact, ok := cache.Contacts[log.Recipient]
+							if !ok {
+								err := g.DB().Model("bm_contacts").Where("email", log.Recipient).Ctx(ctx).Scan(&contact)
+								if err != nil {
+									updateLogStatus(ctx, log.Id, StatusFailed, "Failed to get contact info: "+err.Error())
+									continue
+								}
+								cache.Contacts[log.Recipient] = contact
+							}
+							content, subject := processMailContentAndSubject(ctx, emailTemplate.Content, apiTemplate.Subject, &apiTemplate, contact, log)
+							err := sendApiMailWithSender(ctx, &apiTemplate, subject, content, log, sender)
+							if err != nil {
+								updateLogStatus(ctx, log.Id, StatusFailed, "Failed to send email: "+err.Error())
+								continue
+							}
+							updateLogStatus(ctx, log.Id, StatusSuccess, "")
+						}
+					}(batch, sender)
+				}
+				innerWg.Wait()
+
+				// 3. Disable all senders
+				for _, sender := range senders {
+					if sender != nil {
+						sender.Close()
+					}
+				}
+			}(addresser, logs)
 		}
-
-		// Close the worker pool and wait for completion
-		close(pool.jobs)
-		pool.wg.Wait()
+		wg.Wait()
 
 		offset += len(mailLogs)
 		if len(mailLogs) < BatchSize {
 			break
 		}
 	}
+}
+
+// Use the sender that has been created
+func sendApiMailWithSender(ctx context.Context, apiTemplate *entity.ApiTemplates, subject string, content string, log ApiMailLog, sender *mail_service.EmailSender) error {
+	// generate message ID
+	messageId := "<" + log.MessageId + ">"
+	baseURL := domains.GetBaseURLBySender(log.Addresser)
+	apiTemplate_id := apiTemplate.Id + 1000000000
+	mailTracker := maillog_stat.NewMailTracker(content, apiTemplate_id, messageId, log.Recipient, baseURL)
+	mailTracker.TrackLinks()
+	mailTracker.AppendTrackingPixel()
+	content = mailTracker.GetHTML()
+
+	message := mail_service.NewMessage(subject, content)
+	message.SetMessageID(messageId)
+	if apiTemplate.FullName != "" {
+		message.SetRealName(apiTemplate.FullName)
+	}
+
+	if err := sender.Send(message, []string{log.Recipient}); err != nil {
+		return err
+	}
+	return nil
 }
 
 func preloadData(ctx context.Context, logs []ApiMailLog) (*CacheData, error) {

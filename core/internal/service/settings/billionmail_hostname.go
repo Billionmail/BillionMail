@@ -12,7 +12,6 @@ import (
 func CheckHostname() {
 	hostname := public.MustGetDockerEnv("BILLIONMAIL_HOSTNAME", "")
 	flagFile := public.AbsPath("../core/data/billionmail_hostname.txt")
-
 	if hostname == "" || hostname == "mail.example.com" {
 		_ = os.Remove(flagFile)
 		return
