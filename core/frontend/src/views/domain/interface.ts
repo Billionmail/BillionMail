@@ -15,6 +15,7 @@ export interface MailDomain {
 	active: number
 	default: number
 	email: string
+	hasbrandinfo: number
 	dns_records: DomainDnsRecords
 	cert_info: DomainCertInfo
 }

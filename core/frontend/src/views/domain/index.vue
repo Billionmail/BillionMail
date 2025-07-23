@@ -15,11 +15,8 @@
 				</n-data-table>
 			</template>
 			<template #pageRight>
-				<bt-table-page
-					v-model:page="tableParams.page"
-					v-model:page-size="tableParams.page_size"
-					:item-count="tableTotal"
-					@refresh="getTableData">
+				<bt-table-page v-model:page="tableParams.page" v-model:page-size="tableParams.page_size"
+					:item-count="tableTotal" @refresh="getTableData">
 				</bt-table-page>
 			</template>
 			<template #modal>
@@ -70,19 +67,18 @@ const columns = ref<DataTableColumns<MailDomain>>([
 			tooltip: true,
 		},
 		render: row => {
+			// <i class="i-domain:brand-info w-5 h-5 mr-1.25"></i>
 			return (
 				<>
-					<NButton
-						text
-						type="primary"
-						onClick={() => {
-							router.push({
-								path: '/mailbox',
-								state: { domain: row.domain },
-							})
-						}}>
-						{row.domain}
-					</NButton>
+					<div class="flex items-center">
+						{row.hasbrandinfo == 1 && <i class="i-domain:brand-info w-4 h-4 mr-1.25"></i>}
+						<NButton
+							text
+							type="primary"
+							onClick={() => handleEdit(row)}>
+							{row.domain}
+						</NButton>
+					</div>
 					{row.default ? (
 						<NTag size="small" class="ml-8px" bordered={false}>
 							Default
@@ -267,11 +263,20 @@ const handleSetDefault = (row: MailDomain) => {
 
 // Handle edit
 const handleEdit = (row: MailDomain) => {
-	formModalApi.setState({
+
+	/* formModalApi.setState({
 		row,
 		isEdit: true,
 	})
-	formModalApi.open()
+	formModalApi.open() */
+
+
+	router.push({
+		name: "EditDomain",
+		params: {
+			domain: row.domain
+		}
+	})
 }
 
 // Handle delete

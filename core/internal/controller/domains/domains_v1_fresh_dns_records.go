@@ -22,6 +22,6 @@ func (c *ControllerV1) FreshDNSRecords(ctx context.Context, req *v1.FreshDNSReco
 		Data: res.Data,
 	})
 
-	res.SetSuccess("Success")
+	res.SetSuccess(public.LangCtx(ctx, "Success"))
 	return
 }

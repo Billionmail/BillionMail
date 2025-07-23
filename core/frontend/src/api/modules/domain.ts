@@ -16,6 +16,8 @@ type DomainParams = {
 	quota: number
 	mailboxes: number
 	email: string
+	urls: string[]
+	hasbrandinfo?: number
 }
 
 export const createDomain = (params: DomainParams) => {
@@ -83,4 +85,18 @@ export const setDefaultDomain = (params: { domain: string }) => {
 			successMessage: true,
 		},
 	})
+}
+
+
+export const initAiConfiguration = (params: { domain: string, urls: string[] }) => {
+	return instance.post("/askai/project/create", params, {
+		fetchOptions: {
+			loading: 'Setting Default Domain, please wait...',
+			successMessage: true,
+		}
+	})
+}
+
+export const checkAiConfiguration = () => {
+	return instance.post("/askai/supplier/status")
 }

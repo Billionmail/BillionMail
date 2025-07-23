@@ -25,7 +25,8 @@ type AddMailboxReq struct {
 	g.Meta        `path:"/mailbox/create" tags:"MailBox" method:"post" summary:"Create mailbox" in:"body"`
 	Authorization string `json:"authorization" dc:"Authorization" in:"header"`
 	Domain        string `json:"domain" v:"required|domain" dc:"Domain"`
-	FullName      string `json:"full_name" v:"required|min-length:1|regex:[\\w-]{1,}" dc:"username"`
+	FullName      string `json:"full_name" v:"min-length:1" dc:"username"`
+	LocalPart     string `json:"local_part" v:"required|min-length:1|regex:[\\w-]{1,}" dc:"local_part"`
 	Password      string `json:"password" v:"required|min-length:8" dc:"Password"`
 	Active        int    `json:"active" v:"required" dc:"Status" d:"1"`
 	IsAdmin       int    `json:"isAdmin" v:"required" dc:"IsAdmin" d:"0"`
@@ -54,7 +55,8 @@ type UpdateMailboxReq struct {
 	g.Meta        `path:"/mailbox/update" tags:"MailBox" method:"post" summary:"Update mailbox" in:"body"`
 	Authorization string `json:"authorization" dc:"Authorization" in:"header"`
 	Domain        string `json:"domain" v:"required|domain" dc:"Domain"`
-	FullName      string `json:"full_name" v:"required|min-length:1|regex:[\\w-]{1,}" dc:"username"`
+	FullName      string `json:"full_name" v:"min-length:1" dc:"username"`
+	LocalPart     string `json:"local_part" v:"required|min-length:1|regex:[\\w-]{1,}" dc:"local_part"`
 	Password      string `json:"password" v:"required|min-length:8" dc:"Password"`
 	Active        int    `json:"active" v:"required" dc:"Status" d:"1"`
 	IsAdmin       int    `json:"isAdmin" v:"required" dc:"IsAdmin" d:"0"`

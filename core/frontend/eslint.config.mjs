@@ -27,7 +27,7 @@ export default [
 			},
 		},
 		rules: {
-			'no-console': 'warn', // Disallow console
+			'no-console': ['warn', { allow: ['warn', 'error'] }], // Disallow console
 			'no-unused-vars': 'warn', // Warn on unused variables
 			'no-fallthrough': 'off', // Allow fallthrough
 		},

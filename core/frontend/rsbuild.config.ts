@@ -12,7 +12,6 @@ import { pluginBasicSsl } from '@rsbuild/plugin-basic-ssl'
 import { getEnv, getServer } from './build/utils'
 
 const server = getServer()
-
 export default defineConfig({
 	plugins: [
 		pluginBabel({

@@ -1,6 +1,7 @@
 package contact
 
 import (
+	"billionmail-core/internal/service/domains"
 	"context"
 
 	"github.com/gogf/gf/v2/errors/gerror"
@@ -22,7 +23,7 @@ func (c *ControllerV1) GetGroupInfo(ctx context.Context, req *v1.GetGroupInfoReq
 		return res, nil
 	}
 
-	hostUrl := public.GethostUrl()
+	hostUrl := domains.GetBaseURL()
 
 	if group.Token == "" {
 		token := GfMd5Short()

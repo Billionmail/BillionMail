@@ -41,6 +41,6 @@ func (c *ControllerV1) SetSSL(ctx context.Context, req *v1.SetSSLReq) (res *v1.S
 		Data: req,
 	})
 
-	res.SetSuccess("Success")
+	res.SetSuccess(public.LangCtx(ctx, "Success"))
 	return
 }

@@ -25,3 +25,14 @@ type GetOperationLogRes struct {
 		Type  map[string]string     `json:"type"`
 	} `json:"data"`
 }
+
+type GetOutputLogReq struct {
+	g.Meta    `path:"/operation_log/output/list" method:"get" tags:"Output Log" summary:"List output logs"`
+	StartDate string `json:"start_date" v:"required" dc:"Start date(YYYY-MM-DD)"`
+	EndDate   string `json:"end_date" v:"required" dc:"End date(YYYY-MM-DD)"`
+	Keyword   string `json:"keyword" dc:"keyword"`
+}
+
+type GetOutputLogRes struct {
+	api_v1.StandardRes
+}

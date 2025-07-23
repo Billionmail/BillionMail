@@ -47,7 +47,8 @@
 			"modify": "Modify",
 			"config": "Config",
 			"help": "Help",
-			"settings": "Settings"
+			"settings": "Settings",
+			"clear": "Clear"
 		},
 		"useCopy": {
 			"noText": "No text to copy",
@@ -332,6 +333,34 @@
 			}
 		}
 	},
+	"template": {
+		"createTpl": {
+			"sourceUrl": "Source Url",
+			"useAiTools": "Use AI tools to help you automatically generate email content and improve your work efficiency.",
+			"create":"Create"
+		},
+		"ai": {
+			"title": "AI Template",
+			"welcomeMessage": "You can say: Create a welcome email for users joining {domain}",
+			"brandName": "BillionMail",
+			"buttons": {
+				"regenerate": "Regenerate",
+				"info": "Info",
+				"view": "View",
+				"edit": "Edit",
+				"copy": "Copy",
+				"copied": "Copied",
+				"apply":"Apply"
+			},
+			"tips": {
+				"saveShortcut": "[Ctrl + s] to save your change"
+			},
+			"loading": {
+				"message": "Loading... Please wait."
+			},
+			"send":"Send"
+		}
+	},
 	"contacts": {
 		"subscribers": {
 			"joinGroup": "Join Group",
@@ -531,11 +560,17 @@
 			"title": "Delete Domain",
 			"confirm": "Are you sure you want to delete domain [{domain}]?"
 		},
+		"waitAndCheckDomainStatus": {
+			"success": "Brand information initialization successful.",
+			"error": "Brand information initialization failed.",
+			"loading": "Initializing brand information, please wait..."
+		},
 		"form": {
 			"addTitle": "Add Domain",
 			"editTitle": "Edit Domain",
 			"domain": "Domain",
 			"domainPlaceholder": "Please enter domain, e.g.: billionmail.com",
+			"urlsPlacement": "Please enter url, e.g.: https://billionmail.com",
 			"aRecord": "A Record",
 			"aRecordPlaceholder": "Please enter A record, e.g.: mail.aapanel.com",
 			"quota": "Domain Quota",
@@ -549,7 +584,18 @@
 				"aRecordFailed": "A record resolution failed. Please check if the A record domain is resolved to the server IP",
 				"dnsSetup": "You need to add an A record in your DNS provider's console",
 				"cloudflare": "If using CloudFlare, please select [DNS only] when adding records"
-			}
+			},
+			"createBrandInfo":"Automatically create brand information",
+			"modelNotice":"To use this feature, you need to integrate an AI model first.",
+			"integrateImmediately": "Integrate immediately",
+			"modelDescription": "AI-driven information import automatically analyzes and creates brand information from email domains. After creation, you can modify it at your discretion.",
+			"extractBrand": "Extract brand and color",
+			"analyzeStructure": "Analyze content structure",
+			"importContent": "Import images and content",
+			"customLogo": "Use a custom logo (optional)",
+			"specifyDomain": "Specify a domain name",
+			"addMoreUrls": "Add more URLs",
+			"maxUrl":"Maximum of 3 URLs can be filled in."
 		},
 		"dns": {
 			"title": "DNS Records",
@@ -608,6 +654,121 @@
 				"chainCheck": "If the browser prompts that the certificate chain is incomplete, please check if the PEM certificate is correctly concatenated",
 				"pemFormat": "PEM format certificate = Domain certificate .crt + Root certificate (root_bundle).crt",
 				"defaultSite": "When no SSL default site is specified, sites without SSL configuration will use HTTPS to access sites with SSL enabled"
+			}
+		},
+		"edit": {
+			"pageTitle": "Domain / Edit domain",
+			"save": "Save",
+			"tabs": {
+				"domainConfiguration": "Domain Configuration",
+				"projectDetails": "Project Details",
+				"companyProfile": "Company Profile",
+				"styling": "Styling",
+				"sitemap": "Sitemap",
+				"footerSettings": "Footer Settings",
+				"aiSettings": "AI Settings"
+			},
+			"domainConfiguration": {
+				"title": "Mail Domain Configuration",
+				"domain": "Domain",
+				"domainQuota": "Domain Quota",
+				"mailboxCount": "MailBox Count",
+				"catchAll": "Catch all",
+				"autoCreateBrand": "Automatically create brand information",
+				"aiIntegrationWarning": "To use this feature, you need to integrate an AI model first.",
+				"integrateImmediately": "Integrate immediately",
+				"aiDescription": "AI-driven information import automatically analyzes and creates brand information from email domains. After creation, you can modify it at your discretion.",
+				"features": {
+					"extractBrand": "Extract brand and color",
+					"analyzeStructure": "Analyze content structure",
+					"importContent": "Import images and content",
+					"customLogo": "Use a custom logo (optional)"
+				},
+				"specifyDomain": "Specify a domain name",
+				"addMoreUrls": "Add more URLs",
+				"createNow":"Create Immediately",
+				"brandInfo":"Brand information",
+				"noBrandInfo":"No brand information available.",
+				"fillDomain":"Please fill in the domain name",
+				"fillValidDomain":"Please fill in a valid domain name"
+			},
+			"projectDetails": {
+				"title": "Project Details",
+				"projectName": "Project Name",
+				"description": "Description",
+				"brandLogos": "Brand Logos",
+				"logoSystem": "Logo System",
+				"logoSystemDesc": "Upload your brand's logo system to maintain consistent branding across your project",
+				"primaryLogo": "Primary Logo",
+				"primaryLogoDesc": "Horizontal version for headers",
+				"secondaryLogo": "Secondary Logo",
+				"secondaryLogoDesc": "Vertical/stacked version",
+				"favicon": "Favicon",
+				"faviconDesc": "Icon for browser tabs",
+				"loadingFailed": "loading failed",
+				"knowledgeBase": "Knowledge Base",
+				"newFile": "New File",
+				"edit": "Edit",
+				"preview": "Preview",
+				"newKnowledgeFile": "New Knowledge File",
+				"fileName": "File Name",
+				"day": "days",
+				"hour": "hours",
+				"minute": "minutes",
+				"ago": "ago",
+				"justNow": "just now",
+				"close": "Close",
+				"cancel": "Cancel",
+				"create": "Create",
+				"notice": "Notice",
+				"sureDel": "Are you sure you want to delete?"
+			},
+			"companyProfile": {
+				"title": "Company Detail",
+				"legalCompanyName": "Legal Company Name",
+				"website": "web_site",
+				"organizationNumber": "Organization Number",
+				"additionalInfo": "Additional Company Information",
+				"contactInfo": "Contact Information",
+				"contactEmail": "Contact Email",
+				"phoneNumber": "Phone Number",
+				"supportUrl": "Support URL"
+			},
+			"styling": {
+				"colorPalette": "Color Palette",
+				"accentColor": "Accent Color",
+				"textColor": "Text Color",
+				"pageBackground": "Page Background",
+				"containerBackground": "Container Background",
+				"linkFooterColor": "Link footer color",
+				"linkSocialColor": "Link social color",
+				"typography": "Typography",
+				"headingFont": "Heading Font",
+				"bodyFont": "Body Font",
+				"preview": "Preview:",
+				"previewText": "The quick brown fox jumps over the lazy dog",
+				"typographyGuidelines": "Typography Guidelines:",
+				"webSafeFonts": "Use web-safe fonts for better compatibility",
+				"fallbackFonts": "Always include fallback fonts for better performance"
+			},
+			"sitemap": {
+				"title": "Sitemap",
+				"addLink": "Add link"
+			},
+			"footerSettings": {
+				"title": "Footer Settings",
+				"additionalContent": "Additional Content",
+				"copyrightText": "Copyright Text"
+			},
+			"aiSettings": {
+				"title": "AI Settings",
+				"defaultInstructions": "Default AI Instructions",
+				"emailGenerationInstructions": "Instructions for Email Generation",
+				"instructionsDescription": "These instructions will be used as default guidelines when generating new emails. You can override these instructions for individual emails as needed."
+			},
+			"common": {
+				"daysAgo": "days ago",
+				"noBrandInfo":"There is no brand information for the current domain."
 			}
 		},
 		"api": {
@@ -901,6 +1062,25 @@
 				"deleting": "Deleting, please wait...",
 				"clearing": "Clearing, please wait..."
 			}
+		},
+		"aiModel":{
+			"modelId":"Model ID",
+			"modelAlias":"Model Alias",
+			"modelFeature":"Model Feature",
+			"contentLength":"Maximum Context Length",
+			"supplierTitle":"Supplier Title",
+			"supplierName":"Supplier Name",
+			"cancel":"Cancel",
+			"confirm":"Confirm",
+			"aPIKey":"API Key",
+			"apiPath":"Base Url",
+			"check":"Check",
+			"getKey":"Click to Get Key",
+			"example":"Example",
+			"saveAPI":"Save API",
+			"model":"Model",
+			"byDefault":"By default, all models are retrieved from /models",
+			"addModel":"Add Model"
 		}
 	},
 	"api": {

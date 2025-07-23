@@ -38,6 +38,7 @@
 </template>
 
 <script lang="tsx" setup>
+
 import { DataTableColumns, NButton, NFlex, NProgress, NTag } from 'naive-ui'
 import { useModal } from '@/hooks/modal/useModal'
 import { useTableData } from '@/hooks/useTableData'
@@ -47,7 +48,6 @@ import type { Task, TaskParams } from './interface'
 
 import TaskDetail from './components/TaskDetail.vue'
 import TaskStatus from './components/TaskStatus.vue'
-
 const { t } = useI18n()
 
 const { loading, tableParams, tableList, tableTotal, getTableData } = useTableData<

@@ -237,7 +237,8 @@ func processMailContentAndSubject(ctx context.Context, content, subject string, 
 		if !strings.Contains(content, "__UNSUBSCRIBE_URL__") && !strings.Contains(content, "{{ UnsubscribeURL . }}") {
 			content = public.AddUnsubscribeButton(content)
 		}
-		domain := domains.GetBaseURLBySender(req.Addresser)
+		//domain := domains.GetBaseURLBySender(req.Addresser)
+		domain := domains.GetBaseURL()
 		unsubscribeURL := fmt.Sprintf("%s/api/unsubscribe", domain)
 		groupURL := fmt.Sprintf("%s/api/unsubscribe/user_group", domain)
 		jwtToken, _ := batch_mail.GenerateUnsubscribeJWT(req.Recipient, apiTemplate.TemplateId, apiTemplate.Id)
@@ -283,7 +284,8 @@ func sendApiMail(ctx context.Context, apiTemplate *entity.ApiTemplates, subject,
 	// generate message ID
 	messageId := sender.GenerateMessageID()
 	// add 1 billion to prevent conflict with marketing task id
-	baseURL := domains.GetBaseURLBySender(addresser)
+	//baseURL := domains.GetBaseURLBySender(addresser)
+	baseURL := domains.GetBaseURL()
 	apiTemplate_id := apiTemplate.Id + 1000000000
 	mailTracker := maillog_stat.NewMailTracker(content, apiTemplate_id, messageId, recipient, baseURL)
 	mailTracker.TrackLinks()

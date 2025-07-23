@@ -12,4 +12,5 @@ import (
 
 type IOperationLogV1 interface {
 	GetOperationLog(ctx context.Context, req *v1.GetOperationLogReq) (res *v1.GetOperationLogRes, err error)
+	GetOutputLog(ctx context.Context, req *v1.GetOutputLogReq) (res *v1.GetOutputLogRes, err error)
 }

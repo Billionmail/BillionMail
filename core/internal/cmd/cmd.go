@@ -3,6 +3,7 @@ package cmd
 import (
 	"billionmail-core/internal/consts"
 	"billionmail-core/internal/controller/abnormal_recipient"
+	"billionmail-core/internal/controller/askai"
 	"billionmail-core/internal/controller/batch_mail"
 	"billionmail-core/internal/controller/campaign"
 	"billionmail-core/internal/controller/contact"
@@ -31,18 +32,19 @@ import (
 	"billionmail-core/internal/service/rspamd"
 	"billionmail-core/internal/service/timers"
 	"context"
+	"crypto/tls"
 	"fmt"
+	"net/http"
+	"net/http/httputil"
+	"net/url"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/net/ghttp"
 	"github.com/gogf/gf/v2/os/gcmd"
 	"github.com/gogf/gf/v2/util/gconv"
-	"net/http"
-	"net/http/httputil"
-	"net/url"
-	"path/filepath"
-	"strings"
-	"sync"
-	"time"
 )
 
 var (
@@ -248,6 +250,7 @@ var (
 					settings.NewV1(),
 					subscribe_list.NewV1(),
 					operation_log.NewV1(),
+					askai.NewV1(),
 				)
 			})
 
@@ -366,7 +369,52 @@ var (
 			public.SelfSignedCert().Generate()
 
 			// Enable HTTPS
-			s.EnableHTTPS(public.AbsPath(filepath.Join(consts.SSL_PATH, "cert.pem")), public.AbsPath(filepath.Join(consts.SSL_PATH, "key.pem")))
+			defaultCrtPair, _ := tls.LoadX509KeyPair(public.AbsPath(consts.SSL_PATH, "cert.pem"), public.AbsPath(consts.SSL_PATH, "key.pem"))
+			crtMap := make(map[string]*tls.Certificate)
+			crtMapMutex := sync.RWMutex{}
+			s.EnableHTTPS(public.AbsPath(consts.SSL_PATH, "cert.pem"), public.AbsPath(consts.SSL_PATH, "key.pem"), &tls.Config{
+				GetCertificate: func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
+					domain := info.ServerName
+
+					crtMapMutex.RLock()
+					if crtPair, ok := crtMap[domain]; ok {
+						crtMapMutex.RUnlock()
+						return crtPair, nil
+					}
+					crtMapMutex.RUnlock()
+
+					if exists, _ := g.DB().Model("domain").Where("a_record", public.FormatMX(domain)).Exist(); !exists {
+						return &defaultCrtPair, nil
+					}
+
+					g.Log().Debug(ctx, "Get TLS certificate for domain", domain)
+
+					crtMapMutex.Lock()
+					defer crtMapMutex.Unlock()
+
+					if crt, ok := crtMap[domain]; ok {
+						return crt, nil
+					}
+
+					crtPath := public.AbsPath(consts.SSL_PATH, public.FormatMX(domain), "fullchain.pem")
+					keyPath := public.AbsPath(consts.SSL_PATH, public.FormatMX(domain), "privkey.pem")
+
+					if !public.FileExists(crtPath) || !public.FileExists(keyPath) {
+						return &defaultCrtPair, nil
+					}
+
+					crtPair, err := tls.LoadX509KeyPair(crtPath, keyPath)
+
+					if err != nil {
+						g.Log().Warning(ctx, "Failed to load TLS certificate for domain", domain, err)
+						return &defaultCrtPair, nil
+					}
+
+					crtMap[domain] = &crtPair
+
+					return &crtPair, nil
+				},
+			})
 
 			// attempt add http port
 			if httpPort, err := public.DockerEnv("HTTP_PORT"); err == nil && httpPort != "" {

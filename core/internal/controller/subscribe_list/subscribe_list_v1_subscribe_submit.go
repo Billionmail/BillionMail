@@ -2,6 +2,7 @@ package subscribe_list
 
 import (
 	"billionmail-core/api/subscribe_list/v1"
+	"billionmail-core/internal/service/domains"
 	"billionmail-core/internal/service/public"
 	"context"
 	"fmt"
@@ -20,7 +21,7 @@ func (c *ControllerV1) SubscribeSubmit(ctx context.Context, req *v1.SubscribeSub
 		return
 	}
 
-	hostUrl := public.GethostUrl()
+	hostUrl := domains.GetBaseURL()
 
 	// 2. Find contact by email and group
 	contact, err := getContactByEmailAndGroup(req.Email, group.Id)

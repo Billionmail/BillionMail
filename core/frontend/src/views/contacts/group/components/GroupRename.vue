@@ -13,7 +13,7 @@
 <script lang="ts" setup>
 import { useModal } from '@/hooks/modal/useModal'
 import { updateGroup } from '@/api/modules/contacts/group'
-import type { Group } from '../interface'
+import type { Group } from '../types/base'
 
 const { t } = useI18n()
 

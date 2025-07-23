@@ -1,6 +1,7 @@
 package subscribe_list
 
 import (
+	"billionmail-core/internal/service/domains"
 	"billionmail-core/internal/service/public"
 	"context"
 	"fmt"
@@ -38,7 +39,7 @@ func (c *ControllerV1) SubscribeConfirm(ctx context.Context, req *v1.SubscribeCo
 		g.RequestFromCtx(ctx).Response.RedirectTo("/invalid.html", 302)
 		return
 	}
-	hostUrl := public.GethostUrl()
+	hostUrl := domains.GetBaseURL()
 	if contact.Status == 1 {
 		if group.AlreadyUrl != "" {
 			g.RequestFromCtx(ctx).Response.RedirectTo(group.AlreadyUrl, 302)

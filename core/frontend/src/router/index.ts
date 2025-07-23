@@ -1,5 +1,6 @@
 import { useGlobalStore, useUserStore } from '@/store'
 import { setLanguage } from '@/i18n'
+import { clearPendingRequests } from '@/api'
 import { routes } from '@/router/router'
 import router from '@/router/router'
 import loadingBar from '@/config/loadingBar'
@@ -9,6 +10,8 @@ const whitePathList = ['/login']
 
 router.beforeEach(async (to, from, next) => {
 	loadingBar.start()
+
+	clearPendingRequests()
 
 	const globalStore = useGlobalStore()
 

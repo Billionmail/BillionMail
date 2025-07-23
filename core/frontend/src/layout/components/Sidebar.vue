@@ -121,7 +121,7 @@ const renderIcon = (key: string) => {
 }
 
 const handleUpdateMenu = (key: string) => {
-	if (key === 'logout') {
+	if (key === 'logout') {        
 		userStore.logout()
 	}
 	if (key === 'webmail') {

@@ -12,6 +12,7 @@
 			v-model:value="sender"
 			:loading="loading"
 			:options="senderOptions"
+			:filterable="true"
 			@update:value="handleUpdateSender">
 		</n-select>
 	</div>

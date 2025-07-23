@@ -128,16 +128,28 @@ func Add(ctx context.Context, domain *v1.Domain) error {
 	return err
 }
 
-func Update(ctx context.Context, domain *v1.Domain) error {
+func Update(ctx context.Context, updateData map[string]interface{}) error {
+
+	domainName, _ := updateData["domain"].(string)
+
 	_, err := g.DB().Model("domain").
 		Ctx(ctx).
-		Where("domain", domain.Domain).
-		Update(domain)
+		Where("domain", domainName).
+		Update(updateData)
+
+	if err != nil {
+		return err
+	}
 
 	// catchall
-	err = setCatchall(ctx, domain.Domain, domain.Catchall)
+	if catchall, ok := updateData["catchall"].(string); ok && catchall != "" {
+		err = setCatchall(ctx, domainName, catchall)
+		if err != nil {
+			return err
+		}
+	}
 
-	return err
+	return nil
 }
 
 func Delete(ctx context.Context, domainName string) error {

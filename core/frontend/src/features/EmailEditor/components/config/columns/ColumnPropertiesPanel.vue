@@ -5,7 +5,11 @@
 			<n-button class="ml-10px" :disabled="cells.length <= 1" @click="delCell">Delete</n-button>
 		</div>
 		<n-tabs ref="tabsRef" v-model:value="activeCellIndex" class="mb-8px" type="line">
-			<n-tab-pane v-for="(cell, index) in cells" :key="cell.key" :name="index" :tab="`Column ${index + 1}`">
+			<n-tab-pane
+				v-for="(cell, index) in cells"
+				:key="cell.key"
+				:name="index"
+				:tab="`Column ${index + 1}`">
 			</n-tab-pane>
 		</n-tabs>
 		<div class="py-16px">
@@ -19,8 +23,14 @@ import { useConfig } from '../../../hooks/useConfig'
 import { useSetData } from '../../../hooks/useSetData'
 import { useNormalForm } from '../../style/useNormalForm'
 
-const { selectedBlockKey, columnsMap, cellMap, cellConfigMap, applyNewWidthColumnsInCell, delColumnsInCell } =
-	useConfig()
+const {
+	selectedBlockKey,
+	columnsMap,
+	cellMap,
+	cellConfigMap,
+	applyNewWidthColumnsInCell,
+	delColumnsInCell,
+} = useConfig()
 const { autoSaveFn } = useSetData()
 
 const tabsRef = useTemplateRef('tabsRef')
@@ -124,9 +134,18 @@ const currentCellStyle = computed({
 	},
 	set(newVal) {
 		cellConfigMap.value[currentCellKey.value].style = newVal
-		autoSaveFn()
 	},
 })
+
+watch(
+	() => [currentCellStyle.value],
+	() => {
+		autoSaveFn()
+	},
+	{
+		deep: true,
+	}
+)
 
 const [StyleForm] = useNormalForm([
 	{

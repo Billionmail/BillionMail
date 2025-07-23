@@ -112,6 +112,7 @@ export type BaseStyle = {
 	boxSizing?: 'border-box' | 'content-box' // 盒模型
 	textDecoration?: string
 	margin?: string
+	fontFamily?: string
 }
 
 /**

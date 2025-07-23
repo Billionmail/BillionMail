@@ -16,6 +16,6 @@ export function getEnv(key: string) {
  * @returns
  */
 export function getServer() {
-	const name = getEnv('SERVER_NAME')
+	const name = getEnv('SERVER_NAME') || '192.168.66.124'
 	return serverConfig[name]
 }

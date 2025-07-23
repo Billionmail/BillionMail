@@ -25,7 +25,7 @@ const (
 	QueryTimeout = 15   // Query timeout duration (seconds)
 	SendTimeout  = 15   // Send timeout duration (seconds)
 	LockKey      = "api_mail_queue_lock"
-	LockTimeout  = 60 // Lock timeout duration (seconds)
+	LockTimeout  = 60 * 2 // Lock timeout duration (seconds)
 )
 
 type ApiMailLog struct {
@@ -160,10 +160,31 @@ func ProcessApiMailQueueWithLock(ctx context.Context) {
 		return
 	}
 
-	// Set expiration time
-	g.Redis().Expire(ctx, LockKey, int64(LockTimeout))
+	// // Set expiration time
+	// g.Redis().Expire(ctx, LockKey, int64(LockTimeout))
+
+	// defer func() {
+	// 	g.Redis().Del(ctx, LockKey)
+	// }()
+
+	// Start the goroutine for lease renewal
+	stopRenew := make(chan struct{})
+	go func() {
+		ticker := time.NewTicker(60 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				// Renewal lock
+				g.Redis().Expire(ctx, LockKey, int64(LockTimeout))
+			case <-stopRenew:
+				return
+			}
+		}
+	}()
 
 	defer func() {
+		close(stopRenew)
 		g.Redis().Del(ctx, LockKey)
 	}()
 
@@ -177,14 +198,14 @@ func ProcessApiMailQueue(ctx context.Context) {
 	defer cancel()
 
 	// Process all pending emails in batches
-	offset := 0
+	lastMaxId := int64(0)
 	for {
 		// Get a batch of pending emails
 		var mailLogs []ApiMailLog
 		err := g.DB().Model("api_mail_logs").
 			Where("status = ?", StatusPending).
+			Where("id > ?", lastMaxId).
 			Order("id ASC").
-			Offset(offset).
 			Limit(BatchSize).
 			Ctx(ctx).
 			Scan(&mailLogs)
@@ -218,7 +239,7 @@ func ProcessApiMailQueue(ctx context.Context) {
 				for i := 0; i < maxSenderGoroutinesPerAddresser; i++ {
 					sender, err := mail_service.NewEmailSenderWithLocal(addresser)
 					if err != nil {
-
+						g.Log().Errorf(ctx, "Failed to create sender for %s: %v", addresser, err)
 						for _, log := range logs {
 							updateLogStatus(ctx, log.Id, StatusFailed, "Failed to create sender: "+err.Error())
 						}
@@ -294,7 +315,11 @@ func ProcessApiMailQueue(ctx context.Context) {
 		}
 		wg.Wait()
 
-		offset += len(mailLogs)
+		// lastMaxId = mailLogs[len(mailLogs)-1].Id
+		if len(mailLogs) > 0 {
+			lastMaxId = mailLogs[len(mailLogs)-1].Id
+		}
+		// offset += len(mailLogs)
 		if len(mailLogs) < BatchSize {
 			break
 		}
@@ -305,7 +330,8 @@ func ProcessApiMailQueue(ctx context.Context) {
 func sendApiMailWithSender(ctx context.Context, apiTemplate *entity.ApiTemplates, subject string, content string, log ApiMailLog, sender *mail_service.EmailSender) error {
 	// generate message ID
 	messageId := "<" + log.MessageId + ">"
-	baseURL := domains.GetBaseURLBySender(log.Addresser)
+	//baseURL := domains.GetBaseURLBySender(log.Addresser)
+	baseURL := domains.GetBaseURL()
 	apiTemplate_id := apiTemplate.Id + 1000000000
 	mailTracker := maillog_stat.NewMailTracker(content, apiTemplate_id, messageId, log.Recipient, baseURL)
 	mailTracker.TrackLinks()
@@ -399,7 +425,8 @@ func sendApiMail(ctx context.Context, apiTemplate *entity.ApiTemplates, subject 
 	messageId := "<" + log.MessageId + ">"
 
 	// add 1 billion to prevent conflict with marketing task id
-	baseURL := domains.GetBaseURLBySender(log.Addresser)
+	//baseURL := domains.GetBaseURLBySender(log.Addresser)
+	baseURL := domains.GetBaseURL()
 	apiTemplate_id := apiTemplate.Id + 1000000000
 	mailTracker := maillog_stat.NewMailTracker(content, apiTemplate_id, messageId, log.Recipient, baseURL)
 	mailTracker.TrackLinks()
@@ -454,7 +481,8 @@ func processMailContentAndSubject(ctx context.Context, content, subject string, 
 		if !strings.Contains(content, "__UNSUBSCRIBE_URL__") && !strings.Contains(content, "{{ UnsubscribeURL . }}") {
 			content = public.AddUnsubscribeButton(content)
 		}
-		domain := domains.GetBaseURLBySender(log.Addresser)
+		//domain := domains.GetBaseURLBySender(log.Addresser)
+		domain := domains.GetBaseURL()
 		unsubscribeURL := fmt.Sprintf("%s/api/unsubscribe", domain)
 		groupURL := fmt.Sprintf("%s/api/unsubscribe/user_group", domain)
 		jwtToken, _ := GenerateUnsubscribeJWT(log.Recipient, apiTemplate.TemplateId, apiTemplate.Id)

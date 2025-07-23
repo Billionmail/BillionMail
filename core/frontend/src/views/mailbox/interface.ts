@@ -6,6 +6,7 @@ export interface MailBoxParams {
 }
 
 export interface MailBox {
+	name: string
 	username: string
 	password: string
 	password_encode: string

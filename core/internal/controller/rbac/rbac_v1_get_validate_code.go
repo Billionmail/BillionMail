@@ -26,7 +26,7 @@ func (c *ControllerV1) GetValidateCode(ctx context.Context, req *v1.GetValidateC
 		return
 	}
 
-	res.SetSuccess("Success")
+	res.SetSuccess(public.LangCtx(ctx, "Success"))
 
 	return
 }

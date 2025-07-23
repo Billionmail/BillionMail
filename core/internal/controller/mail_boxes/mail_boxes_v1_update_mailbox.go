@@ -12,16 +12,18 @@ func (c *ControllerV1) UpdateMailbox(ctx context.Context, req *v1.UpdateMailboxR
 	res = &v1.UpdateMailboxRes{}
 
 	mailbox := &v1.Mailbox{
-		Username:  req.FullName + "@" + req.Domain,
+		Username:  req.LocalPart + "@" + req.Domain,
 		Password:  req.Password, // If empty, password won't be updated
 		FullName:  req.FullName,
 		IsAdmin:   req.IsAdmin,
 		Quota:     int64(req.Quota),
-		LocalPart: req.FullName,
+		LocalPart: req.LocalPart,
 		Domain:    req.Domain,
 		Active:    req.Active,
 	}
-
+	if mailbox.FullName == "" {
+		mailbox.FullName = req.LocalPart
+	}
 	if err = mail_boxes.Update(ctx, mailbox); err != nil {
 		return nil, err
 	}

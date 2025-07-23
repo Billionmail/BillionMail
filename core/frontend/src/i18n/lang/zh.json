@@ -47,7 +47,8 @@
 			"modify": "修改",
 			"config": "配置",
 			"help": "Help",
-			"settings": "设置"
+			"settings": "设置",
+			"clear": "清空"
 		},
 		"useCopy": {
 			"noText": "没有要复制的文本",
@@ -336,6 +337,34 @@
 			}
 		}
 	},
+	"template": {
+		"createTpl": {
+			"sourceUrl": "引用域名",
+			"useAiTools": "使用人工智能工具帮您自动生成邮件内容，提升工作您的效率",
+			"create":"创建"
+		},
+		"ai": {
+			"title": "AI 模板",
+			"welcomeMessage": "您可以说：创建一份欢迎用户加入{domain}的欢迎邮件",
+			"brandName": "BillionMail",
+			"buttons": {
+				"regenerate": "重新生成",
+				"info": "信息",
+				"view": "预览",
+				"edit": "编辑",
+				"copy": "复制",
+				"copied": "已复制",
+				"apply":"应用模板"
+			},
+			"tips": {
+				"saveShortcut": "通过 [Ctrl + s] 保存您的修改"
+			},
+			"loading": {
+				"message": "加载中... 请稍后"
+			},
+			"send":"发送"
+		}
+	},
 	"contacts": {
 		"subscribers": {
 			"joinGroup": "加入分组",
@@ -531,14 +560,20 @@
 			"confirm": "确定要删除域名【{domain}】吗？",
 			"confirmButton": "删除"
 		},
+		"waitAndCheckDomainStatus": {
+			"success": "品牌信息初始化成功",
+			"error": "品牌信息初始化失败",
+			"loading": "正在初始化品牌信息，请稍后..."
+		},
 		"form": {
 			"addTitle": "添加域名",
 			"editTitle": "编辑域名",
 			"domain": "域名",
 			"domainPlaceholder": "请输入域名，例如：billionmail.com",
+			"urlsPlacement": "请输入域名，例如：http://billionmail.com",
 			"aRecord": "A记录",
 			"aRecordPlaceholder": "请输入A记录，例如：mailAapanelCom",
-			"quota": "域名配额",
+			"quota": "域名配额",    
 			"mailboxCount": "邮箱数量",
 			"globalCatch": "Catch All",
 			"globalCatchPlaceholder": "捕获不存在的邮件，转发至此邮件",
@@ -549,7 +584,23 @@
 				"aRecordFailed": "提示A记录解析失败。请检查填写的A记录域名是否已解析到服务器 IP",
 				"dnsSetup": "需要在您的DNS服务提供商控制台添加A记录",
 				"cloudflare": "如果使用CloudFlare，请在添加记录时选择【仅DNS】"
-			}
+			},
+			"createBrandInfo":"自动创建品牌信息",
+			"modelNotice":"要使用此功能，您需要先进行大模型配置",
+			"integrateImmediately": "立即配置",
+			"modelDescription": "AI驱动的信息导入会自动分析并从邮件域名创建品牌信息。创建后，您可以根据需要进行修改",
+			"extractBrand": "提取品牌和颜色",
+			"analyzeStructure": "分析内容结构",
+			"importContent": "导入图片和内容",
+			"customLogo": "使用自定义徽标（可选）",
+			"specifyDomain": "指定域名",
+			"addMoreUrls": "添加更多URL",
+			"maxUrl":"最多只能填写3个URL",
+			"createImmediately":"立即创建",
+			"brandInfo":"品牌信息",
+			"noBrandInfo":"暂无品牌信息",
+			"fillDomain":"请填写域名",
+			"fillValidDomain":"请填写正确的域名"
 		},
 		"dns": {
 			"title": "DNS 记录",
@@ -609,6 +660,116 @@
 				"chainCheck": "如果浏览器提示证书链不完整，请检查 PEM 证书是否正确拼接",
 				"pemFormat": "PEM 格式证书 = 域名证书 Crt + 根证书 (root_bundle)Crt",
 				"defaultSite": "当未指定 SSL 默认站点时，未配置 SSL 的站点将使用 HTTPS 访问启用了 SSL 的站点"
+			}
+		},
+		"edit": {
+			"pageTitle": "域名 / 编辑域名",
+			"save": "保存",
+			"tabs": {
+				"domainConfiguration": "域名配置",
+				"projectDetails": "项目详情",
+				"companyProfile": "公司资料",
+				"styling": "样式设置",
+				"sitemap": "站点地图",
+				"footerSettings": "页脚设置",
+				"aiSettings": "AI设置"
+			},
+			"domainConfiguration": {
+				"title": "邮件域名配置",
+				"domain": "域名",
+				"domainQuota": "域名配额",
+				"mailboxCount": "邮箱数量",
+				"catchAll": "全部接收",
+				"autoCreateBrand": "自动创建品牌信息",
+				"aiIntegrationWarning": "要使用此功能，您需要先集成AI模型。",
+				"integrateImmediately": "立即集成",
+				"aiDescription": "AI驱动的信息导入会自动分析并从邮件域名创建品牌信息。创建后，您可以根据需要进行修改。",
+				"features": {
+					"extractBrand": "提取品牌和颜色",
+					"analyzeStructure": "分析内容结构",
+					"importContent": "导入图片和内容",
+					"customLogo": "使用自定义徽标（可选）"
+				},
+				"specifyDomain": "指定域名",
+				"addMoreUrls": "添加更多URL"
+			},
+			"projectDetails": {
+				"title": "项目详情",
+				"projectName": "项目名称",
+				"description": "描述",
+				"brandLogos": "品牌徽标",
+				"logoSystem": "徽标系统",
+				"logoSystemDesc": "上传您品牌的徽标系统，以在整个项目中保持一致的品牌形象",
+				"primaryLogo": "主要徽标",
+				"primaryLogoDesc": "用于页眉的水平版本",
+				"secondaryLogo": "次要徽标",
+				"secondaryLogoDesc": "垂直/堆叠版本",
+				"favicon": "网站图标",
+				"faviconDesc": "浏览器标签页图标",
+				"loadingFailed": "加载失败",
+				"knowledgeBase": "知识库",
+				"newFile": "新建文件",
+				"edit": "编辑",
+				"preview": "预览",
+				"newKnowledgeFile": "新建知识文件",
+				"fileName": "文件名",
+				"day": "天",
+				"hour": "小时",
+				"minute": "分",
+				"ago": "前",
+				"justNow": "刚刚",
+				"close": "关闭",
+				"cancel": "取消",
+				"create": "创建",
+				"notice": "提示",
+				"sureDel": "是否确认删除?"
+			},
+			"companyProfile": {
+				"title": "公司详情",
+				"legalCompanyName": "法定公司名称",
+				"website": "网站",
+				"organizationNumber": "组织编号",
+				"additionalInfo": "附加公司信息",
+				"contactInfo": "联系信息",
+				"contactEmail": "联系邮箱",
+				"phoneNumber": "电话号码",
+				"supportUrl": "支持URL"
+			},
+			"styling": {
+				"colorPalette": "调色板",
+				"accentColor": "强调色",
+				"textColor": "文本颜色",
+				"pageBackground": "页面背景",
+				"containerBackground": "容器背景",
+				"linkFooterColor": "页脚链接颜色",
+				"linkSocialColor": "社交链接颜色",
+				"typography": "字体排版",
+				"headingFont": "标题字体",
+				"bodyFont": "正文字体",
+				"preview": "预览：",
+				"previewText": "快速的棕色狐狸跳过懒惰的狗",
+				"typographyGuidelines": "字体排版指南：",
+				"webSafeFonts": "使用网络安全字体以获得更好的兼容性",
+				"fallbackFonts": "始终包含备用字体以获得更好的性能"
+			},
+			"sitemap": {
+				"title": "站点地图",
+				"addLink": "添加链接"
+			},
+			"footerSettings": {
+				"title": "页脚设置",
+				"additionalContent": "附加内容",
+				"copyrightText": "版权文本"
+			},
+			"aiSettings": {
+				"title": "AI设置",
+				"defaultInstructions": "默认AI指令",
+				"emailGenerationInstructions": "邮件生成指令",
+				"instructionsDescription": "这些指令将用作生成新邮件时的默认指南。您可以根据需要为单个邮件覆盖这些指令。"
+			},
+			"common": {
+				"daysAgo": "天前",
+				"noBrandInfo":"当前域名没有品牌信息."
 			}
 		},
 		"api": {
@@ -895,6 +1056,25 @@
 				"deleting": "正在删除，请稍候...",
 				"clearing": "正在清空，请稍候..."
 			}
+		},
+		"aiModel":{
+			"modelId":"模型ID",
+			"modelAlias":"模型别名",
+			"modelFeature":"模型功能",
+			"contentLength":"最大上下文长度",
+			"supplierTitle":"服务商标题",
+			"supplierName":"服务商名称",
+			"cancel":"取消",
+			"confirm":"确认",
+			"aPIKey":"API密钥",
+			"apiPath":"API地址",
+			"check":"检查",
+			"getKey":"点击获取API密钥",
+			"example":"示例",
+			"saveAPI":"保存API",
+			"model":"模型",
+			"byDefault":"默认从/models获取所有模型",
+			"addModel":"添加模型"
 		}
 	},
 	"api": {

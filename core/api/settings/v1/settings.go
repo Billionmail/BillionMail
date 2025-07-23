@@ -173,3 +173,22 @@ type AddIPWhitelistReq struct {
 type AddIPWhitelistRes struct {
 	api_v1.StandardRes
 }
+
+type SetReverseProxyDomainReq struct {
+	g.Meta        `path:"/settings/set_reverse_proxy_domain" tags:"Settings" method:"post" summary:"Set reverse proxy domain"`
+	Authorization string `json:"authorization" in:"header" dc:"Authorization" v:"required"`
+	Domain        string `json:"domain" dc:"Domain" v:"required"`
+}
+
+type SetReverseProxyDomainRes struct {
+	api_v1.StandardRes
+}
+
+type GetReverseProxyDomainReq struct {
+	g.Meta        `path:"/settings/get_reverse_proxy_domain" tags:"Settings" method:"get" summary:"Get reverse proxy domain"`
+	Authorization string `json:"authorization" in:"header" dc:"Authorization" v:"required"`
+}
+
+type GetReverseProxyDomainRes struct {
+	api_v1.StandardRes
+}

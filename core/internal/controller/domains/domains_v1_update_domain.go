@@ -18,25 +18,46 @@ func (c *ControllerV1) UpdateDomain(ctx context.Context, req *v1.UpdateDomainReq
 		return nil, gerror.New("Domain cannot be empty")
 	}
 
-	domain := &v1.Domain{
-		Domain:       req.Domain,
-		ARecord:      "mail." + req.Domain,
-		Mailboxes:    req.Mailboxes,
-		MailboxQuota: int64(req.MailboxQuota),
-		Quota:        int64(req.Quota),
-		RateLimit:    req.RateLimit,
-		Active:       req.Active,
-		Catchall:     req.Catchall,
+	updateData := map[string]interface{}{}
+
+	domainName := req.Domain
+	updateData["domain"] = domainName
+
+	if req.Catchall != "" {
+		updateData["catchall"] = req.Catchall
 	}
 
-	if err = domains.Update(ctx, domain); err != nil {
+	if req.Mailboxes > 0 {
+		updateData["mailboxes"] = req.Mailboxes
+	}
+
+	if req.MailboxQuota > 0 {
+		updateData["mailbox_quota"] = req.MailboxQuota
+	}
+
+	if req.Quota > 0 {
+		updateData["quota"] = req.Quota
+	}
+
+	if req.RateLimit > 0 {
+		updateData["rate_limit"] = req.RateLimit
+	}
+
+	updateData["active"] = req.Active
+
+	// URLs
+	if len(req.Urls) > 0 {
+		updateData["urls"] = req.Urls
+	}
+	updateData["hasbrandinfo"] = req.HasBrandInfo
+
+	if err = domains.Update(ctx, updateData); err != nil {
 		return nil, err
 	}
-
 	_ = public.WriteLog(ctx, public.LogParams{
 		Type: consts.LOGTYPE.Domain,
 		Log:  "Update domain :" + req.Domain + " successfully",
-		Data: domain,
+		Data: updateData,
 	})
 
 	res.SetSuccess("Domain updated successfully")

@@ -2,7 +2,6 @@ package contact
 
 import (
 	"billionmail-core/api/contact/v1"
-	"billionmail-core/internal/controller/subscribe_list"
 	"billionmail-core/internal/service/contact"
 	"billionmail-core/internal/service/public"
 	"context"
@@ -31,7 +30,7 @@ func (c *ControllerV1) ListGroups(ctx context.Context, req *v1.ListGroupsReq) (r
 		res.SetError(gerror.New(public.LangCtx(ctx, "Failed to get group list {}", err.Error())))
 		return
 	}
-	hostUrl := public.GethostUrl()
+	//hostUrl := domains.GetBaseURL()
 	// Convert group information
 	groupInfos := make([]*v1.ContactGroupInfo, 0, len(groups))
 	for _, group := range groups {
@@ -59,34 +58,34 @@ func (c *ControllerV1) ListGroups(ctx context.Context, req *v1.ListGroupsReq) (r
 				g.Log().Error(ctx, "Failed to update the group token: %v", err)
 			}
 		}
-		if group.WelcomeHtml == "" {
-			html, drag := subscribe_list.GetDefaultTemplate(1)
-			group.WelcomeHtml = html
-			group.WelcomeDrag = drag
-		}
-		if group.ConfirmHtml == "" {
-			html, drag := subscribe_list.GetDefaultTemplate(2)
-			group.ConfirmHtml = html
-			group.ConfirmDrag = drag
-		}
-		if group.SuccessUrl == "" {
-			group.SuccessUrl = hostUrl + "/subscribe_success.html"
-		}
-		if group.ConfirmUrl == "" {
-			group.ConfirmUrl = hostUrl + "/subscribe_confirm.html"
-		}
-		if group.AlreadyUrl == "" {
-			group.AlreadyUrl = hostUrl + "/already_subscribed.html"
-		}
-		if group.SubscribeForm == "" {
-			group.SubscribeForm = subscribe_list.GetSubscribeFormCode(group.Token)
-		}
-		if group.WelcomeSubject == "" {
-			group.WelcomeSubject = "Welcome Aboard!"
-		}
-		if group.ConfirmSubject == "" {
-			group.ConfirmSubject = "Confirm Your Subscription"
-		}
+		//if group.WelcomeHtml == "" {
+		//	html, drag := subscribe_list.GetDefaultTemplate(1)
+		//	group.WelcomeHtml = html
+		//	group.WelcomeDrag = drag
+		//}
+		//if group.ConfirmHtml == "" {
+		//	html, drag := subscribe_list.GetDefaultTemplate(2)
+		//	group.ConfirmHtml = html
+		//	group.ConfirmDrag = drag
+		//}
+		//if group.SuccessUrl == "" {
+		//	group.SuccessUrl = hostUrl + "/subscribe_success.html"
+		//}
+		//if group.ConfirmUrl == "" {
+		//	group.ConfirmUrl = hostUrl + "/subscribe_confirm.html"
+		//}
+		//if group.AlreadyUrl == "" {
+		//	group.AlreadyUrl = hostUrl + "/already_subscribed.html"
+		//}
+		//if group.SubscribeForm == "" {
+		//	group.SubscribeForm = subscribe_list.GetSubscribeFormCode(group.Token)
+		//}
+		//if group.WelcomeSubject == "" {
+		//	group.WelcomeSubject = "Welcome Aboard!"
+		//}
+		//if group.ConfirmSubject == "" {
+		//	group.ConfirmSubject = "Confirm Your Subscription"
+		//}
 
 		contactGroup := v1.ContactGroup{
 			Id:               group.Id,
@@ -115,7 +114,7 @@ func (c *ControllerV1) ListGroups(ctx context.Context, req *v1.ListGroupsReq) (r
 			TotalCount:       activeCount + unsubscribeCount,
 			ActiveCount:      activeCount,
 			UnsubscribeCount: unsubscribeCount,
-			SubscribeLink:    hostUrl + "/subscribe_form.html?token=" + group.Token,
+			//SubscribeLink:    hostUrl + "/subscribe_form.html?token=" + group.Token,
 		}
 		groupInfos = append(groupInfos, groupInfo)
 	}

@@ -2,6 +2,7 @@ package domains
 
 import (
 	"billionmail-core/internal/service/domains"
+	"billionmail-core/internal/service/public"
 	"context"
 
 	"billionmail-core/api/domains/v1"
@@ -28,7 +29,7 @@ func (c *ControllerV1) GetDomain(ctx context.Context, req *v1.GetDomainReq) (res
 	res.Data.Total = total
 	res.Data.List = domainList
 
-	res.SetSuccess("Success")
+	res.SetSuccess(public.LangCtx(ctx, "Success"))
 
 	return
 }

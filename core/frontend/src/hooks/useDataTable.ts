@@ -61,6 +61,7 @@ export const useDataTable = <T = DataTableRowData, K = TableParams>(
 				tableTotal.value = isNumber(response.total) ? response.total : 0
 			}
 		} finally {
+			tableKeys.value = []
 			loadingRef.value = false
 		}
 	}, 300)

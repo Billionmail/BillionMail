@@ -23,6 +23,7 @@ var (
 		DockerApi         string
 		Language          string
 		Login             string
+		PostfixQueue      string
 	}{
 		Task:              "Email Marketing Task",
 		Template:          "Email Template",
@@ -40,6 +41,7 @@ var (
 		DockerApi:         "Docker Api",
 		Language:          "Language",
 		Login:             "Login",
+		PostfixQueue:      "Postfix Queue",
 	}
 )
 var (

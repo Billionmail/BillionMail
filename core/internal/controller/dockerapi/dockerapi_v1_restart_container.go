@@ -29,7 +29,7 @@ func (c *ControllerV1) RestartContainer(ctx context.Context, req *v1.RestartCont
 		Log:  fmt.Sprintf("Restart container: %s successfully", req.ContainerID),
 	})
 
-	res.SetSuccess("Success")
+	res.SetSuccess(public.LangCtx(ctx, "Success"))
 
 	return
 }

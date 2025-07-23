@@ -6,9 +6,11 @@
 
 <script setup lang="ts">
 import { useConfig } from '../../hooks/useConfig'
+import { useSetData } from '../../hooks/useSetData'
 import { useNormalForm } from '../style/useNormalForm'
 
 const { pageConfig } = useConfig()
+const { autoSaveFn } = useSetData()
 
 const pageStyle = computed({
 	get() {
@@ -18,6 +20,16 @@ const pageStyle = computed({
 		pageConfig.value.style = newVal
 	},
 })
+
+watch(
+	() => [pageStyle.value],
+	() => {
+		autoSaveFn()
+	},
+	{
+		deep: true,
+	}
+)
 
 const [StyleForm] = useNormalForm([
 	{

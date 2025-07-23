@@ -600,7 +600,9 @@ func GetCwdPath() string {
 }
 
 // Get absolute path
-func AbsPath(p string) string {
+func AbsPath(ps ...string) string {
+	p := filepath.Join(ps...)
+
 	// In Linux, if the path starts with "/", it is an absolute path
 	if strings.HasPrefix(p, "/") {
 		return p
@@ -751,8 +753,8 @@ func GetLanguageList() []map[string]interface{} {
 		{
 			"name":   "zh",
 			"google": "zh-cn",
-			"title":  "Simplified Chinese",
-			"cn":     "Simplified Chinese",
+			"title":  "简体中文",
+			"cn":     "简体中文",
 		},
 		{
 			"name":   "en",

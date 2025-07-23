@@ -8,6 +8,7 @@ import (
 	mail_v1 "billionmail-core/api/mail_boxes/v1"
 	"billionmail-core/internal/model/entity"
 	"billionmail-core/internal/service/batch_mail"
+	"billionmail-core/internal/service/domains"
 	"billionmail-core/internal/service/mail_boxes"
 	"billionmail-core/internal/service/mail_service"
 	"billionmail-core/internal/service/public"
@@ -173,17 +174,6 @@ func sendMail(ctx context.Context, emailHtml, email, subject, confirmUrl string)
 
 	// 3. Handle unsubscribe link
 	content := emailHtml
-	//if !strings.Contains(content, "{{ UnsubscribeURL . }}") {
-	//	content = public.AddUnsubscribeButton(content)
-	//}
-
-	//// 4. Generate unsubscribe JWT and link
-	//jwtToken, _ := batch_mail.GenerateUnsubscribeJWT(email, templateId, 0)
-	//domain := domains.GetBaseURL()
-	//unsubscribeURL := fmt.Sprintf("%s/api/unsubscribe", domain)
-	//groupURL := fmt.Sprintf("%s/api/unsubscribe/user_group", domain)
-	//unsubscribeJumpURL := fmt.Sprintf("%s/unsubscribe.html?jwt=%s&email=%s&url_type=%s&url_unsubscribe=%s",
-	//	domain, jwtToken, email, groupURL, unsubscribeURL)
 
 	// 5. Render content and subject
 	engine := batch_mail.GetTemplateEngine()
@@ -250,7 +240,7 @@ func getEmailFromToken(token string) (string, string, error) {
 
 // Build confirmation URL
 func buildConfirmUrl(token string) string {
-	hostUrl := public.GethostUrl()
+	hostUrl := domains.GetBaseURL()
 	return fmt.Sprintf("%s/api/subscribe/confirm?token=%s", hostUrl, token)
 }
 
@@ -326,7 +316,7 @@ func GetSubscribeFormCode(groupToken string) string {
 
 	// Link to corresponding page
 	var submitUrl string
-	hostUrl := public.GethostUrl()
+	hostUrl := domains.GetBaseURL()
 	submitUrl = hostUrl + "/api/subscribe/submit?token=" + groupToken
 
 	newContent := strings.ReplaceAll(content, "{{ SubmitURL . }}", submitUrl)

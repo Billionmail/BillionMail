@@ -1,6 +1,8 @@
 package timers
 
 import (
+	"billionmail-core/internal/service/abnormal_recipient"
+	"billionmail-core/internal/service/askai"
 	"billionmail-core/internal/service/batch_mail"
 	"billionmail-core/internal/service/collect"
 	"billionmail-core/internal/service/domains"
@@ -9,12 +11,12 @@ import (
 	"billionmail-core/internal/service/mail_service"
 	"billionmail-core/internal/service/maillog_stat"
 	"billionmail-core/internal/service/relay"
-	"billionmail-core/internal/service/settings"
 	"billionmail-core/internal/service/warmup"
 	"context"
+	"time"
+
 	"github.com/gogf/gf/os/gtimer"
 	"github.com/gogf/gf/v2/frame/g"
-	"time"
 )
 
 // Start Start initializes and starts all the necessary timers for the service.
@@ -83,26 +85,10 @@ func Start(ctx context.Context) (err error) {
 	})
 
 	// Fix Postfix main configuration and Rspamd DKIM signing config
-	gtimer.AddOnce(800*time.Millisecond, func() {
-		g.Log().Debug(ctx, "Fixing Postfix main configuration and Rspamd DKIM signing config")
-
-		defer func() {
-			g.Log().Debug(ctx, "Fixing Postfix main configuration and Rspamd DKIM signing config done")
-		}()
-
+	gtimer.AddOnce(5*time.Second, func() {
 		mail_service.FixPostfixMainConfig(ctx)
 		mail_service.FixRspamdDKIMSigningConfig(ctx)
 		mail_service.FixDovecotSSLConfig(ctx)
-		err := relay.SyncRelayConfigsToPostfix(ctx)
-		if err != nil {
-			g.Log().Warning(ctx, "SyncRelayConfigsToPostfix failed: ", err)
-			err = nil
-		}
-		err = mail_service.SyncBccToPostfix(ctx)
-		if err != nil {
-			g.Log().Warning(ctx, "SyncBccToPostfix failed: ", err)
-			err = nil
-		}
 	})
 
 	// ========== Mail task processing: one executor per task ==========
@@ -143,11 +129,11 @@ func Start(ctx context.Context) (err error) {
 	// fail2ban access logs detection
 	gtimer.AddOnce(800*time.Millisecond, fail2ban.NewAccessLogDetection().Start)
 
-	gtimer.AddOnce(500*time.Millisecond, func() {
-		settings.CheckHostname()
-	})
-	gtimer.Add(24*time.Hour, func() {
-		settings.CheckHostname()
+	// askai timers
+	gtimer.Add(5*time.Second, askai.AutoGetProjectInfo)
+
+	gtimer.Add(30*time.Minute, func() {
+		abnormal_recipient.AbnormalRecipientAutoStat(context.Background())
 	})
 
 	g.Log().Debug(ctx, "All timers started successfully")

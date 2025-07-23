@@ -3,8 +3,10 @@ export interface Subscriber {
 	email: string
 	group_id: number
 	active: number
+	status: number
 	task_id: number
 	create_time: number
+	group_name: string
 	attribs: Record<string, string> | null
 	groups: Array<{
 		id: number
@@ -17,7 +19,7 @@ export interface SubscriberParams {
 	page_size: number
 	group_id: number
 	keyword: string
-	status: number
+	active: number
 }
 
 export interface SubscriberTrend {

@@ -20,7 +20,7 @@ export const createGroup = (data: {
 	create_type: number
 	name: string
 	description: string
-	status: number
+	double_optin: number
 	file_data?: string
 	file_type?: string
 }) => {

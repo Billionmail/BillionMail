@@ -22,6 +22,7 @@ func (c *ControllerV1) DeleteAbnormalRecipient(ctx context.Context, req *v1.Dele
 		Log:  "Delete abnormal recipient :" + abnormalRecipient.Recipient + " successfully",
 		Data: abnormalRecipient,
 	})
+
 	res.SetSuccess(public.LangCtx(ctx, "The exception recipient was removed successfully"))
 	return
 }

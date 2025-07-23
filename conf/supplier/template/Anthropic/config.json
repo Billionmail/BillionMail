@@ -1,0 +1,13 @@
+{
+    "supplierTitle": "Anthropic",
+    "supplierName": "Anthropic",
+    "baseUrl": "",
+    "baseUrlExample": "https://api.anthropic.com/v1/",
+    "isUseUrlExample": true,
+    "apiKey": "",
+    "home": "https://www.anthropic.com",
+    "help": "https://docs.anthropic.com/en/api/openai-sdk",
+    "status": true,
+    "sort": 3,
+    "icon":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAABGdBTUEAALGPC/xhBQAAACBjSFJNAAB6JgAAgIQAAPoAAACA6AAAdTAAAOpgAAA6mAAAF3CculE8AAAB3VBMVEX6+vf6+vf6+vf6+vf6+vf6+vf6+vf6+vf6+vf6+vf6+vf6+vf6+vf6+vf6+vf6+vf6+vf6+vf6+vf6+vf6+vf6+vf6+vf6+vf6+vf5+fb7+/j4+PXp6ebm5uTm5uPu7uvx8e78/PnPz8xISEc9PTw7OzpnZ2bv7+z9/frAwL5CQkE8PDyGhoUUFBQWFhYVFRUiIiL+/vvk5OI/Pz4YGBh3d3aGhoStrasdHR0ZGRkXFxc3Nzfd3dvMzMkpKSn19fJjY2JOTk01NTWfn5309PFfX17Pz80rKyuwsK54eHdVVVXw8O2pqaccHBuKiolCQkLq6ue+vrshISElJSXDw8Hj4+Ho6OVFRUSFhYTt7epNTUwVFRZ7e3qCgoCxsa8eHh4qKirOzsz///2WlpU6Ojng4N3JycYoKCf29vM2NjaZmZegoJ6ioqAgICAaGhqjo6Hz8/BbW1vS0tAuLi1ZWVjy8u+lpaQbGxuOjo0mJibHx8Th4d48PDtQUE+BgYB/f36AgH58fHs0NDR+fny1tbMfHx+/v73///yFhYPi4t/FxcNoaGcSEhITExNOTk7KysekpKJXV1bi4uBdXVxzc3JERENDQ0OEhIL39/SsrKpGRkXs7Ors7Onu7uz///+QUuYeAAAAGHRSTlMAD3XY+/zaeRGW+pv5fNfe/f7Z34CgE+HQwITTAAAAAWJLR0Sen7KjCwAAAAd0SU1FB+cBBBE2Mim4Ns8AAAHoSURBVDjLhZJpUxNBEIYHDBKDqAjizACBIRiXSHpYGSXbHqAoeGK8WKMCiteqeIFR4hVUUBTwAG/ifzWVZEkMYfN8marut57ummpCSkrXuGhBytaWuwkpWeehq+KqcJPS9dQBTyXZQB3ZSFzOgU2EFiEbYJRzbj+sQIDW1Td4Gylt8jbU1xUwMNHsa9nm3661Bnb4mgVbaeBtQZDtrfrOjmCwja80cG8AlJK7GN8NEPDy/ADTOkPKMHDPXn3ffgx1aizf0NUt8cBBNHq0Q4el7O7KMzDR24ehI0elPHZcP3ES+3rtNW2D6Ec4FT59Bs+e0893APaL/w18wAS4ICIX4dJlygcBzAGeG2Da0DBeuToyck3B9Rv6zVs4PJRZM2Ow/BJv37k7OnhP3X+gPXwkpd/KMTAxNo7KUEkMJR9HtSdPcXwsvWbaICZQgUyBKvZMf/4CcEJkDTzsA3z5Kh6PT75+gxDn9C2AL8ztANOmprH93XuRRJsBaPmgf4zh9FRqzZTBmp2b/9SYHvY5FlRftKav83Ozlm3gC4umOZr5uui37z9+/hK//5iLC3zZEFlasuy7iiYSf1mylIgsG1imlUO2VPxoi5x9FdnsHKgm5R6nvquGuCschpRtqSXEXVldtcr8rTW15B8LiprxbD6EzwAAACV0RVh0ZGF0ZTpjcmVhdGUAMjAyMy0wMS0wNFQxNzo1NDo1MCswMDowMOYX4h8AAAAldEVYdGRhdGU6bW9kaWZ5ADIwMjMtMDEtMDRUMTc6NTQ6NTArMDA6MDCXSlqjAAAAV3pUWHRSYXcgcHJvZmlsZSB0eXBlIGlwdGMAAHic4/IMCHFWKCjKT8vMSeVSAAMjCy5jCxMjE0uTFAMTIESANMNkAyOzVCDL2NTIxMzEHMQHy4BIoEouAOoXEXTyQjWVAAAAAElFTkSuQmCC"
+}

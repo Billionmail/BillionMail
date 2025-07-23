@@ -14,4 +14,7 @@ dist/
 
 deploy.js
 
-build/config.ts
+# build/config.ts
+
+pnpm-lock.yaml
+yarn.lock

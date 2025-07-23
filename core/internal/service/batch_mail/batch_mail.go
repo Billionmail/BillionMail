@@ -377,6 +377,10 @@ func CreateTaskWithRecipients(ctx context.Context, req *v1.CreateTaskReq, addTyp
 				return gerror.New(public.LangCtx(ctx, "Failed to update recipient count for task {}: {}", taskId, err.Error()))
 			}
 		}
+
+		if totalRecipients == 0 {
+			return gerror.New(public.LangCtx(ctx, "No recipients found, task creation is not allowed"))
+		}
 		return nil
 	})
 

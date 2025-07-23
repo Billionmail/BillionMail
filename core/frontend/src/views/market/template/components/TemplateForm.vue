@@ -30,7 +30,7 @@
 							{{ $t('common.actions.preview') }}
 						</n-button>
 					</div>
-					<div class="flex-1">
+					<div class="flex-1 overflow-hidden">
 						<template v-if="form.add_type === 1">
 							<email-editor v-model:config="form.drag_data" v-model:html="form.html_content">
 							</email-editor>

@@ -4,7 +4,10 @@
 			{{ $t('layout.menu.contacts') }}
 		</div>
 		<n-breadcrumb class="mb-4px">
-			<n-breadcrumb-item>{{ groupInfo?.name || '--' }}</n-breadcrumb-item>
+			<n-breadcrumb-item>
+				<router-link to="/contacts/group">Group</router-link>
+			</n-breadcrumb-item>
+			<n-breadcrumb-item @click="onBack">{{ groupInfo?.name || '--' }}</n-breadcrumb-item>
 			<n-breadcrumb-item>{{ $t('contacts.settings.title') }}</n-breadcrumb-item>
 		</n-breadcrumb>
 		<n-tabs v-model:value="activeTab" type="line">
@@ -28,6 +31,7 @@ import SubscribeForm from './components/SubscribeForm.vue'
 import SubscribeSettings from './components/SubscribeSettings.vue'
 
 const route = useRoute()
+const router = useRouter()
 
 const id = computed(() => {
 	return Number(route.params.id)
@@ -42,6 +46,10 @@ const getInfo = async () => {
 	if (isObject<GroupInfo>(res)) {
 		groupInfo.value = res
 	}
+}
+
+const onBack = () => {
+	router.back()
 }
 
 createContext({
