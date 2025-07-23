@@ -184,11 +184,11 @@ function handleAddModel() {
 				}
 
 				&:hover {
-					background: #eef9ee;
+					background: var(--color-primary-2);
 				}
 
 				&.active {
-					background: #eef9ee;
+					background: var(--color-primary-2);
 				}
 
 				.item-icon {
