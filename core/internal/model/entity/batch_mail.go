@@ -7,6 +7,21 @@ type ContactGroup struct {
 	Description string `json:"description" dc:"Description"`
 	CreateTime  int    `json:"create_time" dc:"Create Time"`
 	UpdateTime  int    `json:"update_time" dc:"Update Time"`
+	Token       string `json:"token"      dc:"Subscription Token"`
+	DoubleOptin int    `json:"double_optin" dc:"Double Opt-in Status(0: Single Opt-in 1: Double Opt-in)"`
+	WelcomeHtml string `json:"welcome_mail_html" dc:"Welcome Email Html"`
+	WelcomeDrag string `json:"welcome_mail_drag" dc:"Welcome Email Drag"`
+
+	WelcomeSubject   string `json:"welcome_subject" dc:"Welcome Email Subject"`
+	SendWelcomeEmail int    `json:"send_welcome_email" dc:"Whether to send a welcome email"`
+	ConfirmSubject   string `json:"confirm_subject" dc:"Confirmation Email Subject"`
+
+	ConfirmHtml   string `json:"confirm_mail_html" dc:"Confirmation Email Html"`
+	ConfirmDrag   string `json:"confirm_mail_drag" dc:"Confirmation Email Drag"`
+	SuccessUrl    string `json:"success_url" dc:"Success URL"`
+	ConfirmUrl    string `json:"confirm_url" dc:"Confirmation URL"`
+	AlreadyUrl    string `json:"already_url" dc:"Already Subscribed URL"`
+	SubscribeForm string `json:"subscribe_form" dc:"Subscription Form HTML"`
 }
 
 // Contact Entity
@@ -34,26 +49,32 @@ type EmailTemplate struct {
 
 // EmailTask Entity
 type EmailTask struct {
-	Id             int    `json:"id"              dc:"Task ID"`
-	TaskName       string `json:"task_name"       dc:"Task Name"`
-	Addresser      string `json:"addresser"       dc:"Sender"`
-	Subject        string `json:"subject"         dc:"Subject"`
-	FullName       string `json:"full_name"       dc:"Sender Name"`
-	RecipientCount int    `json:"recipient_count" dc:"Recipient Count"`
-	TaskProcess    int    `json:"task_process"    dc:"Task Status"`
-	Pause          int    `json:"pause"           dc:"Pause Status"`
-	TemplateId     int    `json:"template_id"     dc:"Template ID"`
-	IsRecord       int    `json:"is_record"       dc:"Record to Outbox"`
-	Unsubscribe    int    `json:"unsubscribe"     dc:"Allow Unsubscribe"`
-	Threads        int    `json:"threads"         dc:"Thread Count"`
-	Etypes         string `json:"etypes"          dc:"Contact Group IDs"`
-	TrackOpen      int    `json:"track_open"      dc:"Track Opens"`
-	TrackClick     int    `json:"track_click"     dc:"Track Clicks"`
-	StartTime      int    `json:"start_time"      dc:"Start Time"`
-	CreateTime     int    `json:"create_time"     dc:"Create Time"`
-	UpdateTime     int    `json:"update_time"     dc:"Update Time"`
-	Remark         string `json:"remark"          dc:"Remark"`
-	Active         int    `json:"active"          dc:"Status"`
+	Id              int    `json:"id"              dc:"Task ID"`
+	TaskName        string `json:"task_name"       dc:"Task Name"`
+	Addresser       string `json:"addresser"       dc:"Sender"`
+	Subject         string `json:"subject"         dc:"Subject"`
+	FullName        string `json:"full_name"       dc:"Sender Name"`
+	RecipientCount  int    `json:"recipient_count" dc:"Recipient Count"`
+	TaskProcess     int    `json:"task_process"    dc:"Task Status"`
+	Pause           int    `json:"pause"           dc:"Pause Status"`
+	TemplateId      int    `json:"template_id"     dc:"Template ID"`
+	IsRecord        int    `json:"is_record"       dc:"Record to Outbox"`
+	Unsubscribe     int    `json:"unsubscribe"     dc:"Allow Unsubscribe"`
+	Threads         int    `json:"threads"         dc:"Thread Count"`
+	Etypes          string `json:"etypes"          dc:"Contact Group IDs"`
+	TrackOpen       int    `json:"track_open"      dc:"Track Opens"`
+	TrackClick      int    `json:"track_click"     dc:"Track Clicks"`
+	StartTime       int    `json:"start_time"      dc:"Start Time"`
+	CreateTime      int    `json:"create_time"     dc:"Create Time"`
+	UpdateTime      int    `json:"update_time"     dc:"Update Time"`
+	Remark          string `json:"remark"          dc:"Remark"`
+	Active          int    `json:"active"          dc:"Status"`
+	AddType         int    `json:"addType"          description:""`
+	SendsCount      int    `json:"sendsCount"       description:""`
+	DeliveredCount  int    `json:"deliveredCount"   description:""`
+	BouncedCount    int    `json:"bouncedCount"     description:""`
+	DeferredCount   int    `json:"deferredCount"    description:""`
+	StatsUpdateTime int    `json:"statsUpdateTime"  description:""`
 }
 
 // RecipientInfo Entity

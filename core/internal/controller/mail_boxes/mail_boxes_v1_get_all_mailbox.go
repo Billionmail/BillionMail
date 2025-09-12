@@ -3,6 +3,7 @@ package mail_boxes
 import (
 	"billionmail-core/api/mail_boxes/v1"
 	"billionmail-core/internal/service/mail_boxes"
+	"billionmail-core/internal/service/public"
 	"context"
 	"fmt"
 )
@@ -17,7 +18,7 @@ func (c *ControllerV1) GetAllMailbox(ctx context.Context, req *v1.GetAllMailboxR
 		return
 	}
 
-	res.SetSuccess("Success")
+	res.SetSuccess(public.LangCtx(ctx, "Success"))
 
 	return
 }

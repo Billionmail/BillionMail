@@ -5,32 +5,6 @@ import (
 	"github.com/gogf/gf/v2/frame/g"
 )
 
-// `CREATE TABLE IF NOT EXISTS api_templates (
-// 	id SERIAL PRIMARY KEY,
-// 	api_key VARCHAR(64) NOT NULL,
-// 	api_name VARCHAR(255) NOT NULL,
-// 	template_id INTEGER NOT NULL,
-// 	subject TEXT NOT NULL,
-// 	addresser VARCHAR(320) NOT NULL,
-// 	full_name VARCHAR(255),
-// 	unsubscribe SMALLINT NOT NULL DEFAULT 0,
-// 	track_open SMALLINT NOT NULL DEFAULT 1,
-// 	track_click SMALLINT NOT NULL DEFAULT 1,
-// 	active SMALLINT NOT NULL DEFAULT 1,
-// 	create_time INTEGER NOT NULL DEFAULT EXTRACT(EPOCH FROM NOW()),
-// 	update_time INTEGER NOT NULL DEFAULT EXTRACT(EPOCH FROM NOW()),
-// 	UNIQUE(api_key)
-// )`,
-
-// `CREATE TABLE IF NOT EXISTS api_mail_logs (
-// 	id SERIAL PRIMARY KEY,
-// 	api_id INTEGER NOT NULL,
-// 	recipient VARCHAR(320) NOT NULL,
-// 	message_id TEXT NOT NULL,
-// 	addresser VARCHAR(320) NOT NULL,
-// 	send_time INTEGER NOT NULL DEFAULT EXTRACT(EPOCH FROM NOW())
-// )`,
-
 type ApiTemplates struct {
 	Id                int    `json:"id" dc:"id"`
 	ApiKey            string `json:"api_key" dc:"api key"`
@@ -167,11 +141,24 @@ type ApiTemplatesDeleteRes struct {
 
 type ApiMailSendReq struct {
 	g.Meta    `path:"/batch_mail/api/send" method:"post" tags:"ApiMail" summary:"call api send mail"`
-	ApiKey    string `json:"x-api-key" dc:"API Key" in:"header"`
-	Addresser string `json:"addresser" dc:"addresser"`
-	Recipient string `json:"recipient" dc:"recipient"`
+	ApiKey    string            `json:"x-api-key" dc:"API Key" in:"header"`
+	Addresser string            `json:"addresser" dc:"addresser"`
+	Recipient string            `json:"recipient" dc:"recipient"`
+	Attribs   map[string]string `json:"attribs" dc:"Custom properties"`
 }
 
 type ApiMailSendRes struct {
+	api_v1.StandardRes
+}
+
+type ApiMailBatchSendReq struct {
+	g.Meta     `path:"/batch_mail/api/batch_send" method:"post" tags:"ApiMail" summary:"call api batch send mail"`
+	ApiKey     string            `json:"x-api-key" dc:"API Key" in:"header"`
+	Addresser  string            `json:"addresser" dc:"addresser"`
+	Recipients []string          `json:"recipients" dc:"recipients"`
+	Attribs    map[string]string `json:"attribs" dc:"Custom properties"`
+}
+
+type ApiMailBatchSendRes struct {
 	api_v1.StandardRes
 }

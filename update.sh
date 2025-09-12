@@ -206,11 +206,6 @@ Update_BillionMail(){
             exit 1
         fi
     fi
-
-    echo -e "Stop BillionMail, please wait..."
-    sleep 3
-    ${DOCKER_COMPOSE} down
-
     
     echo -e "\033[34m🚀 Committing current changes...\033[0m"
     # Set user.name and user.email if they are not set
@@ -264,6 +259,10 @@ Update_BillionMail(){
         Red_Error "docker-compose.yml not found."
     fi
 
+    echo -e "Stop BillionMail, please wait..."
+    sleep 3
+    ${DOCKER_COMPOSE} down
+
     echo -e "Getting the latest image, please wait..."
     ${DOCKER_COMPOSE} pull
 
@@ -281,6 +280,17 @@ Update_BillionMail(){
     chmod +x ${PWD_d}/bm.sh
 
 }
+
+Update_config() { 
+
+    if ! grep -q "^RETENTION_DAYS=" .env; then
+        echo "" >> .env
+        echo "# Number of days to keep log backup" >> .env
+        echo "RETENTION_DAYS=7" >> .env
+    fi
+
+}
+
 
 echo "
 +-----------------------------------------------------------------------------
@@ -305,3 +315,5 @@ Docker_Compose_Check
 Docker_Status_Check
 
 Update_BillionMail
+
+Update_config

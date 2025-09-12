@@ -60,4 +60,8 @@ export interface SystemInfo {
 		version: number
 		status: boolean
 	}
+	reverse_proxy_domain: {
+		current_url: string
+		reverse_proxy: string
+	}
 }

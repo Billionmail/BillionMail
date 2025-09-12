@@ -11,6 +11,7 @@ const routesReflectList = [
 	'MailDomain',
 	'MailBoxes',
 	'SMTP',
+	'Logs',
 	'Settings',
 	'Automation',
 ]

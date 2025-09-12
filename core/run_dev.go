@@ -159,6 +159,11 @@ func (fw *FileWatcher) hasMatchingExtension(filename string) bool {
 		if ext == e {
 			return true
 		}
+
+		// Check if the extension is a directory (e.g., "public/dist/")
+		if strings.HasSuffix(e, "/") && strings.HasPrefix(filename, filepath.Join(ROOT_PATH, e)) {
+			return true
+		}
 	}
 	return false
 }
@@ -312,7 +317,7 @@ func main() {
 	}
 
 	// Create file watcher
-	watcher, err := NewFileWatcher(AbsPath(rootPath), AbsPath(scriptPath), []string{".go", ".html"})
+	watcher, err := NewFileWatcher(AbsPath(rootPath), AbsPath(scriptPath), []string{".go", ".html", "public/dist/"})
 	if err != nil {
 		logger.Fatalf("Failed to create file watcher: %v", err)
 	}

@@ -1,10 +1,12 @@
 package batch_mail
 
 import (
+	"billionmail-core/internal/consts"
 	"billionmail-core/internal/model/entity"
 	"billionmail-core/internal/service/batch_mail"
 	"billionmail-core/internal/service/domains"
 	"billionmail-core/internal/service/mail_service"
+	"database/sql"
 	"strings"
 
 	"billionmail-core/internal/service/public"
@@ -53,27 +55,29 @@ func (c *ControllerV1) SendTestEmail(ctx context.Context, req *v1.SendTestEmailR
 		domain, jwtToken, req.Recipient, groupURL, unsubscribeURL)
 
 	var contact entity.Contact
+	subject := req.Subject
 	err = g.DB().Model("bm_contacts").Where("email", req.Recipient).Scan(&contact)
-	if err != nil {
+	if err != nil && err != sql.ErrNoRows {
 		g.Log().Error(ctx, "Failed to get contact: %v", err)
 	}
+	if contact.Id != 0 {
+		engine := batch_mail.GetTemplateEngine()
+		content, err = engine.RenderEmailTemplate(ctx, content, &contact, nil, unsubscribeJumpURL)
+		if err != nil {
+			res.Code = 500
+			res.SetError(gerror.New(public.LangCtx(ctx, "failed to render email content: {}", err)))
+			return
+		}
 
-	engine := batch_mail.GetTemplateEngine()
-	personalizedContent, err := engine.RenderEmailTemplate(ctx, content, &contact, nil, unsubscribeJumpURL)
-	if err != nil {
-		res.Code = 500
-		res.SetError(gerror.New(public.LangCtx(ctx, "failed to render email content: {}", err)))
-		return
+		subject, err = engine.RenderEmailTemplate(ctx, subject, &contact, nil, unsubscribeJumpURL)
+		if err != nil {
+			res.Code = 500
+			res.SetError(gerror.New(public.LangCtx(ctx, "failed to render email subject: {}", err)))
+			return
+		}
 	}
 
-	personalizedSubject, err := engine.RenderEmailTemplate(ctx, req.Subject, &contact, nil, unsubscribeJumpURL)
-	if err != nil {
-		res.Code = 500
-		res.SetError(gerror.New(public.LangCtx(ctx, "failed to render email subject: {}", err)))
-		return
-	}
-
-	message := mail_service.NewMessage(personalizedSubject, personalizedContent)
+	message := mail_service.NewMessage(subject, content)
 	message.SetMessageID(sender.GenerateMessageID())
 
 	// send email
@@ -82,6 +86,11 @@ func (c *ControllerV1) SendTestEmail(ctx context.Context, req *v1.SendTestEmailR
 		res.SetError(gerror.New(public.LangCtx(ctx, "send email to {} failed: {}", req.Recipient, err)))
 		return
 	}
+
+	_ = public.WriteLog(ctx, public.LogParams{
+		Type: consts.LOGTYPE.Task,
+		Log:  "Send test email :" + subject + "to" + req.Recipient + " successfully",
+	})
 
 	res.SetSuccess(public.LangCtx(ctx, "send email successfully"))
 	return

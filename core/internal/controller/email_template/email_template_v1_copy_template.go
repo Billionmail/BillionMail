@@ -1,6 +1,7 @@
 package email_template
 
 import (
+	"billionmail-core/internal/consts"
 	"billionmail-core/internal/service/public"
 	"context"
 
@@ -26,12 +27,18 @@ func (c *ControllerV1) CopyTemplate(ctx context.Context, req *v1.CopyTemplateReq
 	}
 
 	newName := template.TempName + "_bak"
-	_, err = email_template.CreateTemplate(ctx, newName, template.AddType, template.Content, template.Render)
+	_, err = email_template.CreateTemplate(ctx, newName, template.AddType, template.Content, template.Render, req.Chat_id)
 	if err != nil {
 		res.Code = 500
 		res.SetError(gerror.New(public.LangCtx(ctx, "Failed to create new template {}", err.Error())))
 		return
 	}
+
+	_ = public.WriteLog(ctx, public.LogParams{
+		Type: consts.LOGTYPE.Template,
+		Log:  "Copy template :" + template.TempName + " to " + newName + " successfully",
+		Data: template,
+	})
 
 	res.SetSuccess(public.LangCtx(ctx, "Template copied successfully"))
 	return

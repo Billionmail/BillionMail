@@ -1,5 +1,5 @@
 <template>
-	<div class="bt-title">{{ title }}</div>
+	<div class="bt-title mb-8px!">{{ title }}</div>
 	<n-tabs :value="activeTab" type="line" class="route-tabs" @update:value="handleUpdateTab">
 		<n-tab-pane v-for="tab in tabs" :key="tab.name" :name="tab.name" :tab="tab.title"> </n-tab-pane>
 	</n-tabs>

@@ -2,23 +2,26 @@
 
 echo "Compiling billionmail..."
 
-# Using the alpine image to compile the Go application
-docker exec p-g-alpine sh -c "cd /opt/core && sh ./go-build.sh"
-
-echo "Copying billionmail to billionmail-core-billionmail-1 container..."
-
 # Determine the architecture and set the binary name accordingly
 ARCH=$(uname -m)
+PLATFORMS="all"
 if [[ "$ARCH" == "x86_64" ]]; then
     BINARY="billionmail-amd64"
+    PLATFORMS="x86"
     echo "Detect x86_64 architecture, using amd64 binary"
 elif [[ "$ARCH" == "arm64" || "$ARCH" == "aarch64" ]]; then
     BINARY="billionmail-arm64"
+    PLATFORMS="arm"
     echo "Detect arm64/aarch64 architecture, using arm64 binary"
 else
     echo "Unsupported architecture: $ARCH"
     exit 1
 fi
+
+# Using the alpine image to compile the Go application
+docker exec p-g-alpine sh -c "cd /opt/core && sh ./go-build.sh $PLATFORMS"
+
+echo "Copying billionmail to billionmail-core-billionmail-1 container..."
 
 echo "Copying the compiled binary from p-g-alpine to billionmail-core-billionmail-1..."
 

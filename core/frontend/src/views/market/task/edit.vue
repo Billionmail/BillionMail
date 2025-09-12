@@ -35,7 +35,8 @@
 								<div class="flex-1">
 									<template-select
 										v-model:value="form.template_id"
-										v-model:content="templateContent">
+										v-model:content="templateContent"
+										@list-ready="findTemplateId">
 									</template-select>
 								</div>
 								<n-button text type="primary" class="ml-12px" @click="handleGoTemplate">
@@ -155,17 +156,21 @@
 
 <script lang="ts" setup>
 import { FormRules } from 'naive-ui'
+import { useGlobalStore } from '@/store'
 import { useElementBounding } from '@vueuse/core'
-import { confirm, Message } from '@/utils'
-import { addTask, sendTestEmail } from '@/api/modules/market/task'
+import { confirm, isObject, Message } from '@/utils'
+import { addTask, getTaskDetails, sendTestEmail } from '@/api/modules/market/task'
+import { Task } from './interface'
+import { Template } from '../template/interface'
 
 import FromSelect from './components/FromSelect.vue'
 import GroupSelect from './components/GroupSelect.vue'
 import TemplateSelect from './components/TemplateSelect.vue'
 
 const { t } = useI18n()
-
+const globalStore = useGlobalStore()
 const router = useRouter()
+const route = useRoute()
 
 const formRef = useTemplateRef('formRef')
 
@@ -252,7 +257,7 @@ const templateContent = ref('')
 
 // 跳转模板页面
 const handleGoTemplate = () => {
-	router.push('/market/template')
+	router.push('/template')
 }
 
 // 查看案例
@@ -337,6 +342,40 @@ const handleSubmit = async () => {
 	await addTask(getParams())
 	router.push('/market/task')
 }
+
+/**
+ * @description Find templateId from template list
+ */
+function findTemplateId(list: Template[]) {
+	if (route.query.chat_id) {
+		const findRes = list.find(item => item.chat_id == route.query.chat_id)
+		if (findRes) {
+			form.template_id = findRes.id
+			form.subject = globalStore.temp_subject
+			templateContent.value = findRes.html_content
+		}
+	}
+}
+
+const initForm = async () => {
+	const { task_id: id } = route.query
+	if (!id) return
+	const res = await getTaskDetails({ id: Number(id) })
+	if (isObject<Task>(res)) {
+		form.addresser = res.addresser
+		form.full_name = res.full_name
+		form.subject = res.subject
+		form.group_ids = res.etypes.split(',').map(item => Number(item))
+		form.template_id = res.template_id
+		form.is_record = res.is_record
+		form.unsubscribe = res.unsubscribe
+		form.threads = res.threads
+		threadsType.value = res.threads === 0 ? 0 : 1
+		form.remark = res.remark
+	}
+}
+
+initForm()
 </script>
 
 <style lang="scss" scoped>

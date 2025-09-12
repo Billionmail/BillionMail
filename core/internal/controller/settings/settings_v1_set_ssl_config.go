@@ -84,11 +84,17 @@ func (c *ControllerV1) SetSSLConfig(ctx context.Context, req *v1.SetSSLConfigReq
 		return res, nil
 	}
 	// Restart the container
-	err = public.DockerApiFromCtx(ctx).RestartContainerByName(ctx, "billionmail-core-billionmail-1")
+	err = public.DockerApiFromCtx(ctx).RestartContainerByName(ctx, consts.SERVICES.Core)
 	if err != nil {
 		res.SetError(gerror.New(public.LangCtx(ctx, "Failed to restart container: {}", err)))
 		return res, nil
 	}
+
+	_ = public.WriteLog(ctx, public.LogParams{
+		Type: consts.LOGTYPE.Settings,
+		Log:  "SSL certificate updated successfully",
+		Data: req,
+	})
 
 	res.SetSuccess(public.LangCtx(ctx, "SSL certificate updated successfully"))
 	return res, nil

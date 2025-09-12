@@ -2,10 +2,10 @@ package batch_mail
 
 import (
 	"billionmail-core/api/batch_mail/v1"
+	"billionmail-core/internal/service/domains"
 	"billionmail-core/internal/service/public"
 	"context"
 	"github.com/gogf/gf/v2/frame/g"
-	"time"
 )
 
 func (c *ControllerV1) ApiTemplatesList(ctx context.Context, req *v1.ApiTemplatesListReq) (res *v1.ApiTemplatesListRes, err error) {
@@ -23,10 +23,15 @@ func (c *ControllerV1) ApiTemplatesList(ctx context.Context, req *v1.ApiTemplate
 		model = model.Where("active", req.Active)
 	}
 
-	if req.StartTime > 0 && req.EndTime < 0 {
-		req.EndTime = int(time.Now().Unix())
-	}
-
+	//if req.StartTime > 0 && req.EndTime <= 0 {
+	//	req.EndTime = int(time.Now().Unix())
+	//}
+	//if req.StartTime > 0 {
+	//	model = model.WhereGTE("create_time", req.StartTime)
+	//}
+	//if req.EndTime > 0 {
+	//	model = model.WhereLTE("create_time", req.EndTime)
+	//}
 	// get total
 	total, err := model.Count()
 	if err != nil {
@@ -50,13 +55,13 @@ func (c *ControllerV1) ApiTemplatesList(ctx context.Context, req *v1.ApiTemplate
 		query = query.LeftJoin("mailstat_send_mails sm", "mi.postfix_message_id=sm.postfix_message_id")
 		query = query.Where("aml.api_id", item.Id)
 		query = query.Where("aml.status", 2)
-		if req.StartTime > 0 {
-			query.Where("sm.log_time_millis > ?", req.StartTime*1000-1)
-		}
-
-		if req.EndTime > 0 {
-			query.Where("sm.log_time_millis < ?", req.EndTime*1000+1)
-		}
+		//if req.StartTime > 0 {
+		//	query.Where("sm.log_time_millis > ?", req.StartTime*1000-1)
+		//}
+		//
+		//if req.EndTime > 0 {
+		//	query.Where("sm.log_time_millis < ?", req.EndTime*1000+1)
+		//}
 
 		// count各项数据
 		query.Fields(
@@ -121,7 +126,6 @@ func (c *ControllerV1) ApiTemplatesList(ctx context.Context, req *v1.ApiTemplate
 			Where("api_id", item.Id).
 			Fields("ip").
 			Scan(&ipRows)
-		g.Log().Warningf(ctx, "[API List] IP whitelist for API ID %d: %+v", item.Id, ipRows)
 
 		if err != nil {
 			g.Log().Error(ctx, "Failed to get IP whitelist:", err)
@@ -132,9 +136,7 @@ func (c *ControllerV1) ApiTemplatesList(ctx context.Context, req *v1.ApiTemplate
 			ips = append(ips, row.Ip)
 		}
 		item.IpWhitelist = ips
-		serverIP, _ := public.GetServerIP()
-		serverPort := public.GetServerPort(ctx)
-		item.ServerAddresser = "https://" + serverIP + ":" + serverPort
+		item.ServerAddresser = domains.GetBaseURL() + "/api/batch_mail/api/send"
 	}
 
 	res.Data.Total = total

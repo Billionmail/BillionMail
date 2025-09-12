@@ -1,12 +1,12 @@
 <template>
-	<modal :title="t('contacts.group.add.title')" width="500">
+	<modal :title="t('contacts.group.add.title')" width="540">
 		<div class="pt-12px">
 			<bt-form ref="formRef" :model="form" :rules="rules">
 				<n-form-item :label="t('contacts.group.form.name')" path="name">
 					<n-input v-model:value="form.name"></n-input>
 				</n-form-item>
-				<n-form-item label="Status">
-					<n-select v-model:value="form.status" :options="statusOptions"></n-select>
+				<n-form-item label="List Type">
+					<n-select v-model:value="form.double_optin" :options="statusOptions"></n-select>
 				</n-form-item>
 				<n-form-item :label="t('contacts.group.form.file')" path="file_data">
 					<div class="flex-1">
@@ -42,7 +42,7 @@ const form = reactive({
 	create_type: 2,
 	name: '',
 	description: '',
-	status: 1,
+	double_optin: 0,
 	file_data: '',
 	file_type: '',
 })
@@ -56,8 +56,8 @@ const rules = {
 }
 
 const statusOptions = [
-	{ label: 'Confirmed', value: 1 },
-	{ label: 'Unconfirmed', value: 0 },
+	{ label: 'Single Opt-in', value: 0 },
+	{ label: 'Double Opt-in', value: 1 },
 ]
 
 const example = `email,attributes

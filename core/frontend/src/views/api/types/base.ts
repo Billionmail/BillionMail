@@ -6,6 +6,7 @@ export interface Api {
 	subject: string
 	addresser: string
 	full_name: string
+	server_addresser: string
 	unsubscribe: number
 	track_open: number
 	track_click: number
@@ -21,6 +22,14 @@ export interface Api {
 	delivery_rate: number
 	bounce_rate: number
 	ip_whitelist: string[]
+}
+
+export interface ApiParams {
+	page: number
+	page_size: number
+	keyword: string
+	active: number
+	time_range: [number, number]
 }
 
 export interface OverviewStats {

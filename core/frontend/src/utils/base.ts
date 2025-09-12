@@ -59,3 +59,44 @@ export const capitalizeFirstLetter = (val: string) => {
 		.map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
 		.join(' ')
 }
+
+/**
+ * @description Validate a URL
+ */
+export function isUrl(url: string): boolean {
+	const urlRegex =
+		/^(https?:\/\/)?((([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,})|((\d{1,3}\.){3}\d{1,3}))(:\d{1,5})?(\/.*)?$/
+	return urlRegex.test(url)
+}
+
+/**
+ * @description Generate a random password that contains lowercase letters, uppercase letters and numbers
+ * @param len Password length, default is 8
+ */
+export function getRandomPassword(len = 16) {
+	// Ensure the password length is at least 3 to include all required character types
+	len = Math.max(len, 3)
+
+	const lowerChars = 'abcdefghijklmnopqrstuvwxyz'
+	const upperChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+	const numbers = '0123456789'
+	const allChars = lowerChars + upperChars + numbers
+
+	// Ensure at least one lowercase letter, one uppercase letter and one number
+	let pwd = ''
+	pwd += lowerChars.charAt(Math.floor(Math.random() * lowerChars.length))
+	pwd += upperChars.charAt(Math.floor(Math.random() * upperChars.length))
+	pwd += numbers.charAt(Math.floor(Math.random() * numbers.length))
+
+	// Generate remaining random characters
+	for (let i = 3; i < len; i++) {
+		const index = Math.floor(Math.random() * allChars.length)
+		pwd += allChars[index]
+	}
+
+	// Shuffle password characters to avoid fixed patterns
+	return pwd
+		.split('')
+		.sort(() => Math.random() - 0.5)
+		.join('')
+}

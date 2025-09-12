@@ -12,6 +12,7 @@
 			v-model:value="sender"
 			:loading="loading"
 			:options="senderOptions"
+			:filterable="true"
 			@update:value="handleUpdateSender">
 		</n-select>
 	</div>
@@ -95,6 +96,8 @@ const initData = async () => {
 		await nextTick()
 		if (sender.value === null) {
 			handleUpdateDomain()
+		} else if (sender.value) {
+			domain.value = sender.value.split('@')[1]
 		}
 	} finally {
 		loading.value = false

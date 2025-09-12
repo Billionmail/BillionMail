@@ -15,7 +15,7 @@ import { DataTableColumns, DataTableCreateRowProps, NEllipsis } from 'naive-ui'
 import { isArray } from '@/utils'
 import { useModal } from '@/hooks/modal/useModal'
 import { getFailedList } from '@/api/modules/overview'
-import type { Failed } from '../interface'
+import type { Failed } from '../types'
 
 const { t } = useI18n()
 

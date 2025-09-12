@@ -2,6 +2,7 @@ package domains
 
 import (
 	"billionmail-core/internal/service/domains"
+	"billionmail-core/internal/service/public"
 	"context"
 	"fmt"
 
@@ -21,6 +22,6 @@ func (c *ControllerV1) GetDomainAll(ctx context.Context, req *v1.GetDomainAllReq
 		return
 	}
 
-	res.SetSuccess("Success")
+	res.SetSuccess(public.LangCtx(ctx, "Success"))
 	return
 }

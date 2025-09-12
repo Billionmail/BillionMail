@@ -389,11 +389,13 @@ func (e *EmailSender) doSend(message Message, recipients []string) error {
 	}()
 
 	// Set the sender
+	// MAIL FROM
 	if err = e.client.Mail(e.Email); err != nil {
 		return fmt.Errorf("SMTP mail: %w", err)
 	}
 
 	// Set the recipients
+	// RCPT TO
 	for _, to := range recipients {
 		if err = e.client.Rcpt(to); err != nil {
 			return fmt.Errorf("SMTP rcpt: %w", err)

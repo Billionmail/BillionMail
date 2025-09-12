@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title></title>
+    <style>
+        body {
+            background: #f5f5f5;
+            margin: 0;
+            padding: 20px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .container {
+            max-width: 500px;
+            margin: 40px auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        .header {
+            text-align: center;
+            padding: 40px 30px 30px;
+            background: linear-gradient(135deg, #f8fffe, #f0fdf4);
+        }
+        .subscription-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #20a53a, #16a085);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
+            box-shadow: 0 4px 15px rgba(32, 165, 58, 0.3);
+        }
+        .content {
+            padding: 30px 40px;
+            text-align: center;
+        }
+        .content h2 {
+            margin: 0 0 16px 0;
+            color: #1f2937;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        .content p {
+            margin: 0 0 24px 0;
+            color: #6b7280;
+            font-size: 16px;
+            line-height: 1.5;
+        }
+        .button {
+            display: inline-block;
+            background: #20a53a;
+            color: white;
+            padding: 10px 36px;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 500;
+            transition: background-color 0.2s ease;
+        }
+        .button:hover {
+            background: #16a085;
+        }
+        .footer {
+            text-align: center;
+            padding: 20px 30px 30px;
+            color: #9ca3af;
+            font-size: 12px;
+            background: #f9fafb;
+            border-top: 1px solid #f3f4f6;
+        }
+        .footer a {
+            color: #9ca3af;
+            text-decoration: underline;
+        }
+        .footer a:hover {
+            color: #6b7280;
+        }
+        .unsubscribe + .unsubscribe {
+            margin-top: 6px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <div class="subscription-icon">
+            <svg t="1751509281670" class="icon" viewBox="0 0 1126 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="22281" width="40" height="40">
+                <path
+                        d="M819.2 716.8v-153.6a51.2 51.2 0 0 1 102.4 0v153.6h153.6a51.2 51.2 0 0 1 0 102.4h-153.6v153.6a51.2 51.2 0 0 1-102.4 0v-153.6h-153.6a51.2 51.2 0 0 1 0-102.4h153.6z m307.2-256a51.2 51.2 0 0 1-102.4 0V340.1216l-389.5296 197.7856a153.6 153.6 0 0 1-139.264-0.1024L102.4 337.7152v581.2224l460.8 1.3312V921.6a51.2 51.2 0 0 1 0 102.4H102.4c-56.576 0-102.4-56.32-102.4-125.696V125.696C0 56.32 45.824 0 102.4 0l921.6 2.56c27.136 0 53.248 13.2096 72.3968 36.7616 19.2 23.552 30.0032 55.552 30.0032 88.9344V460.8zM102.4 222.8224l439.296 223.744a51.2 51.2 0 0 0 46.4384 0L1024 225.28V102.5536H102.4v120.2688z"
+                        fill="#ffffff"
+                        p-id="22282"
+                ></path>
+            </svg>
+        </div>
+    </div>
+    <div class="content">
+        <h2>Confirm subscription</h2>
+        <p>Please confirm subscription by clicking the button below:</p>
+        <a href="{{ ConfirmURL . }}" target="_blank" class="button">Confirm</a>
+    </div>
+    <div class="footer">
+        <div class="unsubscribe">
+            <span>Powered by </span>
+            <a href="https://www.billionmail.com/" target="_blank">BillionMail</a>
+        </div>
+    </div>
+</div>
+</body>
+</html>

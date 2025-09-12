@@ -1,5 +1,5 @@
 <template>
-	<modal :title="$t('contacts.subscribers.import.title')" width="600">
+	<modal :title="$t('contacts.subscribers.import.title')" width="640">
 		<div class="pt-12px">
 			<bt-form ref="formRef" :model="form" :rules="rules">
 				<n-form-item :label="$t('contacts.subscribers.import.overwriteLabel')">

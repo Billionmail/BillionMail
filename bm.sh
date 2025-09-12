@@ -534,6 +534,16 @@ Default_info() {
     echo -e "\033[32mBillionMail default info!\033[0m"
     echo -e "=================================================================="
     pool=https
+
+    if [ -f "core-data/billionmail_hostname.txt" ];then
+        BILLIONMAIL_Domain=$(cat core-data/billionmail_hostname.txt)
+        if [ "${HTTPS_PORT}" = "443" ];then
+            echo  "BillionMail Domain Address:        ${pool}://${BILLIONMAIL_Domain}/${SafePath}"
+        else
+            echo  "BillionMail Domain Address:        ${pool}://${BILLIONMAIL_Domain}:${HTTPS_PORT}/${SafePath}"
+        fi
+    fi
+    
     if [ "${ipv6_address}" ];then
         if [ "${HTTPS_PORT}" = "443" ];then
             echo  "BillionMail Internet IPv6 Address: ${pool}://${ipv6_address}/${SafePath}"
@@ -550,9 +560,9 @@ Default_info() {
     fi
     if [ "${address}" ];then
         if [ "${HTTPS_PORT}" = "443" ];then
-            echo  "BillionMail Internet Address: ${pool}://${address}/${SafePath}"
+            echo  "BillionMail Internet Address:      ${pool}://${address}/${SafePath}"
         else
-            echo  "BillionMail Internet Address: ${pool}://${address}:${HTTPS_PORT}/${SafePath}"
+            echo  "BillionMail Internet Address:      ${pool}://${address}:${HTTPS_PORT}/${SafePath}"
         fi
 
     fi
@@ -718,8 +728,14 @@ MODIFY_TZ() {
     if [ $? -ne 0 ]; then
         echo -e "\033[31m Error: The BillionMail time zone modification failed! \033[0m"
         exit 1
-    fi    
-    
+    fi
+
+    if [ -f "postgresql-data/postgresql.conf" ]; then
+        cp -arpf postgresql-data/postgresql.conf  postgresql-data/postgresql.conf_${time}
+        sed -i "s|^log_timezone = .*|log_timezone = \'${NEW_TZ}\'|" postgresql-data/postgresql.conf
+        sed -i "s|^timezone = .*|timezone = \'${NEW_TZ}\'|" postgresql-data/postgresql.conf
+    fi
+
     echo -e "The BillionMail time zone has been modified to: ${NEW_TZ} \n Rebuild the container, please wait..."
     sleep 3
     ${DOCKER_COMPOSE} down
@@ -1164,6 +1180,409 @@ CANCEL_IP_WHITELIST_LIMIT() {
 }
 
 
+APPLY_MULTI_IP() {
+    echo "🚀 Starting multi-IP configuration application..."
+
+    # Initialize_Project
+
+    echo "📁 Current directory: $PWD_d"
+    PROJECT_DIR="$PWD_d"
+
+    # Temporary backup path (under project root)
+    BACKUP_COMPOSE="docker-compose.yml.bak.$(date +%Y%m%d-%H%M%S)"
+
+    # 🔐 Load .env file
+    ENV_FILE="./.env"
+    if [ -f "$ENV_FILE" ]; then
+        echo "🔐 Loading environment variables: $ENV_FILE"
+        source "$ENV_FILE"
+        if [ -z "${DBUSER}" ] || [ -z "${DBNAME}" ] || [ -z "${DBPASS}" ]; then
+            Red_Error "❌ .env configuration error, database settings are empty"
+        fi
+    else
+        Red_Error "❌ .env file not found: $ENV_FILE, please ensure configuration exists"
+    fi
+
+    # Database configuration
+    DB_HOST="127.0.0.1"
+    DB_PORT="25432"
+    DB_NAME="${DBNAME}"
+    DB_USER="${DBUSER}"
+    DB_PASS="${DBPASS}"
+
+    # Record initial state for rollback
+    ORIGINAL_COMPOSE="docker-compose.yml"
+    ADDNETWORK_COMPOSE="docker-compose_addnetwork.yml"
+
+    # Create temporary file
+    TEMP_FILE=$(mktemp) || { Red_Error "❌ Unable to create temporary file"; }
+
+    # ============ Cleanup and rollback functions ============
+    cleanup_apply() {
+        if [[ -n "$TEMP_FILE" && -f "$TEMP_FILE" ]]; then
+            rm -f "$TEMP_FILE"
+        fi
+    }
+
+    rollback_compose() {
+        echo "⚠️ Error detected, rolling back docker-compose.yml..."
+        if [[ -f "$BACKUP_COMPOSE" ]]; then
+            cp "$BACKUP_COMPOSE" "$ORIGINAL_COMPOSE"
+            echo "✅ Successfully rolled back to original configuration"
+        else
+            echo "❌ Backup file $BACKUP_COMPOSE does not exist, unable to rollback!"
+        fi
+    }
+
+    # Set trap to handle exceptions and cleanup
+    trap 'echo "💥 Script execution failed, triggering rollback"; rollback_compose; cleanup_apply; exit 1' ERR
+    trap 'cleanup_apply' EXIT
+
+    # ============ 1. Check if new compose file exists ============
+    echo "🔍 Checking if docker-compose_addnetwork.yml exists..."
+    if [ ! -f "${ADDNETWORK_COMPOSE}" ]; then
+        Red_Error "❌ Error: ${ADDNETWORK_COMPOSE} file does not exist, please verify"
+    fi
+
+    # ============ 2. Backup and replace docker-compose.yml ============
+    echo "🔄 Backing up and replacing docker-compose.yml"
+    if [[ -f "$ORIGINAL_COMPOSE" ]]; then
+        cp "$ORIGINAL_COMPOSE" "$BACKUP_COMPOSE"
+        echo "✅ Backup created as: $BACKUP_COMPOSE"
+    fi
+
+    # Use cp instead of mv to keep original file for repeated execution
+    cp "$ADDNETWORK_COMPOSE" "$ORIGINAL_COMPOSE"
+    echo "✅ docker-compose.yml has been updated"
+
+    # ============ 3. Insert domain → smtp_name mapping into bm_domain_smtp_transport ============
+    echo "🔄 Reading data from bm_multi_ip_domain and inserting into bm_domain_smtp_transport..."
+
+    # Query database for domain and smtp_server_name using secure query method
+    if ! docker exec -i -e PGPASSWORD=${DBPASS} ${PGSQL_CONTAINER_NAME} psql -U ${DBUSER} -d ${DBNAME} -t -A -F'|' \
+        -c "SELECT domain, smtp_server_name FROM bm_multi_ip_domain WHERE active = 1;" > "$TEMP_FILE"; then
+        Red_Error "❌ Database query failed, please check connection or table structure"
+    fi
+
+    # Check if temporary file has content
+    if [[ ! -s "$TEMP_FILE" ]]; then
+        echo "⚠️ No active multi-IP domain configurations found, skipping sender rule setup"
+    else
+        echo "📋 Found $(wc -l < "$TEMP_FILE") configuration records"
+
+        # Safely process query results
+        while IFS='|' read -r domain smtp_name; do
+            # Clean whitespace and validate
+            domain=$(echo "$domain" | xargs)
+            smtp_name=$(echo "$smtp_name" | xargs)
+
+            # Skip empty lines or invalid data
+            [[ -z "$domain" || -z "$smtp_name" ]] && continue
+
+            # Validate domain format (basic security check)
+            if [[ ! "$domain" =~ ^[a-zA-Z0-9.-]+$ ]]; then
+                echo "⚠️ Skipping invalid domain format: $domain"
+                continue
+            fi
+
+            atype="dedicated_ip"
+            domain_with_at="@${domain}"
+
+            echo "🔍 Checking if sender rule exists for domain: $domain_with_at..."
+
+            # Use secure SQL query
+            escaped_domain=$(printf '%s\n' "$domain_with_at" | sed "s/'/''/g")
+            EXISTS=$(docker exec -i -e PGPASSWORD=${DBPASS} ${PGSQL_CONTAINER_NAME} psql -U ${DBUSER} -d ${DBNAME} -t -A \
+                -c "SELECT 1 FROM bm_domain_smtp_transport WHERE domain = '$escaped_domain';")
+
+            # If exists, delete it
+            if [[ -n "$EXISTS" && "$EXISTS" != "" ]]; then
+                echo "🟡 Sender rule already exists for domain: $domain_with_at, deleting..."
+                if ! docker exec -i -e PGPASSWORD=${DBPASS} ${PGSQL_CONTAINER_NAME} psql -U ${DBUSER} -d ${DBNAME} \
+                    -c "DELETE FROM bm_domain_smtp_transport WHERE domain = '$escaped_domain';"; then
+                    Red_Error "❌ Failed to delete old record: $domain_with_at"
+                fi
+                echo "✅ Old rule deleted: $domain_with_at"
+            fi
+
+            # Execute insertion (using secure string escaping)
+            echo "📝 Inserting: $domain_with_at → $smtp_name"
+            escaped_smtp=$(printf '%s\n' "$smtp_name" | sed "s/'/''/g")
+            escaped_atype=$(printf '%s\n' "$atype" | sed "s/'/''/g")
+            if ! docker exec -i -e PGPASSWORD=${DBPASS} ${PGSQL_CONTAINER_NAME} psql -U ${DBUSER} -d ${DBNAME} \
+                -c "INSERT INTO bm_domain_smtp_transport (atype, domain, smtp_name) VALUES ('$escaped_atype', '$escaped_domain', '$escaped_smtp');"; then
+                Red_Error "❌ Insertion failed: $domain_with_at"
+            fi
+
+            echo "✅ Successfully inserted: $domain_with_at → $smtp_name"
+
+        done < "$TEMP_FILE"
+
+        echo "📝 All domain mappings have been successfully written to bm_domain_smtp_transport"
+    fi
+
+    # Update status of all records in bm_multi_ip_domain table to 'applied'
+      echo "🔄 Resetting multi-IP domain status to 'applied'..."
+
+      # First, query how many records need updating
+      CURRENT_DOMAIN_COUNT=$(docker exec -i -e PGPASSWORD=${DBPASS} ${PGSQL_CONTAINER_NAME} psql -U ${DBUSER} -d ${DBNAME} -t -A \
+          -c "SELECT COUNT(*) FROM bm_multi_ip_domain WHERE status != 'applied';" 2>/dev/null || echo "0")
+
+      echo "📊 Current number of domains needing status reset: ${CURRENT_DOMAIN_COUNT}"
+
+      if [[ "${CURRENT_DOMAIN_COUNT}" -gt 0 ]]; then
+          # Execute update operation
+          if docker exec -i -e PGPASSWORD=${DBPASS} ${PGSQL_CONTAINER_NAME} psql -U ${DBUSER} -d ${DBNAME} \
+              -c "UPDATE bm_multi_ip_domain SET status = 'applied';" >/dev/null 2>&1; then
+              echo "✅ Successfully reset ${CURRENT_DOMAIN_COUNT} multi-IP domain statuses to 'applied'"
+          else
+              echo "❌ Failed to reset multi-IP domain statuses"
+              exit 1
+          fi
+      else
+          echo "✅ All multi-IP domain statuses are already 'applied'"
+      fi
+
+    # ============ 4. Restart services ============
+    echo "🔄 Restarting BillionMail services"
+    if ! ${DOCKER_COMPOSE} down; then
+        Red_Error "❌ docker-compose down failed"
+    fi
+
+    if ! ${DOCKER_COMPOSE} up -d; then
+        Red_Error "❌ docker-compose up -d failed: docker-compose.yml has errors, please check"
+    fi
+
+    # Wait for services to start and check health status
+    echo "🔄 Waiting for services to start..."
+    sleep 5
+
+    echo "📊 Checking service status..."
+    ${DOCKER_COMPOSE} ps
+
+    # Check if critical services are running properly
+    CORE_STATUS=$(${DOCKER_COMPOSE} ps core-billionmail --format "{{.State}}" 2>/dev/null || echo "missing")
+    POSTFIX_STATUS=$(${DOCKER_COMPOSE} ps postfix-billionmail --format "{{.State}}" 2>/dev/null || echo "missing")
+
+    if [[ "$CORE_STATUS" != "running" || "$POSTFIX_STATUS" != "running" ]]; then
+        echo "⚠️ Warning: Some critical services may not have started properly"
+        echo "   Core status: $CORE_STATUS"
+        echo "   Postfix status: $POSTFIX_STATUS"
+        echo "💡 Please check 'docker compose logs' for details"
+    fi
+
+    # ============ 5. Execution Summary ============
+    echo ""
+    echo "🎉 =============== Execution Summary ==============="
+    echo "✅ All operations completed! Services have been successfully restarted"
+    echo "📁 Original configuration backed up as: $BACKUP_COMPOSE"
+    echo "🔄 New configuration applied: $ORIGINAL_COMPOSE"
+    echo "📋 Source configuration file preserved: $ADDNETWORK_COMPOSE"
+    echo "🕐 Completion time: $(date '+%Y-%m-%d %H:%M:%S')"
+
+    # Optional: Clean up old backups (keep latest 3)
+    OLD_BACKUPS=$(find . -name 'docker-compose.yml.bak.*' -type f | wc -l)
+    if [[ $OLD_BACKUPS -gt 3 ]]; then
+        echo "🧹 Cleaning up old backup files (keeping latest 3)..."
+        find . -name 'docker-compose.yml.bak.*' -type f | sort -r | tail -n +4 | xargs rm -f 2>/dev/null || true
+    fi
+
+    echo "========================================="
+
+    # Successfully completed, remove ERR trap
+    trap - ERR
+}
+
+
+FIX_MULTI_IP() {
+    echo "🔧 Starting multi-IP configuration fix..."
+
+    # ============ Initialization: Automatically locate project root directory ============
+    # Initialize_Project
+
+    # Load environment variables
+    if [ ! -f ".env" ]; then
+        Red_Error "❌ .env file not found, please ensure execution from project root directory"
+    fi
+
+    source .env
+    if [ -z "${DBUSER}" ] || [ -z "${DBNAME}" ] || [ -z "${DBPASS}" ]; then
+        Red_Error "❌ .env configuration error, database settings are empty"
+    fi
+
+    echo "📁 Project directory: ${PWD_d}"
+
+    # ============ 1. Find the latest backup file ============
+    echo "🔍 Searching for the latest docker-compose.yml backup file..."
+    LATEST_BACKUP=$(find . -name 'docker-compose.yml.bak.*' -type f | sort -r | head -n 1)
+
+    if [ -z "${LATEST_BACKUP}" ]; then
+        echo "⚠️ No docker-compose.yml backup file found"
+        echo "📋 List of available backup files:"
+        find . -name 'docker-compose.yml.bak.*' -type f 2>/dev/null || echo "   No backup files"
+
+        read -p "Proceed with database cleanup operation? (y/n): " continue_cleanup
+        if [[ "$continue_cleanup" != "y" && "$continue_cleanup" != "Y" ]]; then
+            echo "❌ Operation cancelled"
+            exit 1
+        fi
+    else
+        echo "✅ Found latest backup: ${LATEST_BACKUP}"
+        echo "🔄 Restoring docker-compose.yml..."
+
+        # Create a backup of current file (in case rollback fails)
+        cp docker-compose.yml "docker-compose.yml.before-fix.$(date +%Y%m%d-%H%M%S)" 2>/dev/null || true
+
+        # Restore from backup
+        if cp "${LATEST_BACKUP}" docker-compose.yml; then
+            echo "✅ docker-compose.yml has been restored"
+        else
+            Red_Error "❌ Failed to restore docker-compose.yml"
+        fi
+    fi
+
+    # ============ 2. Clean up multi-IP configurations in database ============
+    echo "🗄️ Starting database configuration cleanup..."
+
+    # Check database connection (using container method)
+    echo "🔗 Testing database connection..."
+    if ! docker exec -i -e PGPASSWORD=${DBPASS} ${PGSQL_CONTAINER_NAME} psql -U ${DBUSER} -d ${DBNAME} -c "SELECT 1;" >/dev/null 2>&1; then
+        Red_Error "❌ Database connection failed, please check if service is running properly"
+    fi
+    echo "✅ Database connection is normal"
+
+    # Delete records with atype="dedicated_ip" from bm_domain_smtp_transport table
+    echo "🗑️ Deleting dedicated IP records from bm_domain_smtp_transport table..."
+
+    # First, query the current number of records
+    CURRENT_SMTP_COUNT=$(docker exec -i -e PGPASSWORD=${DBPASS} ${PGSQL_CONTAINER_NAME} psql -U ${DBUSER} -d ${DBNAME} -t -A \
+        -c "SELECT COUNT(*) FROM bm_domain_smtp_transport WHERE atype = 'dedicated_ip';" 2>/dev/null || echo "0")
+
+    echo "📊 Current number of dedicated IP sender rules: ${CURRENT_SMTP_COUNT}"
+
+    if [[ "${CURRENT_SMTP_COUNT}" -gt 0 ]]; then
+        # Execute deletion
+        if docker exec -i -e PGPASSWORD=${DBPASS} ${PGSQL_CONTAINER_NAME} psql -U ${DBUSER} -d ${DBNAME} \
+            -c "DELETE FROM bm_domain_smtp_transport WHERE atype = 'dedicated_ip';" >/dev/null 2>&1; then
+            echo "✅ Deleted ${CURRENT_SMTP_COUNT} dedicated IP sender rules"
+        else
+            echo "❌ Failed to delete dedicated IP sender rules"
+            exit 1
+        fi
+    else
+        echo "✅ No dedicated IP sender rules found to delete"
+    fi
+
+    # Update status of all records in bm_multi_ip_domain table to 'pending'
+    echo "🔄 Resetting multi-IP domain status to 'pending'..."
+
+    # First, query the current number of records needing update
+    CURRENT_DOMAIN_COUNT=$(docker exec -i -e PGPASSWORD=${DBPASS} ${PGSQL_CONTAINER_NAME} psql -U ${DBUSER} -d ${DBNAME} -t -A \
+        -c "SELECT COUNT(*) FROM bm_multi_ip_domain WHERE status != 'pending';" 2>/dev/null || echo "0")
+
+    echo "📊 Current number of domains needing status reset: ${CURRENT_DOMAIN_COUNT}"
+
+    if [[ "${CURRENT_DOMAIN_COUNT}" -gt 0 ]]; then
+        # Execute update operation
+        if docker exec -i -e PGPASSWORD=${DBPASS} ${PGSQL_CONTAINER_NAME} psql -U ${DBUSER} -d ${DBNAME} \
+            -c "UPDATE bm_multi_ip_domain SET status = 'pending';" >/dev/null 2>&1; then
+            echo "✅ Reset ${CURRENT_DOMAIN_COUNT} multi-IP domain statuses to 'pending'"
+        else
+            echo "❌ Failed to reset multi-IP domain statuses"
+            exit 1
+        fi
+    else
+        echo "✅ All multi-IP domain statuses are already 'pending'"
+    fi
+
+    # ============ 3. Verify cleanup results ============
+    echo "🔍 Verifying cleanup results..."
+
+    # Verify dedicated IP sender rules have been cleaned
+    REMAINING_SMTP_COUNT=$(docker exec -i -e PGPASSWORD=${DBPASS} ${PGSQL_CONTAINER_NAME} psql -U ${DBUSER} -d ${DBNAME} -t -A \
+        -c "SELECT COUNT(*) FROM bm_domain_smtp_transport WHERE atype = 'dedicated_ip';" 2>/dev/null || echo "unknown")
+
+    # Verify multi-IP domain statuses have been reset
+    REMAINING_APPLIED_COUNT=$(docker exec -i -e PGPASSWORD=${DBPASS} ${PGSQL_CONTAINER_NAME} psql -U ${DBUSER} -d ${DBNAME} -t -A \
+        -c "SELECT COUNT(*) FROM bm_multi_ip_domain WHERE status = 'applied';" 2>/dev/null || echo "unknown")
+
+    echo "📊 Verification results:"
+    echo "   Remaining dedicated IP sender rules: ${REMAINING_SMTP_COUNT}"
+    echo "   Remaining applied status domains: ${REMAINING_APPLIED_COUNT}"
+
+    # ============ 4. Restart services ============
+    echo "🔄 Restarting BillionMail services..."
+
+    echo "🛑 Stopping services..."
+    if ! ${DOCKER_COMPOSE} down; then
+        echo "⚠️ Warning during service stop, continuing execution..."
+    fi
+
+    echo "🚀 Starting services..."
+    if ! ${DOCKER_COMPOSE} up -d; then
+        Red_Error "❌ Failed to start services, please check docker-compose.yml configuration"
+    fi
+
+    # Wait for services to start
+    echo "⏳ Waiting for services to start..."
+    sleep 5
+
+    # Check service status
+    echo "📊 Checking service status..."
+    ${DOCKER_COMPOSE} ps
+
+    # ============ 5. Final verification ============
+    echo "🔍 Final verification of database status..."
+    sleep 2
+
+    # Final verification of dedicated IP sender rules
+    FINAL_SMTP_COUNT=$(docker exec -i -e PGPASSWORD=${DBPASS} ${PGSQL_CONTAINER_NAME} psql -U ${DBUSER} -d ${DBNAME} -t -A \
+        -c "SELECT COUNT(*) FROM bm_domain_smtp_transport WHERE atype = 'dedicated_ip';" 2>/dev/null || echo "unknown")
+
+    # Final verification of multi-IP domain statuses
+    FINAL_APPLIED_COUNT=$(docker exec -i -e PGPASSWORD=${DBPASS} ${PGSQL_CONTAINER_NAME} psql -U ${DBUSER} -d ${DBNAME} -t -A \
+        -c "SELECT COUNT(*) FROM bm_multi_ip_domain WHERE status = 'applied';" 2>/dev/null || echo "unknown")
+
+    # ============ 6. Execution Summary ============
+    echo ""
+    echo "🎉 =============== Fix Summary ==============="
+    echo "✅ Multi-IP configuration fix completed!"
+    if [ -n "${LATEST_BACKUP}" ]; then
+        echo "📁 Restored backup: ${LATEST_BACKUP} → docker-compose.yml"
+    fi
+    echo "🗑️ Dedicated IP sender rule cleanup result: ${CURRENT_SMTP_COUNT} → ${FINAL_SMTP_COUNT}"
+    echo "🔄 applied status domain reset result: ${CURRENT_DOMAIN_COUNT} → ${FINAL_APPLIED_COUNT}"
+    echo "🚀 Services restarted"
+    echo "🕐 Completion time: $(date '+%Y-%m-%d %H:%M:%S')"
+    echo "========================================="
+
+    # Provide detailed verification information
+    if [[ "${FINAL_SMTP_COUNT}" == "0" && "${FINAL_APPLIED_COUNT}" == "0" ]]; then
+        echo ""
+        echo "🎉 Congratulations! Database cleanup completed successfully:"
+        echo "   ✅ All dedicated IP sender rules have been deleted"
+        echo "   ✅ All multi-IP domain statuses have been reset to pending"
+    else
+        echo ""
+        echo "⚠️ Note: Some data may not have been fully cleaned:"
+        if [[ "${FINAL_SMTP_COUNT}" != "0" ]]; then
+            echo "   ❌ Still ${FINAL_SMTP_COUNT} dedicated IP sender rules remaining"
+        fi
+        if [[ "${FINAL_APPLIED_COUNT}" != "0" ]]; then
+            echo "   ❌ Still ${FINAL_APPLIED_COUNT} domains with applied status"
+        fi
+        echo "   💡 Suggest manually checking the database or re-running the fix command"
+    fi
+
+    echo ""
+    echo "💡 Tips:"
+    echo "   1. To reconfigure multi-IP, please re-run: bm.sh multi_ip"
+    echo "   2. Suggest checking email sending functionality"
+    echo "   3. If issues occur, check container logs: bm.sh l-c core"
+}
+
+
+
 SHOW_HELP() {
         echo "Help Information:"
         echo "  default                   - Show BillionMail login default info: $0 default"
@@ -1299,7 +1718,17 @@ case "$1" in
     cancel-ip-limit|c-i-l)
     CANCEL_IP_WHITELIST_LIMIT
     ;;  
-    
+
+
+    Domain_multi_send_IP|apply_multi_ip|multi_ip)
+        APPLY_MULTI_IP
+        ;;
+
+    fix_multi_ip|fix-multi-ip)
+        FIX_MULTI_IP
+        ;;
+
+
     *)
         echo "=============== BillionMail CLI =================="
         echo "1) Restart BillionMail          2) View login info"

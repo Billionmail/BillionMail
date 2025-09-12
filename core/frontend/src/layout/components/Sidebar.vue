@@ -112,7 +112,7 @@ const iconMap: Record<string, VNodeChild> = {
 	smtp: <i class="i-custom:smtp"></i>,
 	settings: <i class="i-mdi-settings-outline"></i>,
 	template: <i class="i-mdi-settings-outline"></i>,
-	rspamd: <i class="i-mdi-settings-outline"></i>,
+	logs: <i class="i-icon-park-outline:log"></i>,
 	logout: <i class="i-mdi-logout"></i>,
 }
 
@@ -121,7 +121,7 @@ const renderIcon = (key: string) => {
 }
 
 const handleUpdateMenu = (key: string) => {
-	if (key === 'logout') {
+	if (key === 'logout') {        
 		userStore.logout()
 	}
 	if (key === 'webmail') {

@@ -47,3 +47,6 @@ FAIL2BAN_INIT=y
 
 # Console ip whitelist   Disabled:false  Enabled:true
 IP_WHITELIST_ENABLE=false
+
+# Number of days to keep log backup
+RETENTION_DAYS=7

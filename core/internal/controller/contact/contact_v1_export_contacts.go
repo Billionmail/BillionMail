@@ -4,6 +4,7 @@ package contact
 import (
 	"archive/zip"
 	"billionmail-core/api/contact/v1"
+	"billionmail-core/internal/consts"
 	"billionmail-core/internal/model/entity"
 	"billionmail-core/internal/service/contact"
 	"billionmail-core/internal/service/public"
@@ -13,6 +14,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gogf/gf/v2/errors/gerror"
+	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/os/gfile"
 	"github.com/gogf/gf/v2/os/gtime"
 	"io"
@@ -175,6 +177,19 @@ func (c *ControllerV1) ExportContacts(ctx context.Context, req *v1.ExportContact
 
 		res.Data.FileUrl = zipPath
 	}
+
+	var groups []*entity.ContactGroup
+	err = g.DB().Model("bm_contact_groups").Ctx(ctx).WhereIn("id", req.GroupIds).Scan(&groups)
+	groupNames := make([]string, 0, len(groups))
+	for _, group := range groups {
+		groupNames = append(groupNames, group.Name)
+	}
+	groupNamesStr := strings.Join(groupNames, ", ")
+
+	_ = public.WriteLog(ctx, public.LogParams{
+		Type: consts.LOGTYPE.ContactsGroup,
+		Log:  fmt.Sprintf("Contacts Group exported successfully: %s ", groupNamesStr),
+	})
 
 	res.SetSuccess(public.LangCtx(ctx, "Contacts exported successfully"))
 	return

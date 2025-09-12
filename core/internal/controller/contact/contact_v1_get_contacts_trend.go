@@ -15,7 +15,7 @@ func (c *ControllerV1) GetContactsTrend(ctx context.Context, req *v1.GetContacts
 
 	// Get trend data for the last 12 months
 	now := time.Now()
-	trends, err := contact.GetContactsTrend(ctx, now.AddDate(0, -11, 0), now)
+	trends, err := contact.GetContactsTrend(ctx, now.AddDate(0, -11, 0), now, req.GroupId)
 	if err != nil {
 		res.Code = 500
 		res.SetError(gerror.New(public.LangCtx(ctx, "Failed to get contacts trend: {}", err.Error())))

@@ -1,6 +1,8 @@
 package mail_services
 
 import (
+	"billionmail-core/internal/consts"
+	"billionmail-core/internal/service/mail_service"
 	"billionmail-core/internal/service/public"
 	"context"
 	"github.com/gogf/gf/v2/frame/g"
@@ -34,7 +36,7 @@ func (c *ControllerV1) EditMailForward(ctx context.Context, req *v1.EditMailForw
 	// if provided ForwardUsers, update target address
 	if req.Goto != "" {
 		// process forward target addresses
-		forwardUsers := processForwardUsers(req.Goto)
+		forwardUsers := mail_service.ProcessForwardUsers(req.Goto)
 		if len(forwardUsers) == 0 {
 			res.SetError(gerror.New(public.LangCtx(ctx, "forward target address cannot be empty")))
 			return res, nil
@@ -49,6 +51,12 @@ func (c *ControllerV1) EditMailForward(ctx context.Context, req *v1.EditMailForw
 		res.SetError(gerror.New(public.LangCtx(ctx, "modify mail forward failed: {}", err.Error())))
 		return res, nil
 	}
+
+	_ = public.WriteLog(ctx, public.LogParams{
+		Type: consts.LOGTYPE.MailForward,
+		Log:  "Modify mail forward :" + req.Address + " successfully",
+		Data: update,
+	})
 
 	res.SetSuccess(public.LangCtx(ctx, "modify mail forward success"))
 	return res, nil

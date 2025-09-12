@@ -2,6 +2,7 @@
 .DS_Store
 *.local
 *.log*
+!logs
 
 # Dist
 node_modules
@@ -14,4 +15,7 @@ dist/
 
 deploy.js
 
-build/config.ts
+# build/config.ts
+
+pnpm-lock.yaml
+yarn.lock

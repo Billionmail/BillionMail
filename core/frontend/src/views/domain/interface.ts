@@ -15,8 +15,28 @@ export interface MailDomain {
 	active: number
 	default: number
 	email: string
+	hasbrandinfo: number
+	urls: string[]
 	dns_records: DomainDnsRecords
 	cert_info: DomainCertInfo
+	multi_ip_domains: DomainMultiIp | null
+}
+
+export interface DomainMultiIp {
+	id: number
+	domain: string
+	outbound_ip: string
+	network_name: string
+	subnet: string
+	postfix_ip: string
+	aliases: string
+	smtp_server_name: string
+	active: number
+	create_time: number
+	update_time: number
+	status: string
+	repair_command: string
+	utility_command: string
 }
 
 export type DomainDnsRecords = {

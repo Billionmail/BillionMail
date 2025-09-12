@@ -31,7 +31,19 @@ const route: RouteRecordRaw = {
 					meta: { title: 'Subscribers', titleKey: 'layout.menu.subscribers' },
 					component: () => import('@/views/contacts/subscribers/index.vue'),
 				},
+				{
+					path: 'suspend',
+					name: 'ContactsSuspend',
+					meta: { title: 'Suspend List', titleKey: '' },
+					component: () => import('@/views/contacts/suspend/index.vue'),
+				},
 			],
+		},
+		{
+			path: 'settings/:id',
+			name: 'ContactsSettings',
+			meta: { title: 'Settings', titleKey: '' },
+			component: () => import('@/views/contacts/settings/index.vue'),
 		},
 	],
 }

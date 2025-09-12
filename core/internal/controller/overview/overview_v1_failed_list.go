@@ -2,6 +2,7 @@ package overview
 
 import (
 	"billionmail-core/internal/service/maillog_stat"
+	"billionmail-core/internal/service/public"
 	"context"
 	"fmt"
 	"github.com/gogf/gf/v2/util/gconv"
@@ -32,7 +33,7 @@ func (c *ControllerV1) FailedList(ctx context.Context, req *v1.FailedListReq) (r
 		return
 	}
 
-	res.SetSuccess("Success")
+	res.SetSuccess(public.LangCtx(ctx, "Success"))
 
 	return
 }

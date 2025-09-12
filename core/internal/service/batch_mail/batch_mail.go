@@ -3,6 +3,7 @@ package batch_mail
 import (
 	"billionmail-core/api/batch_mail/v1"
 	"billionmail-core/internal/model/entity"
+	"billionmail-core/internal/service/maillog_stat"
 	"billionmail-core/internal/service/public"
 	"billionmail-core/internal/service/warmup"
 	"context"
@@ -11,8 +12,14 @@ import (
 	"github.com/gogf/gf/v2/errors/gerror"
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/util/gconv"
+	"github.com/gogf/gf/v2/util/gvalid"
 	"strings"
+	"sync/atomic"
 	"time"
+)
+
+var (
+	updateTaskStatsRunning int32 // 0: not running, 1: running
 )
 
 type CreateTaskArgs struct {
@@ -133,7 +140,7 @@ func CreateTask(ctx context.Context, args CreateTaskArgs) (int, error) {
 		"add_type":        args.AddType,
 	})
 	if err != nil {
-		g.Log().Warning(ctx, "Failed to create campaign:", err.Error())
+		g.Log().Debug(ctx, "Failed to create campaign:", err.Error())
 		return 0, err
 	}
 
@@ -226,11 +233,9 @@ func ImportRecipients(ctx context.Context, taskId int, contacts []*entity.Contac
 		// Count affected rows
 		affected, err := result.RowsAffected()
 		if err != nil {
-			g.Log().Warning(ctx, "Could not get affected rows for batch %d/%d: %v", i+1, totalBatches, err)
+			g.Log().Debugf(ctx, "Could not get affected rows for batch %d/%d: %v", i+1, totalBatches, err)
 		} else {
 			totalImported += int(affected)
-			g.Log().Debug(ctx, "Task %d: Batch %d/%d imported %d recipients successfully",
-				taskId, i+1, totalBatches, affected)
 		}
 	}
 
@@ -273,6 +278,7 @@ func GetActiveContacts(ctx context.Context, groupId int) ([]*entity.Contact, err
 	err := g.DB().Model("bm_contacts").
 		Where("group_id", groupId).
 		Where("active", 1).
+		Where("status", 1). // Confirmed email address
 		Scan(&contacts)
 	return contacts, err
 }
@@ -316,7 +322,7 @@ func CreateTaskWithRecipients(ctx context.Context, req *v1.CreateTaskReq, addTyp
 			Scan(&abnormalRecipients)
 
 		if err != nil {
-			g.Log().Warning(ctx, "Failed to get the exception recipient list: %v", err)
+			g.Log().Debugf(ctx, "Failed to get the exception recipient list: %v", err)
 		}
 
 		abnormalMap := make(map[string]int)
@@ -339,21 +345,29 @@ func CreateTaskWithRecipients(ctx context.Context, req *v1.CreateTaskReq, addTyp
 				continue
 			}
 
-			// abnormal skip
+			// abnormal skip and email format validation
 			filteredContacts := make([]*entity.Contact, 0, len(contacts))
 			skippedInGroup := 0
 
 			for _, contact := range contacts {
+				// Check if email is in abnormal list
 				if _, exists := abnormalMap[contact.Email]; exists {
 					skippedInGroup++
 					continue
 				}
+
+				// Validate email format
+				if err := gvalid.New().Rules("email").Data(contact.Email).Run(ctx); err != nil {
+					skippedInGroup++
+					g.Log().Debug(ctx, "Skip erroneous email addresses:", contact.Email, " Error:", err)
+					continue
+				}
+
 				filteredContacts = append(filteredContacts, contact)
 			}
 
 			if skippedInGroup > 0 {
 				totalSkipped += skippedInGroup
-
 			}
 
 			if len(filteredContacts) == 0 {
@@ -375,6 +389,10 @@ func CreateTaskWithRecipients(ctx context.Context, req *v1.CreateTaskReq, addTyp
 			if err != nil {
 				return gerror.New(public.LangCtx(ctx, "Failed to update recipient count for task {}: {}", taskId, err.Error()))
 			}
+		}
+
+		if totalRecipients == 0 {
+			return gerror.New(public.LangCtx(ctx, "No recipients found, task creation is not allowed"))
 		}
 		return nil
 	})
@@ -486,4 +504,90 @@ func GetActualRecipientCount(ctx context.Context, taskId int) (int, error) {
 	}
 
 	return count, nil
+}
+
+// Regularly update the linked query data of marketing tasks
+func UpdateTaskJoinMailstat(ctx context.Context) {
+
+	if !atomic.CompareAndSwapInt32(&updateTaskStatsRunning, 0, 1) {
+		g.Log().Info(ctx, "UpdateTaskJoinMailstat is already running, skipping this run.")
+		return
+	}
+	defer atomic.StoreInt32(&updateTaskStatsRunning, 0)
+
+	// Search for tasks that need to be updated
+	// 1. Tasks that are currently in progress or have been paused (task_process = 1 or 3)
+	// 2. Tasks that have been completed but have sent fewer messages than the number of recipients (task_process = 2 and sends_count < recipient_count)
+	// 3. Tasks that have never been updated (stats_update_time = 0)
+	var tasksToUpdate []*entity.EmailTask
+	err := g.DB().Model("email_tasks").
+		Where("task_process IN (?)", []int{1, 3}).
+		WhereOr("task_process = 2 AND sends_count < recipient_count*0.99").
+		WhereOr("stats_update_time", 0).
+		Order("id DESC").
+		Scan(&tasksToUpdate)
+	if err != nil {
+		g.Log().Errorf(ctx, "UpdateTaskJoinMailstat: failed to get tasks to update: %v", err)
+		return
+	}
+
+	if len(tasksToUpdate) == 0 {
+		g.Log().Debug(ctx, "UpdateTaskJoinMailstat: no tasks to update.")
+		return
+	}
+
+	g.Log().Infof(ctx, "UpdateTaskJoinMailstat: found %d tasks to update.", len(tasksToUpdate))
+
+	for _, task := range tasksToUpdate {
+		//g.Log().Warningf(ctx, "start %d: %s", task.Id, task.TaskName)
+
+		stats := getSingleTaskStats(ctx, int64(task.Id))
+		if stats == nil {
+			//g.Log().Warningf(ctx, "UpdateTaskJoinMailstat: could not get stats for task %d, skipping.", task.Id)
+			continue
+		}
+
+		_, err := g.DB().Model("email_tasks").
+			Where("id", task.Id).
+			Data(g.Map{
+				"sends_count":       stats["sends"],
+				"delivered_count":   stats["delivered"],
+				"bounced_count":     stats["bounced"],
+				"deferred_count":    stats["deferred"],
+				"stats_update_time": time.Now().Unix(),
+			}).
+			Update()
+
+		if err != nil {
+			g.Log().Errorf(ctx, "UpdateTaskJoinMailstat: failed to update stats for task %d: %v", task.Id, err)
+
+		} else {
+			g.Log().Debugf(ctx, "UpdateTaskJoinMailstat: successfully updated stats for task %d.", task.Id)
+		}
+	}
+
+	return
+}
+
+// getSingleTaskStats Obtain the statistical data for a single task
+func getSingleTaskStats(ctx context.Context, taskId int64) map[string]interface{} {
+
+	overview := maillog_stat.NewOverview()
+	stats := overview.OverviewDashboard(taskId, "", 0, 0)
+
+	if stats == nil {
+		g.Log().Errorf(ctx, "getSingleTaskStats: OverviewDashboard returned nil for task %d", taskId)
+		return nil
+	}
+
+	requiredKeys := []string{"sends", "delivered", "bounced", "deferred"}
+	for _, key := range requiredKeys {
+		if _, ok := stats[key]; !ok {
+			//g.Log().Warningf(ctx, "getSingleTaskStats: 任务 %d is missing key '%s'", taskId, key)
+
+			stats[key] = 0
+		}
+	}
+
+	return stats
 }

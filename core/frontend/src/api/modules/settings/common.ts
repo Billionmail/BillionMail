@@ -72,3 +72,21 @@ export const clearIpWhitelist = () => {
 		}
 	)
 }
+
+export const setReverseProxyDomain = (params: { domain: string }) => {
+	return instance.post('/settings/set_reverse_proxy_domain', params, {
+		fetchOptions: {
+			loading: t('settings.api.loading.setting'),
+			successMessage: true,
+		},
+	})
+}
+
+export const clearReverseProxyDomain = (params = {}) => {
+	return instance.post('/settings/delete_reverse_proxy_domain', params, {
+		fetchOptions: {
+			loading: t('settings.api.loading.clearing'),
+			successMessage: true,
+		},
+	})
+}

@@ -11,17 +11,32 @@ type ContactGroup struct {
 	Description string `json:"description" dc:"Description"`
 	CreateTime  int    `json:"create_time" dc:"Create Time"`
 	UpdateTime  int    `json:"update_time" dc:"Update Time"`
+	Token       string `json:"token"      dc:"Subscription Token"`
+	DoubleOptin int    `json:"double_optin" dc:"Double Opt-in Status(0: Single Opt-in 1: Double Opt-in)"`
+
+	WelcomeHtml string `json:"welcome_mail_html" dc:"Welcome Email Html"`
+	WelcomeDrag string `json:"welcome_mail_drag" dc:"Welcome Email Drag"`
+
+	WelcomeSubject   string `json:"welcome_subject" dc:"Welcome Email Subject"`
+	SendWelcomeEmail int    `json:"send_welcome_email" dc:"Whether to send a welcome email"`
+	ConfirmSubject   string `json:"confirm_subject" dc:"Confirmation Email Subject"`
+
+	ConfirmHtml string `json:"confirm_mail_html" dc:"Confirmation Email Html"`
+	ConfirmDrag string `json:"confirm_mail_drag" dc:"Confirmation Email Drag"`
+
+	SuccessUrl    string `json:"success_url" dc:"Success URL"`
+	ConfirmUrl    string `json:"confirm_url" dc:"Confirmation URL"`
+	AlreadyUrl    string `json:"already_url" dc:"Already Subscribed URL"`
+	SubscribeForm string `json:"subscribe_form" dc:"Subscription Form HTML"`
 }
 
 type ContactGroupInfo struct {
-	Id               int    `json:"id"          dc:"Group ID"`
-	Name             string `json:"name"        dc:"Group Name"`
-	Description      string `json:"description" dc:"Description"`
-	CreateTime       int    `json:"create_time" dc:"Create Time"`
-	UpdateTime       int    `json:"update_time" dc:"Update Time"`
+	ContactGroup
 	TotalCount       int    `json:"total_count" dc:"Total Contacts"`
 	ActiveCount      int    `json:"active_count" dc:"Subscribed Contacts"`
 	UnsubscribeCount int    `json:"unsubscribe_count" dc:"Unsubscribed Contacts"`
+	SubscribeLink    string `json:"subscribe_link" dc:"Subscription Link"`
+	Sender           string `json:"sender" dc:"Sender"`
 }
 
 type GroupInfo struct {
@@ -38,6 +53,7 @@ type Contact struct {
 	CreateTime int               `json:"create_time" dc:"Create Time"`
 	Groups     []GroupInfo       `json:"groups"      dc:"Contact Groups"`
 	Status     int               `json:"status"      dc:"Status( 1:Confirmed   0:Unconfirmed)"`
+	GroupName  string            `json:"group_name"      dc:"Contact Group Name"`
 	Attribs    map[string]string `json:"attribs"`
 }
 
@@ -50,7 +66,7 @@ type CreateGroupReq struct {
 	FileData      string `json:"file_data" dc:"file data"`
 	FileType      string `json:"file_type" v:"in:csv,excel,txt" dc:"file type, default:txt"`
 	CreateType    int    `json:"create_type" v:"required|in:1,2,3" dc:"Create type (1: Create group only 2: Create new group and import contacts 3: Import files into existing groups)"`
-	Status        int    `json:"status" v:"in:0,1" dc:"Data confirmation (1:Confirmed   0:Unconfirmed) Default:0"`
+	DoubleOptin   int    `json:"double_optin" v:"in:0,1" dc:"Data confirmation ( 0: Single Opt-in, 1: Double Opt-in) Default:0"`
 }
 
 type CreateGroupRes struct {
@@ -115,6 +131,19 @@ type UpdateGroupReq struct {
 	GroupId       int    `json:"group_id" v:"required" dc:"Group ID"`
 	Name          string `json:"name" dc:"Group Name"`
 	Description   string `json:"description" dc:"Description"`
+	DoubleOptin   int    `json:"double_optin" v:"in:0,1" dc:"Double Opt-in Status(0: Single Opt-in 1: Double Opt-in) Default:0"`
+	WelcomeHtml   string `json:"welcome_mail_html" dc:"Welcome Email Html"`
+	WelcomeDrag   string `json:"welcome_mail_drag" dc:"Welcome Email Drag"`
+	ConfirmHtml   string `json:"confirm_mail_html" dc:"Confirmation Email Html"`
+	ConfirmDrag   string `json:"confirm_mail_drag" dc:"Confirmation Email Drag"`
+	SuccessUrl    string `json:"success_url" dc:"Success URL"`
+	ConfirmUrl    string `json:"confirm_url" dc:"Confirmation URL"`
+	AlreadyUrl    string `json:"already_url" dc:"Already Subscribed URL"`
+	SubscribeForm string `json:"subscribe_form" dc:"Subscription Form HTML"`
+
+	WelcomeSubject   string `json:"welcome_subject" dc:"Welcome Email Subject"`
+	SendWelcomeEmail int    `json:"send_welcome_email" dc:"Whether to send a welcome email"`
+	ConfirmSubject   string `json:"confirm_subject" dc:"Confirmation Email Subject"`
 }
 
 type UpdateGroupRes struct {
@@ -211,6 +240,7 @@ type UpdateContactsGroupRes struct {
 type GetContactsTrendReq struct {
 	g.Meta        `path:"/contact/trend" method:"get" tags:"Contact" summary:"Get contact trend"`
 	Authorization string `json:"authorization" dc:"Authorization" in:"header"`
+	GroupId       int    `json:"group_id"  dc:"Group ID"`
 }
 
 type MonthlyTrend struct {
@@ -245,6 +275,17 @@ type GetGroupContactCountRes struct {
 	} `json:"data" dc:"Data"`
 }
 
+type GetGroupInfoReq struct {
+	g.Meta        `path:"/contact/group/info" method:"get" tags:"Contact" summary:"Get group info"`
+	Authorization string `json:"authorization" dc:"Authorization" in:"header"`
+	GroupId       int    `json:"group_id" v:"required" dc:"Group ID"`
+}
+
+type GetGroupInfoRes struct {
+	api_v1.StandardRes
+	Data *ContactGroupInfo `json:"data" dc:"Group Info"`
+}
+
 type EditContactsReq struct {
 	g.Meta        `path:"/contact/edit" method:"post" tags:"Contact" summary:"Edit contact"`
 	Authorization string `json:"authorization" dc:"Authorization" in:"header"`
@@ -255,5 +296,46 @@ type EditContactsReq struct {
 }
 
 type EditContactsRes struct {
+	api_v1.StandardRes
+}
+
+type ListContactsNDPReq struct {
+	g.Meta        `path:"/contact/list_ndp" method:"get" tags:"Contact" summary:"List all contacts"`
+	Authorization string `json:"authorization" dc:"Authorization" in:"header"`
+	Page          int    `json:"page" v:"required|min:1" dc:"Page Number"`
+	PageSize      int    `json:"page_size" v:"required|min:1" dc:"Page Size"`
+	GroupId       int    `json:"group_id" dc:"Group ID(Optional)"`
+	Keyword       string `json:"keyword" dc:"Search Email"`
+	Active        int    `json:"active" v:"required|in:0,1,-1" dc:"Active(1:Subscribed 0:Unsubscribed -1:all)" default:"-1"`
+}
+
+type ListContactsNDPRes struct {
+	api_v1.StandardRes
+	Data struct {
+		Total int        `json:"total" dc:"Total Count"`
+		List  []*Contact `json:"list" dc:"Contact List"`
+	} `json:"data"`
+}
+
+type EditContactsNDPReq struct {
+	g.Meta        `path:"/contact/edit_ndp" method:"post" tags:"Contact" summary:"Edit contact"`
+	Authorization string `json:"authorization" dc:"Authorization" in:"header"`
+	Id            int    `json:"id"   v:"required"`
+	Active        int    `json:"active"`
+	Status        int    `json:"status"`
+	Attribs       string `json:"attribs"`
+}
+
+type EditContactsNDPRes struct {
+	api_v1.StandardRes
+}
+
+type DeleteContactsNDPReq struct {
+	g.Meta        `path:"/contact/delete_ndp" method:"post" tags:"Contact" summary:"Delete contacts"`
+	Authorization string   `json:"authorization" dc:"Authorization" in:"header"`
+	Ids           []string `json:"ids" v:"required" dc:"contacts id"`
+}
+
+type DeleteContactsNDPRes struct {
 	api_v1.StandardRes
 }

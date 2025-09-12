@@ -109,10 +109,13 @@ const columns = ref<DataTableColumns<Group>>([
 		render: row => row.total_count || 0,
 	},
 	{
-		key: 'unsubscribe_count',
-		title: t('contacts.group.columns.unsubscribe'),
+		key: 'double_optin',
+		title: t('contacts.group.columns.type'),
 		minWidth: 100,
-		render: row => row.unsubscribe_count || 0,
+		render: row =>
+			row.double_optin === 1
+				? t('contacts.group.type.doubleOptin')
+				: t('contacts.group.type.singleOptin'),
 	},
 	{
 		key: 'create_time',
@@ -124,9 +127,17 @@ const columns = ref<DataTableColumns<Group>>([
 		title: t('common.columns.actions'),
 		key: 'actions',
 		align: 'right',
-		width: 120,
+		width: 180,
 		render: row => (
 			<NFlex inline={true}>
+				<NButton
+					type="primary"
+					text={true}
+					onClick={() => {
+						handleSettings(row)
+					}}>
+					{t('common.actions.settings')}
+				</NButton>
 				<NButton
 					type="primary"
 					text={true}
@@ -160,6 +171,10 @@ const handleAdd = () => {
 	addModalApi.open()
 }
 
+const handleSettings = (row: Group) => {
+	router.push(`/contacts/settings/${row.id}`)
+}
+
 const [RenameModal, renameModalApi] = useModal({
 	component: GroupRename,
 	state: {
@@ -189,8 +204,8 @@ const handleDelete = (row: Group) => {
 
 const handleExport = () => {
 	confirm({
-		title: 'Export group',
-		content: `Export ${checkedKeys.value.length} group(s)?`,
+		title: t('contacts.group.export.title'),
+		content: t('contacts.group.export.confirm', { count: checkedKeys.value.length }),
 		onConfirm: async () => {
 			const res = await exportGroup({
 				format: 'csv',

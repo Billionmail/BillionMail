@@ -28,7 +28,7 @@
 <script setup lang="ts">
 import { PropType } from 'vue'
 import { formatTime } from '@/utils'
-import { MailOverview } from '../interface'
+import { MailOverview } from '../types'
 
 import LineChart from './LineChart.vue'
 

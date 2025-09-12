@@ -2,6 +2,13 @@
 
 trap "postfix stop" EXIT
 
+if ! grep -q "rotate_log.sh" /var/spool/cron/crontabs/root; then
+    chmod +x /rotate_log.sh
+    echo "00 00 * * * bash /rotate_log.sh >> /var/log/mail/rotate_log.log 2>&1" >> /var/spool/cron/crontabs/root
+    chmod 600 /var/spool/cron/crontabs/root
+    chown root:crontab /var/spool/cron/crontabs/root     
+    /usr/bin/supervisorctl restart cron
+fi
 
 cat <<EOF > /etc/postfix/btrule.cf
 

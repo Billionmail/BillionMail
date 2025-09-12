@@ -5,6 +5,7 @@ import (
 	docker "billionmail-core/internal/service/dockerapi"
 	"billionmail-core/internal/service/public"
 	"context"
+	"github.com/gogf/gf/v2/database/gdb"
 	"github.com/gogf/gf/v2/frame/g"
 	"path/filepath"
 	"strings"
@@ -62,6 +63,7 @@ endif
 
 	lines := make([]string, 0)
 	skipNextEmptyLine := false
+	containsHostname := false
 
 	// Read the main configuration file each rows
 	err = public.ReadEach(consts.POSTFIX_MAIN_CONF, func(row string, cnt int) bool {
@@ -87,6 +89,25 @@ endif
 			return true
 		}
 
+		if !containsHostname && strings.HasPrefix(strings.TrimSpace(row), "myhostname") {
+			// Cleanup this line when contains mail.example.com
+			seps := strings.SplitN(row, "=", 2)
+
+			if len(seps) < 2 {
+				skipNextEmptyLine = true
+				return true
+			}
+
+			v := strings.TrimSpace(seps[1])
+
+			if v == "" || v == "mail.example.com" || v == "localhost.localdomain" || v == "localhost" {
+				skipNextEmptyLine = true
+				return true
+			}
+
+			containsHostname = true
+		}
+
 		lines = append(lines, row)
 
 		return true
@@ -95,6 +116,27 @@ endif
 	if err != nil {
 		g.Log().Warning(ctx, "Failed to read Postfix main configuration file: %v", err)
 		return
+	}
+
+	// If myhostname is not found, add it at the end
+	if !containsHostname {
+		// get first added domain
+		var val gdb.Value
+		val, err = g.DB().Model("domain").Where("active = 1").OrderAsc("create_time").Value("domain")
+
+		d := "localhost"
+
+		if err == nil && !val.IsNil() {
+			d = val.String()
+		}
+
+		lineLength := len(lines)
+
+		if lineLength == 0 || !strings.HasSuffix(lines[lineLength-1], "\n") {
+			lines = append(lines, "\n")
+		}
+
+		lines = append(lines, "myhostname = "+d+"\n")
 	}
 
 	// Write the updated lines back to the main configuration file
@@ -115,7 +157,7 @@ endif
 	defer dk.Close()
 
 	// Restart the Postfix container to apply the changes
-	err = dk.RestartContainer(ctx, "billionmail-postfix-billionmail-1")
+	_, err = dk.ExecCommandByName(ctx, consts.SERVICES.Postfix, []string{"postfix", "reload"}, "root")
 
 	if err != nil {
 		g.Log().Warning(ctx, "Failed to restart Postfix container: %v", err)
@@ -181,7 +223,7 @@ func FixRspamdDKIMSigningConfig(ctx context.Context) {
 	defer dk.Close()
 
 	// Restart the Rspamd container to apply the changes
-	err = dk.RestartContainer(ctx, "billionmail-rspamd-billionmail-1")
+	err = dk.RestartContainerByName(ctx, consts.SERVICES.Rspamd)
 
 	if err != nil {
 		g.Log().Warning(ctx, "Failed to restart Rspamd container: %v", err)
@@ -258,7 +300,7 @@ func FixDovecotSSLConfig(ctx context.Context) {
 	defer dk.Close()
 
 	// Restart the Dovecot container to apply the changes
-	err = dk.RestartContainer(ctx, "billionmail-dovecot-billionmail-1")
+	err = dk.RestartContainerByName(ctx, consts.SERVICES.Dovecot)
 
 	if err != nil {
 		g.Log().Warning(ctx, "Failed to restart Dovecot container: %v", err)

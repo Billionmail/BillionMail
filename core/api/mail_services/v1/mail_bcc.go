@@ -37,7 +37,7 @@ type AddBccReq struct {
 	g.Meta  `path:"/mail_bcc/add" method:"post" summary:"add mail bcc"`
 	Type    string `json:"type" v:"required|in:sender,recipient" dc:"bcc type: sender or recipient"`
 	Address string `json:"address" v:"required" dc:"email address or domain"`
-	Goto    string `json:"goto" v:"required" dc:"forward target address"`
+	Goto    string `json:"goto" v:"required|email" dc:"forward target address"`
 	Domain  string `json:"domain" dc:"domain"`
 	Active  int    `json:"active" d:"1" dc:"status: 1-enabled, 0-disabled"`
 }
@@ -51,7 +51,7 @@ type EditBccReq struct {
 	ID      int    `json:"id" v:"required" dc:"record id"`
 	Type    string `json:"type" v:"in:sender,recipient" dc:"bcc typeype: sen or er or recipient"`
 	Address string `json:"address"  dc:"email address or domainddress or domain"`
-	Goto    string `json:"goto"  dc:"forward target addressd target address"`
+	Goto    string `json:"goto" v:"required|email" dc:"forward target addressd target address"`
 	Domain  string `json:"domain" dc:"domain"`
 	Active  int    `json:"active" v:"required" d:"1" dc:"status: 1-enabled, 0-disabled"`
 }

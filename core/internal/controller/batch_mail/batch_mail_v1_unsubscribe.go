@@ -33,7 +33,7 @@ func (c *ControllerV1) Unsubscribe(ctx context.Context, req *v1.UnsubscribeReq) 
 	}
 
 	if len(req.GroupId) == 0 {
-		g.Log().Warning(ctx, "No group IDs provided for unsubscribe - Email: %s", claims.Email)
+		g.Log().Debugf(ctx, "No group IDs provided for unsubscribe - Email: %s", claims.Email)
 		res.SetError(gerror.New(public.LangCtx(ctx, "No group IDs provided for unsubscribe")))
 		return
 
@@ -74,6 +74,7 @@ func (c *ControllerV1) Unsubscribe(ctx context.Context, req *v1.UnsubscribeReq) 
 				g.Log().Error(ctx, "Failed to record unsubscribe: %v", err)
 				return err
 			}
+
 		}
 
 		return nil

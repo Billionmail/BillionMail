@@ -149,7 +149,7 @@ func (s *SenderIpMailProviderService) EvaluateScoreForProvider(ctx context.Conte
 	deferredSends := 0
 	openedCount := 0
 	clickedCount := 0
-	// complaintCount := 0 // TODO: Complaint rate
+	complaintCount := 0
 
 	if len(relevantPmids) > 0 {
 		// 1. Get sending statistics (mailstat_send_mails)
@@ -207,6 +207,14 @@ func (s *SenderIpMailProviderService) EvaluateScoreForProvider(ctx context.Conte
 			Where("log_time_millis >= ?", evaluationWindowStartMillis).
 			Fields("DISTINCT postfix_message_id").
 			Count()
+
+		// Get complaintCount (FBL/abuse complaints)
+		complaintCount, _ = g.DB().Model("mailstat_complaints").
+			Ctx(ctx).
+			WhereIn("postfix_message_id", relevantPmids).
+			Where("log_time_millis >= ?", evaluationWindowStartMillis).
+			Fields("DISTINCT postfix_message_id").
+			Count()
 	}
 
 	currentScore := float64(providerStatus.Score)
@@ -243,8 +251,15 @@ func (s *SenderIpMailProviderService) EvaluateScoreForProvider(ctx context.Conte
 				clickRate := float64(clickedCount) / float64(openedCount)
 				currentScore += clickRate * 20 // 2.5% click rate benchmark
 			}
+
+			// Complaint rate penalty
+			complaintRate := 0.0
+			if complaintCount > 0 {
+				complaintRate = float64(complaintCount) / float64(successfulSends)
+				// Penalty: each 0.1% complaint rate reduces score by 2 points (tunable)
+				currentScore -= complaintRate * 200
+			}
 		}
-		// TODO: complaintRate (complaintCount / successfulSends)
 	} else { // totalSent == 0 for this provider group
 		var warmupStatus *entity.SenderIpWarmup
 		warmupStatus, err = s.ipWarmupService.InitializeOrGetWarmupStatus(ctx, senderIp)

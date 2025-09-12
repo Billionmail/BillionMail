@@ -15,6 +15,8 @@
 			<TimezoneSettings />
 			<n-divider />
 			<IpWhitelistSettings />
+			<n-divider />
+			<ProxySettings />
 		</div>
 	</n-card>
 </template>
@@ -23,4 +25,5 @@
 import PortSettings from './PortSettings.vue'
 import TimezoneSettings from './TimezoneSettings.vue'
 import IpWhitelistSettings from './IpWhitelistSettings.vue'
+import ProxySettings from './ProxySettings.vue'
 </script>

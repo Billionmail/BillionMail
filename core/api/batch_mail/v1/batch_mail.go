@@ -29,6 +29,11 @@ type EmailTask struct {
 	Active                  int    `json:"active"          dc:"status"`
 	AddType                 int    `json:"add_type"        dc:"add type"`
 	EstimatedTimeWithWarmup int64  `json:"estimated_time_with_warmup" dc:"estimated time for warmup (if applicable)"`
+	SendsCount              int    `json:"sendsCount"       description:""`
+	DeliveredCount          int    `json:"deliveredCount"   description:""`
+	BouncedCount            int    `json:"bouncedCount"     description:""`
+	DeferredCount           int    `json:"deferredCount"    description:""`
+	StatsUpdateTime         int    `json:"statsUpdateTime"  description:""`
 }
 
 type GroupInfo struct {

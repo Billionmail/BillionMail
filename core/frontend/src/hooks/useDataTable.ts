@@ -1,47 +1,43 @@
-import { DataTableCreateRowKey, DataTableRowKey, DataTableRowData } from 'naive-ui'
 import { useDebounceFn } from '@vueuse/core'
-import { isArray, isObject, isNumber } from '@/utils'
+import type { DataTableCreateRowKey, DataTableRowKey, DataTableRowData } from 'naive-ui'
+import { isArray, isNumber, isObject } from '@/utils'
 
-type TableParams = DataTableRowData
+type TableParams = {
+	[key: string]: any
+}
 
-interface UseDataTableOptions {
-	params: TableParams
-	rowKey?: DataTableCreateRowKey
-	fetchFn: (params: any) => Promise<unknown>
+interface UseDataTableOptions<T, K> {
+	params: K
+	loading?: boolean
 	immediate?: boolean
 	autoRefresh?: boolean
 	refreshInterval?: number
-	useParams?: (params: TableParams) => TableParams
+	rowKey?: DataTableCreateRowKey<T>
+	fetchFn: (params: any) => Promise<unknown>
+	useParams?: (params: K) => TableParams
 }
 
-// 核心状态管理
-interface TableState {
-	loading: boolean
-}
-
-export const useDataTable = <T>(options: UseDataTableOptions) => {
+export const useDataTable = <T = DataTableRowData, K = TableParams>(
+	options: UseDataTableOptions<T, K>
+) => {
 	const {
-		fetchFn,
 		params,
-		rowKey = row => row.id as DataTableRowKey,
-		immediate = true,
-		autoRefresh = false,
-		refreshInterval = 30000,
+		fetchFn,
 		useParams,
+		loading = true,
+		immediate = true,
+		rowKey = (row: any) => row.id,
 	} = options
 
-	// 核心状态
-	const state = reactive<TableState>({
-		loading: immediate,
-	})
+	const loadingRef = ref(loading)
 
-	const data = ref<T[]>([])
-	const total = ref(0)
+	const tableData = ref<T[]>([])
+
+	const tableTotal = ref(0)
 
 	const tableParams = ref(params)
 
-	// 自动刷新定时器
-	let timer: number | null = null
+	const tableKeys = ref<DataTableRowKey[]>([])
 
 	const getParams = () => {
 		if (useParams) return useParams(tableParams.value)
@@ -54,98 +50,76 @@ export const useDataTable = <T>(options: UseDataTableOptions) => {
 			tableParams.value.page = 1
 		}
 
-		state.loading = true
+		loadingRef.value = true
 
 		try {
 			const params = getParams()
 			const response = await fetchFn(params)
 
 			if (isObject<{ list: T[]; total: number }>(response)) {
-				data.value = isArray(response.list) ? response.list : []
-				total.value = isNumber(response.total) ? response.total : 0
+				tableData.value = isArray(response.list) ? response.list : []
+				tableTotal.value = isNumber(response.total) ? response.total : 0
 			}
 		} finally {
-			state.loading = false
+			tableKeys.value = []
+			loadingRef.value = false
 		}
 	}, 300)
 
 	// 核心方法
-	const fetch = (resetPage = false) => debouncedFetch(resetPage)
-	const refresh = () => fetch()
-	const reset = () => fetch(true)
+	const fetchTable = (resetPage = false) => debouncedFetch(resetPage)
+	const resetTable = () => fetchTable(true)
 
-	// 排序处理
-	const changeSort = (field?: string, order?: 'asc' | 'desc') => {
-		tableParams.value.sort_field = field
-		tableParams.value.sort_order = order
-		fetch(true)
+	const onUpdatePage = (page: number) => {
+		tableParams.value.page = page
 	}
 
-	// 筛选处理
-	const changeFilter = (filters: Record<string, any>) => {
-		Object.assign(tableParams.value, filters)
-		fetch(true)
+	const onUpdatePageSize = (pageSize: number) => {
+		tableParams.value.page_size = pageSize
 	}
-
-	// 自动刷新
-	const startAutoRefresh = () => {
-		stopAutoRefresh()
-		if (autoRefresh && refreshInterval > 0) {
-			timer = setInterval(() => {
-				if (!state.loading) refresh()
-			}, refreshInterval)
-		}
-	}
-
-	const stopAutoRefresh = () => {
-		if (timer) {
-			clearInterval(timer)
-			timer = null
-		}
-	}
-
-	// 计算属性
-	const hasData = computed(() => data.value.length > 0)
 
 	// 生命周期
 	onMounted(() => {
-		if (immediate) fetch()
-		if (autoRefresh) startAutoRefresh()
+		if (immediate) fetchTable()
 	})
 
-	onUnmounted(() => {
-		stopAutoRefresh()
-	})
-
-	// 简化的返回值 - 只返回核心功能
 	return {
 		// 数据状态
-		data: readonly(data),
-		total: readonly(total),
-		loading: computed(() => state.loading),
-		hasData,
+		tableData,
+		tableTotal,
+		tableKeys,
 		tableParams,
 
 		// 核心方法
-		fetch,
-		resetTable: reset,
-		refreshTable: refresh,
-
-		// 操作方法
-		changeSort,
-		changeFilter,
+		fetchTable,
+		resetTable,
 
 		// 配置对象 - 直接用于 naive-ui 表格
-		tableConfig: computed(() => ({
+		tableProps: computed(() => ({
 			rowKey,
-			data: data.value,
-			loading: state.loading,
+			data: tableData.value,
+			loading: loadingRef.value,
+			checkedRowKeys: tableKeys.value,
+			onUpdateCheckedRowKeys: (keys: DataTableRowKey[]) => {
+				tableKeys.value = keys
+			},
 		})),
 
-		pageConfig: computed(() => ({
+		batchProps: computed(() => ({
+			rowKey,
+			data: tableData.value,
+			checkedRowKeys: tableKeys.value,
+			onUpdateCheckedRowKeys: (keys: DataTableRowKey[]) => {
+				tableKeys.value = keys
+			},
+		})),
+
+		pageProps: computed(() => ({
 			page: tableParams.value.page,
 			pageSize: tableParams.value.page_size,
-			itemCount: total.value,
+			itemCount: tableTotal.value,
+			onUpdatePage,
+			onUpdatePageSize,
 		})),
 	}
 }

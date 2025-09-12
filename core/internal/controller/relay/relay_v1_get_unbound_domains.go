@@ -28,7 +28,7 @@ func (c *ControllerV1) GetUnboundDomains(ctx context.Context, req *v1.GetUnbound
 	var boundDomainEntities []struct {
 		SenderDomain string `json:"sender_domain"`
 	}
-	err = g.DB().Model("bm_relay").
+	err = g.DB().Model("bm_relay_domain_mapping").
 		Fields("sender_domain").
 		Scan(&boundDomainEntities)
 	if err != nil {
@@ -38,13 +38,17 @@ func (c *ControllerV1) GetUnboundDomains(ctx context.Context, req *v1.GetUnbound
 
 	boundDomainsMap := make(map[string]bool)
 	for _, entity := range boundDomainEntities {
-		boundDomainsMap[entity.SenderDomain] = true
+
+		domain := entity.SenderDomain
+		if len(domain) > 0 && domain[0] == '@' {
+			domain = domain[1:]
+		}
+		boundDomainsMap[domain] = true
 	}
 
 	domainInfoList := make([]*v1.DomainInfo, 0, len(domainEntities))
 	for _, entity := range domainEntities {
 		domain := entity.Domain
-
 		isBound := boundDomainsMap[domain]
 
 		domainInfo := &v1.DomainInfo{

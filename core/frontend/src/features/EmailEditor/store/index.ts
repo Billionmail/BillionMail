@@ -22,6 +22,7 @@ export const useEmailEditorStore = defineStore('email-editor-store', () => {
 		style: {
 			backgroundColor: '#ffffff',
 			width: '500px',
+			fontFamily: 'PingFang SC, Microsoft YaHei',
 		},
 	})
 

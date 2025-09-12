@@ -41,13 +41,14 @@ services:
             - redis
 
     rspamd-billionmail:
-      image: billionmail/rspamd:1.1
+      image: billionmail/rspamd:1.2
       hostname: rspamd
       depends_on:
         - redis-billionmail
       environment:
         - TZ=${TZ}
         - REDISPASS=${REDISPASS}
+        - RETENTION_DAYS=${RETENTION_DAYS:-7}
       volumes:
         - ./conf/rspamd/local.d:/etc/rspamd/local.d
         - ./conf/rspamd/statistic.conf:/etc/rspamd/statistic.conf
@@ -61,7 +62,7 @@ services:
             - rspamd
 
     dovecot-billionmail:
-      image: billionmail/dovecot:1.4
+      image: billionmail/dovecot:1.5
       hostname: dovecot
       depends_on:
         - pgsql-billionmail
@@ -85,6 +86,7 @@ services:
         - TZ=${TZ}
         - BILLIONMAIL_HOSTNAME=${BILLIONMAIL_HOSTNAME}
         - REDISPASS=${REDISPASS}
+        - RETENTION_DAYS=${RETENTION_DAYS:-7}
       ports:
         - "${IMAP_PORT:-143}:143"
         - "${IMAPS_PORT:-993}:993"
@@ -102,7 +104,7 @@ services:
             - dovecot
 
     postfix-billionmail:
-      image: billionmail/postfix:1.5
+      image: billionmail/postfix:1.6
       hostname: postfix
       depends_on:
         pgsql-billionmail:
@@ -125,6 +127,7 @@ services:
         - DBPASS=${DBPASS}
         - REDISPASS=${REDISPASS}
         - BILLIONMAIL_HOSTNAME=${BILLIONMAIL_HOSTNAME}
+        - RETENTION_DAYS=${RETENTION_DAYS:-7}
       cap_add:
         - NET_BIND_SERVICE
       ports:
@@ -170,7 +173,7 @@ services:
             - webmail
 
     core-billionmail:
-      image: billionmail/core:3.1.0
+      image: billionmail/core:4.4.2
       hostname: core-manage
       depends_on:
         - pgsql-billionmail

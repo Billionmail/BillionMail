@@ -299,7 +299,7 @@ func (c *Certificate) updatePostfixVMailConfig(domain, csrPem, keyPem string) er
 	}
 
 	// Create SNI mapping table
-	if err := c.updatePostfixSNIMap("mail."+strings.TrimPrefix(domain, "mail."), vmailCert, vmailKey); err != nil {
+	if err := c.updatePostfixSNIMap(public.FormatMX(domain), vmailCert, vmailKey); err != nil {
 		return fmt.Errorf("failed to update SNI map: %v", err)
 	}
 
@@ -335,7 +335,7 @@ func (c *Certificate) updatePostfixSNIMap(domain, certPath, keyPath string) erro
 	}
 
 	// Rehash configuration
-	if _, err := c.dockerApiClient().ExecCommandByName(context.Background(), "billionmail-postfix-billionmail-1", []string{"postmap", "/etc/postfix/conf/vmail_ssl.map"}, "root"); err != nil {
+	if _, err := c.dockerApiClient().ExecCommandByName(context.Background(), consts.SERVICES.Postfix, []string{"postmap", "/etc/postfix/conf/vmail_ssl.map"}, "root"); err != nil {
 		return fmt.Errorf("failed to hash postfix config: %v", err)
 	}
 
@@ -440,7 +440,7 @@ func (c *Certificate) updateConfigLine(config, key, value string) string {
 // restartPostfix restarts Postfix service
 func (c *Certificate) restartPostfix() error {
 	// Restart Postfix container
-	if err := c.dockerApiClient().RestartContainerByName(context.Background(), "billionmail-postfix-billionmail-1"); err != nil {
+	if err := c.dockerApiClient().RestartContainerByName(context.Background(), consts.SERVICES.Postfix); err != nil {
 		return fmt.Errorf("failed to restart postfix container: %v", err)
 	}
 
@@ -450,7 +450,7 @@ func (c *Certificate) restartPostfix() error {
 // restartDovecot restarts Dovecot service
 func (c *Certificate) restartDovecot() error {
 	// Restart Dovecot container
-	if err := c.dockerApiClient().RestartContainerByName(context.Background(), "billionmail-dovecot-billionmail-1"); err != nil {
+	if err := c.dockerApiClient().RestartContainerByName(context.Background(), consts.SERVICES.Dovecot); err != nil {
 		return fmt.Errorf("failed to restart dovecot container: %v", err)
 	}
 

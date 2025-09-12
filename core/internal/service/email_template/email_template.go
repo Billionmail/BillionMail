@@ -17,7 +17,7 @@ func CheckTemplateNameExists(ctx context.Context, name string) (bool, error) {
 }
 
 // CreateTemplate
-func CreateTemplate(ctx context.Context, name string, addType int, content, render string) (int, error) {
+func CreateTemplate(ctx context.Context, name string, addType int, content, render, chat_id string) (int, error) {
 	now := time.Now().Unix()
 	result, err := g.DB().Model("email_templates").
 		Ctx(ctx).
@@ -28,6 +28,7 @@ func CreateTemplate(ctx context.Context, name string, addType int, content, rend
 			"render":      render,
 			"create_time": now,
 			"update_time": now,
+			"chat_id":     chat_id,
 		})
 	if err != nil {
 		return 0, err

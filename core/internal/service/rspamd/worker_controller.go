@@ -37,7 +37,7 @@ func InitWorkerController() (err error) {
 
 	defer dk.Close()
 
-	res, err := dk.ExecCommandByName(context.Background(), "billionmail-rspamd-billionmail-1", []string{"rspamadm", "pw", "-p", passwordPlain}, "root")
+	res, err := dk.ExecCommandByName(context.Background(), consts.SERVICES.Rspamd, []string{"rspamadm", "pw", "-p", passwordPlain}, "root")
 
 	if err != nil {
 		return
@@ -66,7 +66,7 @@ static_dir = "${WWWDIR}";`)
 	}
 
 	// Restart the RSPAMD container
-	err = dk.RestartContainer(context.Background(), "billionmail-rspamd-billionmail-1")
+	err = dk.RestartContainerByName(context.Background(), consts.SERVICES.Rspamd)
 
 	return
 }

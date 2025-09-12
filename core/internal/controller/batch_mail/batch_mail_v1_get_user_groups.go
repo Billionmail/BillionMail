@@ -1,6 +1,7 @@
 package batch_mail
 
 import (
+	"billionmail-core/internal/service/public"
 	"context"
 	"github.com/gogf/gf/v2/errors/gerror"
 	"github.com/gogf/gf/v2/frame/g"
@@ -24,6 +25,6 @@ func (c *ControllerV1) GetUserGroups(ctx context.Context, req *v1.GetUserGroupsR
 	}
 
 	res.Data = groups
-	res.SetSuccess("Success")
+	res.SetSuccess(public.LangCtx(ctx, "Success"))
 	return
 }

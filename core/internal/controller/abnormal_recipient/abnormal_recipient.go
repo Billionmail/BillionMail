@@ -3,3 +3,33 @@
 // =================================================================================
 
 package abnormal_recipient
+
+import "github.com/gogf/gf/v2/frame/g"
+
+func GetAbnormalSwitch() string {
+	var abnormalSwitch string
+	val, err := g.DB().Model("bm_options").Where("name", "abnormal_mail_check_switch").Value("value")
+	if err == nil && val != nil && val.String() != "" {
+		abnormalSwitch = val.String()
+	} else {
+		abnormalSwitch = "1"
+		_ = SetAbnormalSwitch("1")
+
+	}
+	return abnormalSwitch
+}
+
+func SetAbnormalSwitch(status string) error {
+	_, err := g.DB().Model("bm_options").
+		Data(g.Map{
+			"name":  "abnormal_mail_check_switch",
+			"value": status,
+		}).
+		OnConflict("name").
+		Save()
+
+	if err != nil {
+		return err
+	}
+	return nil
+}

@@ -77,30 +77,19 @@ func (c *ControllerV1) ApiMailSend(ctx context.Context, req *v1.ApiMailSendReq) 
 	}
 
 	// 6. Join the sender queue
-	err = recordApiMailLog(ctx, apiTemplate, req.Recipient, req.Addresser)
+	err = recordApiMailLog(ctx, apiTemplate, req.Recipient, req.Addresser, req.Attribs)
 	if err != nil {
 		res.Code = 1005
 		res.SetError(gerror.New(public.LangCtx(ctx, "Failed to record email log: {}", err.Error())))
 		return res, nil
 	}
-	//content, subject := processMailContentAndSubject(ctx, emailTemplate.Content, apiTemplate.Subject, &apiTemplate, entity.Contact{Email: log.Recipient}, nil)
-	//// 6. process mail content and subject
-	//content, subject := processMailContentAndSubject(ctx, emailTemplate.Content, apiTemplate.Subject, apiTemplate, contact, req)
-	//
-	//// 7. send email
-	//err = sendApiMail(ctx, apiTemplate, subject, content, req.Recipient, req.Addresser)
-	//if err != nil {
-	//	res.Code = 1005
-	//	res.SetError(gerror.New(public.LangCtx(ctx, "Failed to send email: {}", err.Error())))
-	//	return res, nil
-	//}
 
 	res.SetSuccess(public.LangCtx(ctx, "Email sent successfully"))
 	return res, nil
 }
 
 // 记录到日志表，状态为待发送
-func recordApiMailLog(ctx context.Context, apiTemplate *entity.ApiTemplates, recipient, addresser string) error {
+func recordApiMailLog(ctx context.Context, apiTemplate *entity.ApiTemplates, recipient, addresser string, attribs map[string]string) error {
 	// 生成消息ID
 
 	sender, err := mail_service.NewEmailSenderWithLocal(addresser)
@@ -123,6 +112,7 @@ func recordApiMailLog(ctx context.Context, apiTemplate *entity.ApiTemplates, rec
 		"error_message": "",
 		"send_time":     0,
 		"create_time":   now,
+		"attribs":       attribs,
 	})
 
 	return err
@@ -175,60 +165,68 @@ func getEmailTemplateById(ctx context.Context, templateId int) (*entity.EmailTem
 // ensure contact and group exists
 func ensureContactAndGroup(ctx context.Context, email string, apiId int) (entity.Contact, error) {
 	var contact entity.Contact
-	err := g.DB().Model("bm_contacts").Where("email", email).Scan(&contact)
 	now := int(time.Now().Unix())
+
+	apiGroupName := fmt.Sprintf("api_group_%d", apiId)
+	var group entity.ContactGroup
+	err := g.DB().Model("bm_contact_groups").Where("name", apiGroupName).Scan(&group)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			contact.Id = 0
+			group = entity.ContactGroup{}
 		} else {
-			g.Log().Warning(ctx, "Failed to query contact by email:", err)
-			return contact, err
+			return contact, fmt.Errorf("failed to query group: %w", err)
 		}
-
 	}
-
-	if contact.Id == 0 {
-		apiGroupName := fmt.Sprintf("api_group_%d", apiId)
-		var group entity.ContactGroup
-		err = g.DB().Model("bm_contact_groups").Where("name", apiGroupName).Scan(&group)
-		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				group = entity.ContactGroup{}
-			} else {
-				return contact, fmt.Errorf("failed to query group: %w", err)
-			}
-		}
-		if group.Id == 0 {
-			groupResult, err := g.DB().Model("bm_contact_groups").Insert(g.Map{
-				"name":        apiGroupName,
-				"description": fmt.Sprintf(public.LangCtx(ctx, "API %d automatically created contact group"), apiId),
-				"create_time": now,
-				"update_time": now,
-			})
-			if err != nil {
-				return contact, err
-			}
-			groupId, _ := groupResult.LastInsertId()
-			group.Id = int(groupId)
-		}
-		contactResult, err := g.DB().Model("bm_contacts").Insert(g.Map{
-			"email":       email,
-			"group_id":    group.Id,
-			"active":      1,
-			"status":      1,
+	if group.Id == 0 {
+		groupResult, err := g.DB().Model("bm_contact_groups").Insert(g.Map{
+			"name":        apiGroupName,
+			"description": fmt.Sprintf(public.LangCtx(ctx, "API %d automatically created contact group"), apiId),
 			"create_time": now,
+			"update_time": now,
 		})
 		if err != nil {
 			return contact, err
 		}
-		contactId, _ := contactResult.LastInsertId()
-		contact.Id = int(contactId)
-		contact.Email = email
-		contact.GroupId = group.Id
-		contact.Active = 1
-		contact.Status = 1
-		contact.CreateTime = now
+		groupId, _ := groupResult.LastInsertId()
+		group.Id = int(groupId)
+	} else {
+
+		count, err := g.DB().Model("bm_contacts").
+			Where("email", email).
+			Where("group_id", group.Id).
+			Where("active", 0).
+			Count()
+		if err != nil {
+			return contact, fmt.Errorf("failed to check unsubscribe: %w", err)
+		}
+		if count > 0 {
+			return contact, fmt.Errorf("the recipient has unsubscribed from the current group and cannot send")
+		}
 	}
+
+	contactData := g.Map{
+		"email":       email,
+		"group_id":    group.Id,
+		"active":      1,
+		"status":      1,
+		"create_time": now,
+	}
+	contactResult, err := g.DB().Model("bm_contacts").
+		Data(contactData).
+		OnConflict("email,group_id").
+		Save()
+	if err != nil {
+		return contact, err
+	}
+
+	contactId, _ := contactResult.LastInsertId()
+	contact.Id = int(contactId)
+	contact.Email = email
+	contact.GroupId = group.Id
+	contact.Active = 1
+	contact.Status = 1
+	contact.CreateTime = now
+
 	return contact, nil
 }
 
@@ -239,7 +237,8 @@ func processMailContentAndSubject(ctx context.Context, content, subject string, 
 		if !strings.Contains(content, "__UNSUBSCRIBE_URL__") && !strings.Contains(content, "{{ UnsubscribeURL . }}") {
 			content = public.AddUnsubscribeButton(content)
 		}
-		domain := domains.GetBaseURLBySender(req.Addresser)
+		//domain := domains.GetBaseURLBySender(req.Addresser)
+		domain := domains.GetBaseURL()
 		unsubscribeURL := fmt.Sprintf("%s/api/unsubscribe", domain)
 		groupURL := fmt.Sprintf("%s/api/unsubscribe/user_group", domain)
 		jwtToken, _ := batch_mail.GenerateUnsubscribeJWT(req.Recipient, apiTemplate.TemplateId, apiTemplate.Id)
@@ -285,7 +284,8 @@ func sendApiMail(ctx context.Context, apiTemplate *entity.ApiTemplates, subject,
 	// generate message ID
 	messageId := sender.GenerateMessageID()
 	// add 1 billion to prevent conflict with marketing task id
-	baseURL := domains.GetBaseURLBySender(addresser)
+	//baseURL := domains.GetBaseURLBySender(addresser)
+	baseURL := domains.GetBaseURL()
 	apiTemplate_id := apiTemplate.Id + 1000000000
 	mailTracker := maillog_stat.NewMailTracker(content, apiTemplate_id, messageId, recipient, baseURL)
 	mailTracker.TrackLinks()

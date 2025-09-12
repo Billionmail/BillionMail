@@ -4,6 +4,7 @@ export interface SmtpService {
 	id: number
 	remark: string
 	sender_domain: string
+	sender_domains: string[]
 	relay_host: string
 	relay_port: string
 	auth_user: string
@@ -24,11 +25,20 @@ export interface SmtpService {
 	max_idle_time: string
 	max_wait_time: string
 	rtype: string
+	check_spf: number
 	spf_record: {
 		type: string
 		host: string
 		value: string
 	}
+	spf_records: {
+		check: number
+		dns_record: {
+			type: string
+			host: string
+			value: string
+		}
+	}[]
 	smtp_status: {
 		status: boolean
 		msg: string

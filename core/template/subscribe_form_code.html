@@ -1,0 +1,33 @@
+<form id="subscribeForm" method="post" action="{{ SubmitURL . }}">
+    <label for="email">Email Address</label><br>
+    <input type="email" id="email" name="email" required placeholder="Please enter your email address"><br>
+
+    <label for="name">Name (Optional)</label><br>
+    <input type="text" id="name" name="name" placeholder="Please enter your name"><br>
+
+    <label for="name">Company (Optional)</label><br>
+    <label for="company"></label><input type="text" id="company" name="company" placeholder="Please enter your company"><br>
+
+    <!-- Extensible custom property fields, example: -->
+    <!-- <label for="name">Company (Optional)</label><br>-->
+    <!-- <label for="company"></label><input type="text" id="company" name="company" placeholder="Please enter your company"><br>-->
+
+    <input type="hidden" id="attribs" name="attribs" value="">
+    <button type="submit">Subscribe Now</button>
+</form>
+
+<script>
+document.getElementById('subscribeForm').onsubmit = function (e) {
+    var form = this;
+    var attribs = {};
+    var inputs = form.querySelectorAll('input');
+    for (var i = 0; i < inputs.length; i++) {
+        var input = inputs[i];
+        if (input.name === 'email' || input.name === 'attribs') continue;
+        if (input.name && input.value !== undefined) {
+            attribs[input.name] = input.value;
+        }
+    }
+    form.querySelector('input[name="attribs"]').value = JSON.stringify(attribs);
+};
+</script>

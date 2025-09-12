@@ -39,6 +39,18 @@ const route: RouteRecordRaw = {
 					meta: { title: 'Forward', titleKey: 'layout.menu.forward' },
 					component: () => import('@/views/settings/forward/index.vue'),
 				},
+				{
+					path: 'ai-model',
+					name: 'AiModel',
+					meta: { title: 'AI Model', titleKey: '' },
+					component: () => import('@/views/settings/ai-model/index.vue'),
+				},
+				{
+					path: 'send-queue',
+					name: 'SendQueue',
+					meta: { title: 'Send Queue', titleKey: '' },
+					component: () => import('@/views/settings/send-queue/index.vue'),
+				},
 			],
 		},
 		{

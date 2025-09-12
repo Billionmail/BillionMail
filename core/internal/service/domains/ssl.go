@@ -143,7 +143,7 @@ func ApplyCertToService(domain, crtPem, keyPem string) (err error) {
 
 			defer dk.Close()
 
-			err = dk.RestartContainerByName(context.Background(), "billionmail-core-billionmail-1")
+			err = dk.RestartContainerByName(context.Background(), consts.SERVICES.Core)
 		}()
 	}
 
@@ -178,7 +178,7 @@ func ApplyCertToConsole(crtPem, keyPem string) (err error) {
 
 		defer dk.Close()
 
-		err = dk.RestartContainerByName(context.Background(), "billionmail-core-billionmail-1")
+		err = dk.RestartContainerByName(context.Background(), consts.SERVICES.Core)
 	}()
 
 	return
@@ -351,6 +351,7 @@ func AutoRenewSSL(ctx context.Context) {
 	}
 
 	for _, domain := range domainList {
+		domain = public.FormatMX(domain)
 		certInfo, err = mail_service.NewCertificate().GetSSLInfo(domain)
 		if err == nil && certInfo.Endtime > 0 {
 			remain := certInfo.Endtime - int(time.Now().Unix())

@@ -15,8 +15,8 @@
 <script lang="tsx" setup>
 import { DataTableColumns, NButton, NFlex, NTag } from 'naive-ui'
 import { formatTime } from '@/utils'
+import { useDataTable } from '@/hooks/useDataTable'
 import { getGroupList } from '@/api/modules/contacts/group'
-import { useDataTable } from './hooks/useDataTable'
 import type { Group, GroupParams } from './types/base.ts'
 
 const { t } = useI18n()

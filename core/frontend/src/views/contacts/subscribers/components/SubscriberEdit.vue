@@ -6,14 +6,19 @@
 					<n-form-item-gi :span="8" :label="$t('contacts.subscribers.edit.email')">
 						<n-input v-model:value="form.email" :disabled="true"></n-input>
 					</n-form-item-gi>
-					<n-form-item-gi :span="4" label="Status">
+					<n-form-item-gi :span="4" :label="$t('contacts.subscribers.import.subscriptionStatus')">
 						<n-select v-model:value="form.active" :options="activeOptions"></n-select>
 					</n-form-item-gi>
 				</n-grid>
-				<n-form-item :label="$t('contacts.subscribers.edit.group')" path="group_ids">
-					<group-select v-model:value="form.group_ids"></group-select>
-				</n-form-item>
-				<n-form-item label="Attributes" path="group_ids">
+				<n-grid :cols="12" :x-gap="24">
+					<n-form-item-gi :span="8" :label="$t('contacts.subscribers.edit.group')" path="group_ids">
+						<group-select v-model:value="form.group_ids" :disabled="true"></group-select>
+					</n-form-item-gi>
+					<n-form-item-gi :span="4" :label="$t('contacts.subscribers.import.status')">
+						<n-select v-model:value="form.status" :options="statusOptions"></n-select>
+					</n-form-item-gi>
+				</n-grid>
+				<n-form-item :label="$t('contacts.subscribers.edit.attributes')">
 					<n-input v-model:value="form.attribs" type="textarea" :rows="6"></n-input>
 				</n-form-item>
 			</bt-form>
@@ -25,7 +30,7 @@
 import { FormRules } from 'naive-ui'
 import { Message } from '@/utils'
 import { useModal } from '@/hooks/modal/useModal'
-import { editContact } from '@/api/modules/contacts/subscribers'
+import { editContactNdp } from '@/api/modules/contacts/subscribers'
 import type { Subscriber } from '../interface'
 
 import GroupSelect from './GroupMultipleSelect.vue'
@@ -35,8 +40,10 @@ const { t } = useI18n()
 const formRef = useTemplateRef('formRef')
 
 const form = reactive({
+	id: 0,
 	email: '',
 	active: 1,
+	status: 1,
 	attribs: '',
 	group_ids: [] as number[],
 })
@@ -53,10 +60,15 @@ const rules: FormRules = {
 	},
 }
 
-const activeOptions = [
-	{ label: 'Subscribe', value: 1 },
-	{ label: 'Unsubscribe', value: 0 },
-]
+const activeOptions = computed(() => [
+	{ label: t('contacts.subscribers.edit.statusOptions.subscribe'), value: 1 },
+	{ label: t('contacts.subscribers.edit.statusOptions.unsubscribe'), value: 0 },
+])
+
+const statusOptions = computed(() => [
+	{ label: t('contacts.subscribers.import.statusOptions.confirmed'), value: 1 },
+	{ label: t('contacts.subscribers.import.statusOptions.unconfirmed'), value: 0 },
+])
 
 const [Modal, modalApi] = useModal({
 	onChangeState: isOpen => {
@@ -64,14 +76,18 @@ const [Modal, modalApi] = useModal({
 			const state = modalApi.getState<{ row: Subscriber | null }>()
 			const { row } = state
 			if (row) {
+				form.id = row.id
 				form.email = row.email
 				form.active = row.active
-				form.group_ids = row.groups.map(item => item.id)
+				form.status = row.status
+				form.group_ids = [row.group_id]
 				form.attribs = row.attribs ? JSON.stringify(row.attribs, null, 2) : ''
 			}
 		} else {
+			form.id = 0
 			form.email = ''
 			form.active = 1
+			form.status = 1
 			form.group_ids = []
 			form.attribs = ''
 		}
@@ -86,10 +102,10 @@ const [Modal, modalApi] = useModal({
 			Message.error(`${error}`, { close: true })
 			return false
 		}
-		await editContact({
-			emails: form.email,
-			group_ids: form.group_ids,
+		await editContactNdp({
+			id: form.id,
 			active: form.active,
+			status: form.status,
 			attribs: JSON.stringify(attribs),
 		})
 		const state = modalApi.getState<{ refresh: () => void }>()

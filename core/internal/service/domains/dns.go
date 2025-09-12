@@ -132,22 +132,28 @@ func ValidateMXRecord(record v1.DNSRecord, domain string, aRecordHosts ...string
 		domain = strings.TrimSuffix(record.Host, ".") + "." + domain
 	}
 
-	// Query MX records
-	mxRecords, err := net.LookupMX(domain)
-	if err != nil {
-		// g.Log().Error(context.Background(), "query mx record failed", err)
-		return false
-	}
-
-	g.Log().Debug(context.Background(), "query mx record success", mxRecords)
+	// Query A records for the domain
+	domains := append([]string{domain}, aRecordHosts...)
 
 	// Check if any MX record matches the expected value
 	aRecordHosts = append([]string{record.Value}, aRecordHosts...)
-	for _, mx := range mxRecords {
-		mxHost := strings.TrimSuffix(mx.Host, ".")
-		for _, aRecordHost := range aRecordHosts {
-			if aRecordHost == mxHost {
-				return true
+
+	for _, d := range domains {
+		// Query MX records
+		mxRecords, err := net.LookupMX(d)
+		if err != nil {
+			// g.Log().Error(context.Background(), "query mx record failed", err)
+			return false
+		}
+
+		g.Log().Debug(context.Background(), "query mx record success", mxRecords)
+
+		for _, mx := range mxRecords {
+			mxHost := strings.TrimSuffix(mx.Host, ".")
+			for _, aRecordHost := range aRecordHosts {
+				if aRecordHost == mxHost {
+					return true
+				}
 			}
 		}
 	}

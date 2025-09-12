@@ -8,6 +8,7 @@ ENV LC_ALL=C
 ## Copy file
 COPY stop-supervisor.sh /stop-supervisor.sh
 COPY dovecot.sh /dovecot.sh
+COPY rotate_log.sh /rotate_log.sh
 
 # COPY debian.sources /etc/apt/sources.list.d/debian.sources
 
@@ -31,9 +32,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends --allow-downgra
 	rsyslog \
 	tzdata \
 	telnet \
+	cron \
 	&& rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
 	&& mkdir -p /usr/lib/dovecot/sieve \
-	&& chmod +x /stop-supervisor.sh /dovecot.sh
+	&& chmod +x /stop-supervisor.sh /dovecot.sh /rotate_log.sh
 
 
 ## Copy the supervisord configuration file

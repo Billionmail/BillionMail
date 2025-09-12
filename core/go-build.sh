@@ -49,6 +49,8 @@ if [ ! -f "main.go" ]; then
     exit 1
 fi
 
+go mod tidy
+
 if [[ "$PLATFORMS" == "all" || "$PLATFORMS" == "x86" ]]; then
 
     # amd64

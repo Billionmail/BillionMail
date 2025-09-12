@@ -4,38 +4,41 @@
 		<bt-table-layout>
 			<template #toolsLeft>
 				<n-button type="primary" @click="handleAdd">{{ t('mailbox.actions.add') }}</n-button>
+				<n-button @click="handleBatchAdd">{{ $t('mailbox.actions.batchAdd') }}</n-button>
+				<n-button @click="handleImport">{{ $t('common.actions.import') }}</n-button>
+				<n-button @click="handleExport">{{ t('mailbox.actions.exportAll') }}</n-button>
 			</template>
 			<template #toolsRight>
 				<div class="w-220px">
-					<domain-select
-						v-model:value="tableParams.domain"
-						@update:value="() => getTableData(true)">
+					<domain-select v-model:value="tableParams.domain" @update:value="() => resetTable()">
 					</domain-select>
 				</div>
 				<bt-search
 					v-model:value="tableParams.keyword"
-					width="280"
+					:width="280"
 					:placeholder="t('mailbox.search.usernamePlaceholder')"
-					@search="() => getTableData(true)">
+					@search="() => resetTable()">
 				</bt-search>
 			</template>
 			<template #table>
-				<n-data-table :loading="loading" :columns="columns" :data="tableList">
+				<n-data-table v-bind="tableProps" :columns="columns">
 					<template #empty>
 						<bt-table-help> </bt-table-help>
 					</template>
 				</n-data-table>
 			</template>
+			<template #pageLeft>
+				<bt-table-batch v-bind="batchProps" :options="batchOptions" @select="handleBatchSelect">
+				</bt-table-batch>
+			</template>
 			<template #pageRight>
-				<bt-table-page
-					v-model:page="tableParams.page"
-					v-model:page-size="tableParams.page_size"
-					:item-count="tableTotal"
-					@refresh="getTableData">
-				</bt-table-page>
+				<bt-table-page v-bind="pageProps" @refresh="fetchTable"> </bt-table-page>
 			</template>
 			<template #modal>
-				<form-modal />
+				<form-modal></form-modal>
+				<batch-add-modal ref="batchAddRef" @refresh="fetchTable"></batch-add-modal>
+				<import-modal ref="importRef" @refresh="fetchTable"></import-modal>
+				<export-modal ref="exportRef"></export-modal>
 			</template>
 		</bt-table-layout>
 	</div>
@@ -47,13 +50,16 @@ import { useBrowserLocation } from '@vueuse/core'
 import { confirm, getByteUnit } from '@/utils'
 import { useModal } from '@/hooks/modal/useModal'
 import { useCopy } from '@/hooks/useCopy'
-import { useTableData } from '@/hooks/useTableData'
+import { useDataTable } from '@/hooks/useDataTable'
 import { deleteMailbox, getMailboxList, updateMailbox } from '@/api/modules/mailbox'
 import { MailBox, MailBoxParams } from './interface'
 
 import TablePassword from '@/components/base/bt-table-password/index.vue'
 import DomainSelect from './components/DomainSelect.vue'
 import MailboxForm from './components/MailboxForm.vue'
+import BatchAddModal from './components/MailboxBatchAdd.vue'
+import ImportModal from './components/MailboxImport.vue'
+import ExportModal from './components/MailboxExport.vue'
 
 const location = useBrowserLocation()
 
@@ -61,7 +67,25 @@ const { t } = useI18n()
 
 const { copyText } = useCopy()
 
-const { tableParams, tableList, loading, tableTotal, getTableData } = useTableData<
+const batchAddRef = useTemplateRef('batchAddRef')
+
+const handleBatchAdd = () => {
+	batchAddRef.value?.open()
+}
+
+const importRef = useTemplateRef('importRef')
+
+const handleImport = () => {
+	importRef.value?.open()
+}
+
+const exportRef = useTemplateRef('exportRef')
+
+const handleExport = () => {
+	exportRef.value?.open(tableParams.value.domain)
+}
+
+const { tableParams, tableProps, pageProps, batchProps, fetchTable, resetTable } = useDataTable<
 	MailBox,
 	MailBoxParams
 >({
@@ -73,11 +97,16 @@ const { tableParams, tableList, loading, tableTotal, getTableData } = useTableDa
 		domain: location.value.state.domain || '',
 		keyword: '',
 	},
+	rowKey: row => row.username,
 	fetchFn: getMailboxList,
 })
 
 // Table columns
 const columns = ref<DataTableColumns<MailBox>>([
+	{
+		type: 'selection',
+		width: 40,
+	},
 	{
 		key: 'username',
 		title: t('mailbox.columns.username'),
@@ -96,6 +125,7 @@ const columns = ref<DataTableColumns<MailBox>>([
 	{
 		key: 'login',
 		title: t('mailbox.columns.loginInfo'),
+		align: 'center',
 		render: row => {
 			return (
 				<NButton
@@ -183,7 +213,7 @@ const [FormModal, formModalApi] = useModal({
 	component: MailboxForm,
 	state: {
 		isEdit: false,
-		refresh: getTableData,
+		refresh: fetchTable,
 	},
 })
 
@@ -216,8 +246,36 @@ const handleDelete = (row: MailBox) => {
 		confirmText: t('common.actions.delete'),
 		confirmType: 'error',
 		onConfirm: async () => {
-			await deleteMailbox({ email: row.username })
-			getTableData()
+			await deleteMailbox({ emails: [row.username] })
+			fetchTable()
+		},
+	})
+}
+
+const batchOptions = [
+	{
+		label: t('mailbox.actions.batchDelete'),
+		value: 'delete',
+	},
+]
+
+const handleBatchSelect = (key: string, keys: string[]) => {
+	switch (key) {
+		case 'delete':
+			handleBatchDelete(keys)
+			break
+	}
+}
+
+const handleBatchDelete = (keys: string[]) => {
+	confirm({
+		title: t('mailbox.actions.batchDelete'),
+		content: t('mailbox.delete.batchConfirm', { count: keys.length }),
+		confirmText: t('common.actions.delete'),
+		confirmType: 'error',
+		onConfirm: async () => {
+			await deleteMailbox({ emails: keys })
+			fetchTable()
 		},
 	})
 }

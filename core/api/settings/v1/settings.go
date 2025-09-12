@@ -77,8 +77,14 @@ type SystemConfig struct {
 	SSL SSLConfig `json:"ssl" dc:"ssl certificate configuration"`
 
 	// IP whitelist configuration
-	IPWhitelist        []string `json:"ip_whitelist" dc:"ip whitelist"`
-	IPWhitelistEnabled bool     `json:"ip_whitelist_enable" dc:"ip whitelist enabled"`
+	IPWhitelist        []g.Map `json:"ip_whitelist" dc:"ip whitelist"`
+	IPWhitelistEnabled bool    `json:"ip_whitelist_enable" dc:"ip whitelist enabled"`
+	// Reverse proxy domain configuration
+
+	ReverseProxyDomain struct {
+		CurrentUrl   string `json:"current_url" dc:"current url"`
+		ReverseProxy string `json:"reverse_proxy" dc:"reverse proxy"`
+	} `json:"reverse_proxy_domain" dc:"reverse proxy domain"`
 }
 
 type GetVersionReq struct {
@@ -153,5 +159,41 @@ type SetIPWhitelistReq struct {
 }
 
 type SetIPWhitelistRes struct {
+	api_v1.StandardRes
+}
+
+type DeleteIPWhitelistReq struct {
+	g.Meta `path:"/settings/delete_ip_whitelist" tags:"Settings" method:"post" summary:"Delete IP whitelist"`
+	ID     int `json:"id" dc:"ID"`
+}
+
+type DeleteIPWhitelistRes struct {
+	api_v1.StandardRes
+}
+
+type AddIPWhitelistReq struct {
+	g.Meta `path:"/settings/add_ip_whitelist" tags:"Settings" method:"post" summary:"Add IP whitelist"`
+	IP     string `json:"ip" dc:"IP"`
+}
+
+type AddIPWhitelistRes struct {
+	api_v1.StandardRes
+}
+
+type SetReverseProxyDomainReq struct {
+	g.Meta        `path:"/settings/set_reverse_proxy_domain" tags:"Settings" method:"post" summary:"Set reverse proxy domain"`
+	Authorization string `json:"authorization" in:"header" dc:"Authorization" v:"required"`
+	Domain        string `json:"domain" dc:"Domain" v:"required"`
+}
+
+type SetReverseProxyDomainRes struct {
+	api_v1.StandardRes
+}
+
+type DeleteReverseProxyDomainReq struct {
+	g.Meta        `path:"/settings/delete_reverse_proxy_domain" tags:"Settings" method:"post" summary:"Delete reverse proxy domain"`
+	Authorization string `json:"authorization" in:"header" dc:"Authorization" v:"required"`
+}
+type DeleteReverseProxyDomainRes struct {
 	api_v1.StandardRes
 }

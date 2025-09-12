@@ -46,17 +46,26 @@ type Domain struct {
 	DNSRecords   DNSRecords `json:"dns_records" dc:"DNS records"`
 	CertInfo     CertInfo   `json:"cert_info" dc:"Certificate information"`
 	Catchall     string     `json:"email"      dc:"Cache all DNS records, used for domain verification"`
+	Default      int        `json:"default"      dc:"Default sender domain, 1-yes, 0-no"`
+	Urls         []string   `json:"urls" dc:"Additional URLs associated with the domain"`
+	HasBrandInfo int        `json:"hasbrandinfo"        dc:"Brand information : 1-exist, 0-not exist"`
+	// 补充专属ip
+	MultiIPDomains *MultiIPDomain `json:"multi_ip_domains" dc:"Multiple IP domains"`
 }
 
 type AddDomainReq struct {
 	g.Meta        `path:"/domains/create" tags:"Domain" method:"post" sm:"Add domain" in:"body"`
-	Authorization string `json:"authorization" dc:"Authorization" in:"header"`
-	Domain        string `json:"domain" v:"required|domain" dc:"Domain"`
-	Mailboxes     int    `json:"mailboxes" v:"min:1" dc:"Mailboxes" d:"50"`
-	MailboxQuota  int    `json:"mailboxQuota" v:"min:1" dc:"MailboxQuota" d:"5242880"`
-	Quota         int    `json:"quota" v:"required" dc:"Quota" d:"10485760"`
-	RateLimit     int    `json:"rateLimit" v:"min:1" dc:"RateLimit" d:"12"`
-	Catchall      string `json:"email" v:"email" dc:"Catch all email address, used for domain verification"`
+	Authorization string   `json:"authorization" dc:"Authorization" in:"header"`
+	Domain        string   `json:"domain" v:"required|domain" dc:"Domain"`
+	Hostname      string   `json:"hostname" v:"domain" dc:"Hostname, used for A record"`
+	Mailboxes     int      `json:"mailboxes" v:"min:1" dc:"Mailboxes" d:"50"`
+	MailboxQuota  int      `json:"mailboxQuota" v:"min:1" dc:"MailboxQuota" d:"5242880"`
+	Quota         int      `json:"quota" v:"required" dc:"Quota" d:"10485760"`
+	RateLimit     int      `json:"rateLimit" v:"min:1" dc:"RateLimit" d:"12"`
+	Catchall      string   `json:"email" v:"email" dc:"Catch all email address, used for domain verification"`
+	Urls          []string `json:"urls" dc:"Additional URLs associated with the domain"`
+	HasBrandInfo  int      `json:"hasbrandinfo"        dc:"Brand information : 1-exist, 0-not exist"`
+	OutboundIp   string   `json:"outbound_ip" v:"ipv4" dc:"Exclusive IP address for the domain, used for sending emails"`
 }
 
 type AddDomainRes struct {
@@ -65,17 +74,32 @@ type AddDomainRes struct {
 
 type UpdateDomainReq struct {
 	g.Meta        `path:"/domains/update" tags:"Domain" method:"post" sm:"Update domain" in:"body"`
-	Authorization string `json:"authorization" dc:"Authorization" in:"header"`
-	Domain        string `json:"domain" v:"required|domain" dc:"Domain"`
-	Mailboxes     int    `json:"mailboxes" v:"min:1" dc:"Mailboxes" d:"50"`
-	MailboxQuota  int    `json:"mailboxQuota" v:"min:1" dc:"MailboxQuota" d:"5242880"`
-	Quota         int    `json:"quota" v:"required" dc:"Quota" d:"10485760"`
-	RateLimit     int    `json:"rateLimit" v:"min:1" dc:"RateLimit" d:"12"`
-	Active        int    `json:"active" v:"required" dc:"Active" d:"1"`
-	Catchall      string `json:"email" v:"email" dc:"Catch all email address, used for domain verification"`
+	Authorization string   `json:"authorization" dc:"Authorization" in:"header"`
+	Domain        string   `json:"domain" v:"required|domain" dc:"Domain"`
+	Hostname      string   `json:"hostname" v:"domain" dc:"Hostname, used for A record"`
+	Mailboxes     int      `json:"mailboxes" v:"min:1" dc:"Mailboxes" d:"50"`
+	MailboxQuota  int      `json:"mailboxQuota" v:"min:1" dc:"MailboxQuota" d:"5242880"`
+	Quota         int      `json:"quota" dc:"Quota" d:"10485760"`
+	RateLimit     int      `json:"rateLimit" v:"min:1" dc:"RateLimit" d:"12"`
+	Active        int      `json:"active" dc:"Active" d:"1"`
+	Catchall      string   `json:"email" v:"email" dc:"Catch all email address, used for domain verification"`
+	Urls          []string `json:"urls" dc:"Additional URLs associated with the domain"`
+	HasBrandInfo  int      `json:"hasbrandinfo"        dc:"Brand information : 1-exist, 0-not exist"`
+	OutboundIp   string   `json:"outbound_ip" v:"ipv4" dc:"Exclusive IP address for the domain, used for sending emails"`
 }
 
 type UpdateDomainRes struct {
+	api_v1.StandardRes
+}
+
+type UpdateDomainBrandinfoReq struct {
+	g.Meta        `path:"/domains/update_brandinfo" tags:"Domain" method:"post" sm:"Update domain brandinfo" in:"body"`
+	Authorization string `json:"authorization" dc:"Authorization" in:"header"`
+	Domain        string `json:"domain" v:"required|domain" dc:"Domain"`
+	HasBrandInfo  int    `json:"hasbrandinfo"        dc:"Brand information : 1-exist, 0-not exist"`
+}
+
+type UpdateDomainBrandinfoRes struct {
 	api_v1.StandardRes
 }
 
@@ -87,6 +111,20 @@ type DeleteDomainReq struct {
 
 type DeleteDomainRes struct {
 	api_v1.StandardRes
+}
+type MultiIPDomain struct {
+	ID             int    `json:"id"`
+	Domain         string `json:"domain"`
+	OutboundIP     string `json:"outbound_ip"`
+	NetworkName    string `json:"network_name"`
+	Subnet         string `json:"subnet"`
+	PostfixIP      string `json:"postfix_ip"`
+	Aliases        string `json:"aliases"`
+	SMTPServerName string `json:"smtp_server_name"`
+	Active         int    `json:"active"`
+	CreateTime     int    `json:"create_time"`
+	UpdateTime     int    `json:"update_time"`
+	Status         string `json:"status"`
 }
 
 type GetDomainReq struct {
@@ -147,4 +185,13 @@ type GetSSLReq struct {
 type GetSSLRes struct {
 	api_v1.StandardRes
 	Data CertInfo `json:"data" dc:"Certificate information"`
+}
+
+type SetDefaultDomainReq struct {
+	g.Meta        `path:"/domains/set_default_domain" tags:"Domain" method:"post" sm:"Set default sender domain" in:"body"`
+	Authorization string `json:"authorization" dc:"Authorization" in:"header"`
+	Domain        string `json:"domain" v:"required|domain" dc:"Domain"`
+}
+type SetDefaultDomainRes struct {
+	api_v1.StandardRes
 }

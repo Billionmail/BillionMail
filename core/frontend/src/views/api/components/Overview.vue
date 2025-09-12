@@ -1,34 +1,36 @@
 <template>
-	<div class="flex gap-16px mb-24px">
-		<n-card class="flex-1">
-			<div class="title">
-				<i class="i-fa:paper-plane"></i>
-				<span>{{ $t('api.overview.totalSend') }}</span>
-			</div>
-			<div class="value">{{ overview.total_send }}</div>
-		</n-card>
-		<n-card class="flex-1">
-			<div class="title">
-				<i class="i-fa:envelope-open"></i>
-				<span>{{ $t('api.overview.avgOpenRate') }}</span>
-			</div>
-			<div class="value">{{ overview.avg_open_rate }}%</div>
-		</n-card>
-		<n-card class="flex-1">
-			<div class="title">
-				<i class="i-fa:mouse-pointer"></i>
-				<span>{{ $t('api.overview.avgClickRate') }}</span>
-			</div>
-			<div class="value">{{ overview.avg_click_rate }}%</div>
-		</n-card>
-		<n-card class="flex-1">
-			<div class="title">
-				<i class="i-fa:ban"></i>
-				<span>{{ $t('api.overview.avgBounceRate') }}</span>
-			</div>
-			<div class="value">{{ overview.avg_bounce_rate }}%</div>
-		</n-card>
-	</div>
+	<n-spin :show="loading">
+		<div class="flex gap-16px mb-24px">
+			<n-card class="flex-1">
+				<div class="title">
+					<i class="i-fa:paper-plane"></i>
+					<span>{{ $t('api.overview.totalSend') }}</span>
+				</div>
+				<div class="value">{{ overview.total_send }}</div>
+			</n-card>
+			<n-card class="flex-1">
+				<div class="title">
+					<i class="i-fa:envelope-open"></i>
+					<span>{{ $t('api.overview.avgOpenRate') }}</span>
+				</div>
+				<div class="value">{{ overview.avg_open_rate }}%</div>
+			</n-card>
+			<n-card class="flex-1">
+				<div class="title">
+					<i class="i-fa:mouse-pointer"></i>
+					<span>{{ $t('api.overview.avgClickRate') }}</span>
+				</div>
+				<div class="value">{{ overview.avg_click_rate }}%</div>
+			</n-card>
+			<n-card class="flex-1">
+				<div class="title">
+					<i class="i-fa:ban"></i>
+					<span>{{ $t('api.overview.avgBounceRate') }}</span>
+				</div>
+				<div class="value">{{ overview.avg_bounce_rate }}%</div>
+			</n-card>
+		</div>
+	</n-spin>
 </template>
 
 <script lang="ts" setup>
@@ -54,13 +56,20 @@ const overview = ref<OverviewStats>({
 	total_unsubscribe: 0,
 })
 
+const loading = ref(false)
+
 const getStats = async () => {
-	const res = await getOverviewStats({
-		start_time: Math.floor(time[0] / 1000),
-		end_time: Math.floor(time[1] / 1000),
-	})
-	if (isObject<OverviewStats>(res)) {
-		overview.value = res
+	try {
+		loading.value = true
+		const res = await getOverviewStats({
+			start_time: Math.floor(time[0] / 1000),
+			end_time: Math.floor(time[1] / 1000),
+		})
+		if (isObject<OverviewStats>(res)) {
+			overview.value = res
+		}
+	} finally {
+		loading.value = false
 	}
 }
 

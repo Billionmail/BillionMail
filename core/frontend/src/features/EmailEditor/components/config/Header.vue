@@ -23,6 +23,15 @@ import Collapse from '../shared/Collapse.vue'
 const { selectedBlockKey, blockConfigMap } = useConfig()
 const { autoSaveFn } = useSetData()
 
+const attr = computed({
+	get() {
+		return blockConfigMap.value[selectedBlockKey.value].attr
+	},
+	set(newVal) {
+		blockConfigMap.value[selectedBlockKey.value].attr = newVal
+	},
+})
+
 const blockStyle = computed({
 	get() {
 		return blockConfigMap.value[selectedBlockKey.value].style
@@ -42,7 +51,7 @@ const containerStyle = computed({
 })
 
 watch(
-	() => [blockStyle.value, containerStyle.value],
+	() => [attr.value, blockStyle.value, containerStyle.value],
 	() => {
 		autoSaveFn()
 	},

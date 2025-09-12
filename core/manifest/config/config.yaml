@@ -20,9 +20,14 @@ server:
   cookieMaxAge: "365d"
   cookiePath: "/"
   cookieDomain: ""
+  cookieSameSite: "Lax" # Options: Lax, Strict, None
+  cookieSecure: true # Whether to use secure cookies, only effective when HTTPS is enabled
+  cookieHttpOnly: true # Whether to enable HttpOnly, preventing JavaScript from accessing cookies
+
 
   # Sessions Configuration
   sessionMaxAge: "30d"
+  sessionCookieMaxAge: "30d" # Session cookie maximum age, default is 30 days
   sessionIdName: "billion_mail"
   sessionCookieOutput: true
   sessionPath: "data/session"
@@ -46,7 +51,7 @@ server:
   dumpRouterMap: false # Whether to print all route lists when the Server starts. Default is true
 
   # Version
-  version: "3.1"
+  version: "4.4"
 
 viewer:
   Paths: ["template"]

@@ -16,6 +16,6 @@ func (c *ControllerV1) GetSSL(ctx context.Context, req *v1.GetSSLReq) (res *v1.G
 	// Get SSL certificate information
 	res.Data, _ = crt.GetSSLInfo(public.FormatMX(req.Domain))
 
-	res.SetSuccess("Success")
+	res.SetSuccess(public.LangCtx(ctx, "Success"))
 	return
 }

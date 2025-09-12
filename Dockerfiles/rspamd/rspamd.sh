@@ -1,6 +1,15 @@
 #!/bin/bash
 
 
+if ! grep -q "rotate_log.sh" /var/spool/cron/crontabs/root; then
+    chmod +x /rotate_log.sh
+    echo "10 00 * * * bash /rotate_log.sh >> /var/log/rspamd/rotate_log.log 2>&1" >> /var/spool/cron/crontabs/root
+    chmod 600 /var/spool/cron/crontabs/root
+    chown root:crontab /var/spool/cron/crontabs/root     
+    /usr/bin/supervisorctl restart cron
+fi
+
+
 chmod 755 /var/lib/rspamd
 chown -R _rspamd:_rspamd /var/lib/rspamd
 

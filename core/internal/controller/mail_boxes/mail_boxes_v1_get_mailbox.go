@@ -42,7 +42,7 @@ func (c *ControllerV1) GetMailbox(ctx context.Context, req *v1.GetMailboxReq) (r
 
 	res.Data.Total = total
 	res.Data.List = mailboxListWithMx
-	res.SetSuccess("Success")
+	res.SetSuccess(public.LangCtx(ctx, "Success"))
 
 	return
 }

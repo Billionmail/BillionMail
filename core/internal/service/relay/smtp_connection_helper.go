@@ -5,10 +5,7 @@ import (
 	"billionmail-core/internal/service/mail_service"
 	"billionmail-core/internal/service/public"
 	"context"
-	"encoding/hex"
 	"fmt"
-	"github.com/gogf/gf/v2/crypto/gaes"
-	"github.com/gogf/gf/v2/errors/gerror"
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/os/gcache"
 	"sync"
@@ -207,53 +204,4 @@ func DecryptPassword1(ctx context.Context, encryptedHex string) (string, error) 
 		password = "********"
 	}
 	return password, err
-}
-
-func DecryptPassword(ctx context.Context, encryptedHex string) (string, error) {
-	if encryptedHex == "" {
-		return "", nil
-	}
-
-	encryptedBytes, err := hex.DecodeString(encryptedHex)
-	if err != nil {
-		//g.Log().Errorf(ctx, "Decryption failed, invalid hex format: %v", err)
-		return "", gerror.Wrap(err, public.LangCtx(ctx, "Password format is incorrect"))
-	}
-
-	relayEncryptionKey, err := GetRelayEncryptionKey()
-	if err != nil {
-		return "", gerror.Wrap(err, public.LangCtx(ctx, "Failed to retrieve encryption key"))
-	}
-
-	keyBytes, err := hex.DecodeString(relayEncryptionKey)
-	if err != nil {
-		return "", gerror.Wrap(err, public.LangCtx(ctx, "Failed to parse encryption key"))
-	}
-
-	if len(keyBytes) < 16 {
-		return "", gerror.New(public.LangCtx(ctx, "Encryption key length is insufficient"))
-	}
-	keyBytes = keyBytes[:16]
-
-	decrypted, err := gaes.Decrypt(encryptedBytes, keyBytes)
-	if err != nil {
-		//g.Log().Errorf(ctx, "Password decryption failed: %v", err)
-		return "", gerror.Wrap(err, public.LangCtx(ctx, "Password decryption failed"))
-	}
-
-	return string(decrypted), nil
-}
-
-func GetRelayEncryptionKey() (string, error) {
-
-	val, _ := g.DB().Model("bm_options").
-		Where("name", "relay_encryption_key").
-		Value("value")
-
-	if val != nil && val.String() != "" {
-		return val.String(), nil
-	} else {
-		return "", gerror.New("Failed to insert new key and retrieve key again")
-	}
-
 }

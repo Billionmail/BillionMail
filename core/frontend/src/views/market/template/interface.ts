@@ -6,6 +6,7 @@ export interface Template {
 	drag_data: string
 	create_time: number
 	update_time: number
+	chat_id?:string
 }
 
 export interface TemplateParams {

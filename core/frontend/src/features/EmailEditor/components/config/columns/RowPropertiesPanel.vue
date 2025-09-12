@@ -20,7 +20,6 @@ const columnsStyle = computed({
 	},
 	set(newVal) {
 		columnsConfigMap.value[selectedBlockKey.value].style = newVal
-		autoSaveFn()
 	},
 })
 
@@ -30,9 +29,18 @@ const containerStyle = computed({
 	},
 	set(newVal) {
 		columnsConfigMap.value[selectedBlockKey.value].containerStyle = newVal
-		autoSaveFn()
 	},
 })
+
+watch(
+	() => [columnsStyle.value, containerStyle.value],
+	() => {
+		autoSaveFn()
+	},
+	{
+		deep: true,
+	}
+)
 
 const [StyleForm] = useNormalForm([
 	{

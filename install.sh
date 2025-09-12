@@ -1332,6 +1332,9 @@ IPV4_NETWORK=172.66.1
 # Enable fail2ban Access restrictions, specify that the IP exceeds the access limit
 FAIL2BAN_INIT=y
 
+# Number of days to keep log backup
+RETENTION_DAYS=7
+
 EOF
     \cp -rf billionmail.conf .env
     if [ ! -f ".env" ]; then

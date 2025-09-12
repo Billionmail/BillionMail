@@ -47,6 +47,8 @@ export const useSettingsStore = defineStore('SettingsCommonStore', () => {
 	const ipWhitelistEnable = ref(false)
 	const ipWhitelistList = ref<{ id: number; ip: string }[]>([])
 
+	const currentProxy = ref('')
+
 	const checkPasswordStrength = () => {
 		const password = securityForm.newPassword
 		let score = 0
@@ -94,6 +96,10 @@ export const useSettingsStore = defineStore('SettingsCommonStore', () => {
 				sslInfo.expireTime = formatTime(expireDate, 'yyyy-MM-dd')
 				sslInfo.expireDays = differenceInDays(expireDate, new Date())
 			}
+			if (res.reverse_proxy_domain) {
+				currentProxy.value =
+					res.reverse_proxy_domain.reverse_proxy || res.reverse_proxy_domain.current_url
+			}
 		}
 	}
 
@@ -135,6 +141,7 @@ export const useSettingsStore = defineStore('SettingsCommonStore', () => {
 		serverIp,
 		ipWhitelistEnable,
 		ipWhitelistList,
+		currentProxy,
 
 		// 方法
 		checkPasswordStrength,

@@ -12,7 +12,7 @@ func (c *ControllerV1) ContainerState(ctx context.Context, req *v1.ContainerStat
 
 	res.Data, err = public.DockerApiFromCtx(ctx).GetContainerStats(ctx, req.ContainerID)
 
-	res.SetSuccess("Success")
+	res.SetSuccess(public.LangCtx(ctx, "Success"))
 
 	return
 }
