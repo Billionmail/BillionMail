@@ -35,3 +35,8 @@ conf/rspamd/local.d/redis.conf
 ssl-self-signed/cert.pem
 ssl-self-signed/key.pem
 core/billionmail*
+# SSL certificates and keys
+ssl-self-signed/*.pem
+ssl-self-signed/*.key
+ssl-self-signed/*.crt
+ssl-self-signed/*.csr
