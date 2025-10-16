@@ -1,154 +1,271 @@
 package relay
 
 import (
-	"context"
-
-	"billionmail-core/api/relay/v1"
-	"billionmail-core/internal/model/entity"
+	v1 "billionmail-core/api/relay/v1"
+	"billionmail-core/internal/consts"
+	"billionmail-core/internal/service/domains"
 	"billionmail-core/internal/service/public"
+	"billionmail-core/internal/service/relay"
+	"context"
+	"strings"
+	"time"
 
 	"github.com/gogf/gf/v2/errors/gerror"
 	"github.com/gogf/gf/v2/frame/g"
-	"time"
 )
 
 func (c *ControllerV1) UpdateRelayConfig(ctx context.Context, req *v1.UpdateRelayConfigReq) (res *v1.UpdateRelayConfigRes, err error) {
 	res = &v1.UpdateRelayConfigRes{}
-	data := g.Map{}
 
-	var relayInfo *entity.BmRelay
-	err = g.DB().Model("bm_relay").Where("id", req.ID).Scan(&relayInfo)
+	relayInfo, err := g.DB().Model("bm_relay_config").Where("id", req.ID).One()
 	if err != nil {
-		res.SetError(gerror.New(public.LangCtx(ctx, "Failed to query relay configuration: {}", err.Error())))
+		res.SetError(gerror.New(public.LangCtx(ctx, "Failed to check relay configuration: {}", err.Error())))
 		return res, nil
 	}
-	if relayInfo == nil {
+	if relayInfo.IsEmpty() {
 		res.SetError(gerror.New(public.LangCtx(ctx, "Relay configuration does not exist")))
 		return res, nil
 	}
 
-	// If we updated the sender domain, check for conflicts with other records
-	if req.SenderDomain != "" && req.SenderDomain != relayInfo.SenderDomain {
-		count, err := g.DB().Model("bm_relay").Where("sender_domain", req.SenderDomain).Where("id != ?", req.ID).Count()
-		if err != nil {
-			res.SetError(gerror.New(public.LangCtx(ctx, "Failed to check domain uniqueness: {}", err.Error())))
-			return res, nil
-		}
-		if count > 0 {
-			res.SetError(gerror.New(public.LangCtx(ctx, "Sender domain already exists")))
-			return res, nil
-		}
-		data["sender_domain"] = req.SenderDomain
+	updateTime := int(time.Now().Unix())
+	updateData := g.Map{
+		"update_time": updateTime,
+	}
+
+	if req.Remark != "" {
+		updateData["remark"] = req.Remark
+	}
+	if req.Rtype != "" {
+		updateData["rtype"] = req.Rtype
+	}
+	if req.RelayHost != "" {
+		updateData["relay_host"] = req.RelayHost
+	}
+	if req.RelayPort != "" {
+		updateData["relay_port"] = req.RelayPort
+	}
+
+	// Handle authentication updates - support clearing auth info
+	authUserProvided := false
+	authPasswordProvided := false
+
+	// Check if AuthUser is explicitly provided (even if empty)
+	if req.AuthUser != "" {
+		updateData["auth_user"] = req.AuthUser
+		authUserProvided = true
+	} else {
+		// If AuthUser is explicitly set to empty string, clear authentication
+		updateData["auth_user"] = ""
+		updateData["auth_password"] = ""
+		authUserProvided = true
 	}
 
 	if req.AuthPassword != "" {
-		encryptedPass, err := EncryptPassword(ctx, req.AuthPassword)
+		encryptedPwd, err := relay.EncryptPassword(ctx, req.AuthPassword)
 		if err != nil {
-			res.SetError(err)
+			res.SetError(gerror.New(public.LangCtx(ctx, "Failed to encrypt password: {}", err.Error())))
 			return res, nil
 		}
-		data["auth_password"] = encryptedPass
+		updateData["auth_password"] = encryptedPwd
+		authPasswordProvided = true
 	}
 
-	now := time.Now()
-	data["update_time"] = int(now.Unix())
-	data["active"] = req.Active
-
-	if req.Remark != "" {
-		data["remark"] = req.Remark
-	}
-	if req.Rtype != "" {
-		data["rtype"] = req.Rtype
-	}
-	if req.RelayHost != "" {
-		data["relay_host"] = req.RelayHost
-	}
-	if req.RelayPort != "" {
-		data["relay_port"] = req.RelayPort
-	}
-	if req.AuthUser != "" {
-		data["auth_user"] = req.AuthUser
-	}
-	if req.IP != "" {
-		data["ip"] = req.IP
-	}
-	if req.Host != "" {
-		data["host"] = req.Host
-	}
-
+	// Update AuthMethod based on authentication status
 	if req.AuthMethod != "" {
-		data["auth_method"] = req.AuthMethod
-	}
-	if req.TlsProtocol != "" {
-		data["tls_protocol"] = req.TlsProtocol
-	}
-	if req.SkipTlsVerify != 0 {
-		data["skip_tls_verify"] = req.SkipTlsVerify
-	}
-	if req.HeloName != "" {
-		data["helo_name"] = req.HeloName
-	}
-	if req.SmtpName != "" {
-		data["smtp_name"] = req.SmtpName
-	}
-	if req.HeaderJson != "" {
-		data["header_json"] = req.HeaderJson
-	}
-	if req.MaxConcurrency != 0 {
-		data["max_concurrency"] = req.MaxConcurrency
-	}
-	if req.MaxRetries != 0 {
-		data["max_retries"] = req.MaxRetries
-	}
-	if req.MaxIdleTime != "" {
-		data["max_idle_time"] = req.MaxIdleTime
-	}
-	if req.MaxWaitTime != "" {
-		data["max_wait_time"] = req.MaxWaitTime
-	}
-
-	if len(data) <= 1 {
-		res.SetSuccess(public.LangCtx(ctx, "No content needs to be updated"))
-		return res, nil
-	}
-
-	_, err = g.DB().Model("bm_relay").Where("id", req.ID).Update(data)
-	if err != nil {
-		res.SetError(gerror.New(public.LangCtx(ctx, "Failed to update relay configuration: {}", err.Error())))
-		return res, nil
-	}
-
-	var updatedRelay *entity.BmRelay
-	err = g.DB().Model("bm_relay").Where("id", req.ID).Scan(&updatedRelay)
-	if err != nil {
-		g.Log().Warning(ctx, "The query for the updated record failed: ", err.Error())
-	}
-
-	spfRecord := ""
-	if updatedRelay != nil {
-		spfRecord = GenerateSPFRecord(updatedRelay.Ip, updatedRelay.Host, updatedRelay.SenderDomain)
-	}
-
-	if err := SyncRelayConfigsToPostfix(ctx); err != nil {
-		res.SetError(gerror.New(public.LangCtx(ctx, "Updated successfully but failed to sync configuration: {}", err.Error())))
-		return res, nil
-	}
-
-	if spfRecord != "" {
-		res.SPFRecord = v1.DNSRecord{
-			Type:  "TXT",
-			Host:  "@",
-			Value: spfRecord,
+		updateData["auth_method"] = req.AuthMethod
+	} else if authUserProvided {
+		// Auto-set AuthMethod based on whether authentication is being used
+		if updateData["auth_user"].(string) == "" {
+			updateData["auth_method"] = "NONE"
+		} else if !authPasswordProvided {
+			// If user is provided but password is not updated, keep existing auth method or default to LOGIN
+			if req.AuthMethod == "" {
+				updateData["auth_method"] = "LOGIN"
+			}
 		}
 	}
 
-	if req.Active == 1 {
-		res.SetSuccess(public.LangCtx(ctx, "Relay configuration updated and enabled successfully"))
-	} else if req.Active == 0 {
-		res.SetSuccess(public.LangCtx(ctx, "Relay configuration updated and disabled successfully"))
-	} else {
-		res.SetSuccess(public.LangCtx(ctx, "Relay configuration updated successfully"))
+	if req.IP != "" {
+		updateData["ip"] = req.IP
+	}
+	if req.Host != "" {
+		updateData["host"] = req.Host
+	}
+	updateData["active"] = req.Active
+	if req.AuthMethod != "" {
+		updateData["auth_method"] = req.AuthMethod
+	}
+	if req.SkipTlsVerify > 0 {
+		updateData["skip_tls_verify"] = req.SkipTlsVerify
+	}
+	if req.HeloName != "" {
+		updateData["helo_name"] = req.HeloName
+	}
+	if req.SmtpName != "" {
+		updateData["smtp_name"] = req.SmtpName
 	}
 
+	tx, err := g.DB().Begin(ctx)
+	if err != nil {
+		res.SetError(gerror.New(public.LangCtx(ctx, "Failed to start transaction: {}", err.Error())))
+		return res, nil
+	}
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		}
+	}()
+
+	if len(updateData) > 1 {
+		_, err = tx.Model("bm_relay_config").Where("id", req.ID).Data(updateData).Update()
+		if err != nil {
+			res.SetError(gerror.New(public.LangCtx(ctx, "Failed to update relay configuration: {}", err.Error())))
+			return res, nil
+		}
+	}
+
+	if len(req.SenderDomains) == 0 {
+		_, err = tx.Model("bm_relay_domain_mapping").
+			Where("relay_id", req.ID).
+			Delete()
+		if err != nil {
+			res.SetError(gerror.New(public.LangCtx(ctx, "Failed to delete sender domains: {}", err.Error())))
+			return res, nil
+		}
+	} else {
+
+		_, err = tx.Model("bm_relay_domain_mapping").
+			Where("relay_id", req.ID).
+			Delete()
+		if err != nil {
+			res.SetError(gerror.New(public.LangCtx(ctx, "Failed to delete sender domains: {}", err.Error())))
+			return res, nil
+		}
+
+		var domains_ []string
+		for _, domain := range req.SenderDomains {
+
+			domains_ = append(domains_, domain)
+		}
+
+		existingDomainsCount, err := tx.Model("bm_relay_domain_mapping").
+			WhereIn("sender_domain", domains_).
+			WhereNot("relay_id", req.ID).
+			Count()
+		if err != nil {
+			res.SetError(gerror.New(public.LangCtx(ctx, "Failed to check domain mapping: {}", err.Error())))
+			return res, nil
+		}
+		if existingDomainsCount > 0 {
+			res.SetError(gerror.New(public.LangCtx(ctx, "One or more sender domains are already used by another relay configuration")))
+			return res, nil
+		}
+
+		var currentDomains []string
+		err = tx.Model("bm_relay_domain_mapping").
+			Where("relay_id", req.ID).
+			Fields("sender_domain").
+			Scan(&currentDomains)
+		if err != nil {
+			res.SetError(gerror.New(public.LangCtx(ctx, "Failed to get current domain mappings: {}", err.Error())))
+			return res, nil
+		}
+
+		currentDomainsMap := make(map[string]bool)
+		for _, domain := range currentDomains {
+			currentDomainsMap[domain] = true
+		}
+
+		newDomainsMap := make(map[string]bool)
+		for _, domain := range domains_ {
+			newDomainsMap[domain] = true
+		}
+
+		for _, oldDomain := range currentDomains {
+			if !newDomainsMap[oldDomain] {
+				_, err = tx.Model("bm_relay_domain_mapping").
+					Where("relay_id", req.ID).
+					Where("sender_domain", oldDomain).
+					Delete()
+				if err != nil {
+					res.SetError(gerror.New(public.LangCtx(ctx, "Failed to delete obsolete domain mapping: {}", err.Error())))
+					return res, nil
+				}
+			}
+		}
+
+		for _, newDomain := range domains_ {
+			if !currentDomainsMap[newDomain] {
+				_, err = tx.Model("bm_relay_domain_mapping").
+					Data(g.Map{
+						"relay_id":      req.ID,
+						"sender_domain": newDomain,
+						"create_time":   updateTime,
+					}).
+					Insert()
+				if err != nil {
+					res.SetError(gerror.New(public.LangCtx(ctx, "Failed to create new domain mapping: {}", err.Error())))
+					return res, nil
+				}
+			}
+		}
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		res.SetError(gerror.New(public.LangCtx(ctx, "Failed to commit transaction: {}", err.Error())))
+		return res, nil
+	}
+
+	if err = relay.SyncRelayConfigsToPostfix(ctx); err != nil {
+		g.Log().Error(ctx, "Failed to sync relay configs to Postfix:", err)
+	}
+
+	var firstDomain string
+	domainResult, err := g.DB().Model("bm_relay_domain_mapping").
+		Where("relay_id", req.ID).
+		Order("create_time ASC").
+		Limit(1).
+		Value("sender_domain")
+
+	if err == nil && domainResult != nil && domainResult.String() != "" {
+		firstDomain = domainResult.String()
+		if strings.HasPrefix(firstDomain, "@") {
+			firstDomain = firstDomain[1:]
+		}
+
+		ip := relayInfo["ip"].String()
+		if req.IP != "" {
+			ip = req.IP
+		}
+		host := relayInfo["host"].String()
+		if req.Host != "" {
+			host = req.Host
+		}
+
+		record, _ := domains.GetSPFRecord(firstDomain, false)
+		if record.Value != "" {
+			res.SPFRecord = v1.DNSRecord{
+				Type:  record.Type,
+				Host:  record.Host,
+				Value: record.Value,
+			}
+		} else {
+
+			spfValue := relay.GenerateSPFRecord(ip, host, firstDomain)
+			res.SPFRecord = v1.DNSRecord{
+				Type:  "TXT",
+				Host:  firstDomain,
+				Value: spfValue,
+			}
+		}
+	}
+
+	_ = public.WriteLog(ctx, public.LogParams{
+		Type: consts.LOGTYPE.SMTP,
+		Log:  "Updated relay configuration : " + req.RelayHost,
+	})
+
+	res.SetSuccess(public.LangCtx(ctx, "Relay configuration updated successfully"))
 	return res, nil
 }

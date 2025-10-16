@@ -5,6 +5,7 @@ import (
 	"billionmail-core/internal/service/batch_mail"
 	"billionmail-core/internal/service/public"
 	"context"
+	"encoding/json"
 
 	"github.com/gogf/gf/v2/errors/gerror"
 
@@ -27,6 +28,15 @@ func (c *ControllerV1) TaskInfo(ctx context.Context, req *v1.TaskInfoReq) (res *
 		res.SetError(gerror.New(public.LangCtx(ctx, "Task not found: {}", req.Id)))
 		return
 	}
+
+	// Convert tag_ids string to array before returning
+	if taskInfo.TagIdsRaw != "" {
+		var tagIds []int
+		if err := json.Unmarshal([]byte(taskInfo.TagIdsRaw), &tagIds); err == nil {
+			taskInfo.TagIds = tagIds
+		}
+	}
+
 	res.Data = taskInfo
 	res.SetSuccess(public.LangCtx(ctx, "Success"))
 	return

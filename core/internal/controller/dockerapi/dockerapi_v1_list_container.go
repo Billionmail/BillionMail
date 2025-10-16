@@ -16,7 +16,7 @@ func (c *ControllerV1) ListContainer(ctx context.Context, req *v1.ListContainerR
 		return nil, fmt.Errorf("failed to list containers: %w", err)
 	}
 
-	res.SetSuccess("Success")
+	res.SetSuccess(public.LangCtx(ctx, "Success"))
 
 	return
 }

@@ -2,6 +2,7 @@ package batch_mail
 
 import (
 	"billionmail-core/api/batch_mail/v1"
+	"billionmail-core/internal/consts"
 	"billionmail-core/internal/service/batch_mail"
 	"billionmail-core/internal/service/public"
 	"context"
@@ -77,6 +78,12 @@ func (c *ControllerV1) ResumeTask(ctx context.Context, req *v1.ResumeTaskReq) (r
 			return nil, err
 		}
 	}
+
+	_ = public.WriteLog(ctx, public.LogParams{
+		Type: consts.LOGTYPE.Task,
+		Log:  "Resumed Task :" + taskInfo.Subject + " successfully",
+		Data: taskInfo,
+	})
 
 	res.SetSuccess(public.LangCtx(ctx, "Task resumed successfully"))
 	return

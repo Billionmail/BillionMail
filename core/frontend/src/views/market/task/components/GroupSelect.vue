@@ -1,56 +1,52 @@
 <template>
 	<div class="flex-1">
-		<div class="flex items-center">
-			<div class="flex-1">
-				<n-select
-					v-model:value="group"
-					:options="groupOptions"
-					:multiple="true"
-					:filterable="true"
-					:max-tag-count="'responsive'"
-					:loading="loading"
-					:placeholder="$t('market.task.edit.recipientsPlaceholder')"
-					@update:value="handleUpdateGroup">
-				</n-select>
-			</div>
-			<div class="ml-12px">
-				<n-button text type="primary" @click="handleShowCreate">
-					{{ $t('common.actions.create') }}
-				</n-button>
-			</div>
-		</div>
-		<i18n-t class="mt-8px" tag="div" scope="global" keypath="market.task.edit.recipientsCount">
-			<template #count>
-				<b>{{ recipientsCount }}</b>
-			</template>
-		</i18n-t>
-
-		<create-modal />
+		<n-select
+			v-model:value="group"
+			:options="groupOptions"
+			:filterable="true"
+			:disabled="disabled"
+			:max-tag-count="'responsive'"
+			:loading="loading"
+			:placeholder="$t('market.task.edit.recipientsPlaceholder')"
+			@update:value="handleUpdateGroup">
+		</n-select>
 	</div>
+	<div class="ml-12px">
+		<n-button text type="primary" @click="handleShowCreate">
+			{{ $t('common.actions.create') }}
+		</n-button>
+	</div>
+
+	<create-modal />
 </template>
 
 <script lang="ts" setup>
 import { SelectOption } from 'naive-ui'
 import { isObject } from '@/utils'
 import { useModal } from '@/hooks/modal/useModal'
-import { getContactCount, getGroupAll } from '@/api/modules/contacts/group'
-import type { Group } from '@/views/contacts/group/interface'
+import { getGroupAll } from '@/api/modules/contacts/group'
+import type { Group } from '@/views/contacts/group/types/base'
 
 import CreateGroup from './CreateGroup.vue'
 
-const group = defineModel<number[]>('value', {
-	default: () => [],
+defineProps({
+	disabled: {
+		type: Boolean as PropType<boolean>,
+		default: false,
+	},
 })
 
-const labels = defineModel<string[]>('label', {
-	default: () => [],
+const group = defineModel<number | null>('value', {
+	default: () => 0,
+})
+
+const label = defineModel<string>('label', {
+	default: () => '',
 })
 
 const loading = ref(false)
 
 const groupOptions = ref<SelectOption[]>([])
-
-const recipientsCount = ref(0)
 
 const [CreateModal, createModalApi] = useModal({
 	component: CreateGroup,
@@ -65,19 +61,8 @@ const handleShowCreate = () => {
 	createModalApi.open()
 }
 
-const handleUpdateGroup = async (val: number[]) => {
-	labels.value = val.map(item => {
-		const groupOption = groupOptions.value.find(option => option.value === item)
-		return `${groupOption?.label || ''}`
-	})
-	if (val.length === 0) {
-		recipientsCount.value = 0
-		return
-	}
-	const res = await getContactCount({ group_ids: val })
-	if (isObject<{ total: number }>(res)) {
-		recipientsCount.value = res.total
-	}
+const handleUpdateGroup = async (val: number, option: SelectOption) => {
+	label.value = `${option.label}`
 }
 
 const getGroupOptions = async () => {

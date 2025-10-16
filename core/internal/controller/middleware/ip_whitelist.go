@@ -5,18 +5,27 @@ import (
 	"context"
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/net/ghttp"
+	"github.com/gogf/gf/v2/os/gfile"
 	"strings"
 )
 
 // Paths excluded from IP whitelist verification
 var ExcludedPaths = map[string]struct{}{
-	"/favicon.ico":                {},
-	"/robots.txt":                 {},
-	"/unsubscribe.html":           {},
-	"/api/unsubscribe/user_group": {},
-	"/api/unsubscribe":            {},
-	"/api/batch_mail/api/send":    {},
-
+	"/favicon.ico":                   {},
+	"/robots.txt":                    {},
+	"/unsubscribe.html":              {},
+	"/unsubscribe_new.html":          {},
+	"/api/unsubscribe/user_group":    {},
+	"/api/unsubscribe":               {},
+	"api/unsubscribe_new":            {},
+	"/api/batch_mail/api/send":       {},
+	"/api/batch_mail/api/batch_send": {},
+	"/api/subscribe/submit":          {},
+	"/api/subscribe/confirm":         {},
+	"/already_subscribed.html":       {},
+	"/subscribe_confirm.html":        {},
+	"/subscribe_form.html":           {},
+	"/subscribe_success.html":        {},
 	// other
 }
 
@@ -29,7 +38,7 @@ func isExcludedPath(path string) bool {
 	if strings.HasPrefix(path, "/.well-known/acme-challenge") ||
 		strings.HasPrefix(path, "/pmta/") ||
 		strings.HasPrefix(path, "/roundcube") {
-		g.Log().Warning(context.Background(), "[IP Whitelist 2] Excluded path: ", path, " allowed")
+		g.Log().Debug(context.Background(), "[IP Whitelist 2] Excluded path: ", path, " allowed")
 		return true
 	}
 
@@ -39,10 +48,11 @@ func isExcludedPath(path string) bool {
 // Allowed IP whitelist
 func getAllowedIPs() []string {
 	var ips []string
+	ipServer, _ := public.GetServerIP()
 	result, err := g.DB().Model("bm_console_ip_whitelist").Fields("ip").All()
 	if err != nil {
 		g.Log().Error(context.Background(), "[IP Whitelist] Failed to get IP whitelist:", err)
-		return []string{"127.0.0.1", "::1"}
+		return []string{"127.0.0.1", "::1", ipServer}
 	}
 
 	for _, ip := range result {
@@ -52,7 +62,6 @@ func getAllowedIPs() []string {
 	ips = append(ips, "127.0.0.1")
 	ips = append(ips, "::1")
 	// Add server IP
-	ipServer, _ := public.GetServerIP()
 	if ipServer != "" {
 		ips = append(ips, ipServer)
 	}
@@ -60,11 +69,28 @@ func getAllowedIPs() []string {
 	return ips
 }
 
+func appendIPWhitelistEnvIfNotExists() {
+	envFile := public.AbsPath("../.env")
+	const comment = "# Console ip whitelist   Disabled:false  Enabled:true"
+	const config = "IP_WHITELIST_ENABLE=false"
+
+	content := gfile.GetContents(envFile)
+
+	if !strings.Contains(content, "IP_WHITELIST_ENABLE") {
+		appendStr := "\n" + comment + "\n" + config + "\n"
+		if err := gfile.PutContentsAppend(envFile, appendStr); err != nil {
+			g.Log().Errorf(context.Background(), "[IP Whitelist] Failed to append to .env file: %v", err)
+		}
+	}
+}
+
 // Whether to enable the IP whitelist
 func isIPWhitelistEnabled(envMap map[string]string) bool {
-	isIPWhite := envMap["IP_WHITELIST_ENABLE"]
-	if isIPWhite == "" {
 
+	isIPWhite, exists := envMap["IP_WHITELIST_ENABLE"]
+
+	if !exists {
+		appendIPWhitelistEnvIfNotExists()
 		return false
 	}
 
@@ -82,7 +108,7 @@ func IPWhitelist(r *ghttp.Request) {
 	// 1. If the whitelist feature is not enabled, allow access directly
 	if !isIPWhitelistEnabled(envMap) {
 		r.Middleware.Next()
-		// g.Log().Warningf(r.Context(), "[IP Whitelist] Not enabled, allowing access directly")
+		// g.Log().Debug(r.Context(), "[IP Whitelist] Not enabled, allowing access directly")
 		return
 	}
 	// 2. Check if the path is in the exclusion list
@@ -96,12 +122,12 @@ func IPWhitelist(r *ghttp.Request) {
 	// 3. Check if the client IP is in the whitelist
 	clientIP := r.GetClientIp()
 	if isIPAllowed(clientIP) {
-		g.Log().Warningf(r.Context(), "[IP Whitelist] Access allowed: %s", clientIP)
+		g.Log().Infof(r.Context(), "[IP Whitelist] Access allowed: %s", clientIP)
 		r.Middleware.Next()
 		return
 	}
 
-	g.Log().Warningf(r.Context(), "[IP Whitelist] Blocked non-whitelisted IP: %s, UA: %s, Path: %s", clientIP, r.Request.UserAgent(), r.Request.URL.Path)
+	g.Log().Infof(r.Context(), "[IP Whitelist] Blocked non-whitelisted IP: %s, UA: %s, Path: %s", clientIP, r.Request.UserAgent(), r.Request.URL.Path)
 	r.Response.WriteStatus(403, "IP not allowed")
 	r.Exit()
 }

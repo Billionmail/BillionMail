@@ -1,6 +1,8 @@
 package mail_services
 
 import (
+	"billionmail-core/internal/consts"
+	"billionmail-core/internal/service/mail_service"
 	"billionmail-core/internal/service/public"
 	"context"
 	"github.com/gogf/gf/v2/frame/g"
@@ -26,7 +28,18 @@ func (c *ControllerV1) AddMailForward(ctx context.Context, req *v1.AddMailForwar
 		return res, nil
 	}
 
-	count, err = g.DB().Model("domain").Where("domain=?", req.Domain).Count()
+	domainParts := strings.Split(req.Address, "@")
+	if len(domainParts) != 2 {
+		res.SetError(gerror.New(public.LangCtx(ctx, "invalid email format: {}", req.Address)))
+		return
+	}
+	domain := domainParts[1]
+	if domain == "" {
+		res.SetError(gerror.New(public.LangCtx(ctx, "domain part is empty in address: {}", req.Address)))
+		return
+	}
+
+	count, err = g.DB().Model("domain").Where("domain=?", domain).Count()
 	if err != nil {
 		res.SetError(gerror.New(public.LangCtx(ctx, "check domain failed: {}", err.Error())))
 		return res, nil
@@ -38,27 +51,33 @@ func (c *ControllerV1) AddMailForward(ctx context.Context, req *v1.AddMailForwar
 	}
 
 	// process forward target addresses
-	forwardUsers := processForwardUsers(req.Goto)
+	forwardUsers := mail_service.ProcessForwardUsers(req.Goto)
 	if len(forwardUsers) == 0 {
 		res.SetError(gerror.New(public.LangCtx(ctx, "forward target address cannot be empty")))
 		return res, nil
 	}
 
 	now := time.Now().Unix()
-
-	_, err = g.DB().Model("alias").Insert(g.Map{
+	insert_data := g.Map{
 		"address":     req.Address,
 		"goto":        strings.Join(forwardUsers, ","),
-		"domain":      req.Domain,
+		"domain":      domain,
 		"create_time": now,
 		"update_time": now,
 		"active":      req.Active,
-	})
+	}
+	_, err = g.DB().Model("alias").Insert(insert_data)
 
 	if err != nil {
 		res.SetError(gerror.New(public.LangCtx(ctx, "add mail forward failed: {}", err.Error())))
 		return res, nil
 	}
+
+	_ = public.WriteLog(ctx, public.LogParams{
+		Type: consts.LOGTYPE.MailForward,
+		Log:  "Add mail forward :" + req.Address + " successfully",
+		Data: insert_data,
+	})
 
 	res.SetSuccess(public.LangCtx(ctx, "add mail forward success"))
 	return res, nil

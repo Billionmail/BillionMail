@@ -8,8 +8,10 @@ import (
 	docker "billionmail-core/internal/service/dockerapi"
 	"billionmail-core/internal/service/mail_boxes"
 	"billionmail-core/internal/service/mail_service"
+	"billionmail-core/internal/service/multi_ip_domain"
 	"billionmail-core/internal/service/public"
 	"context"
+	"database/sql"
 	"fmt"
 	"github.com/gogf/gf/util/grand"
 	"github.com/gogf/gf/v2/frame/g"
@@ -24,6 +26,50 @@ import (
 var (
 	mutex sync.Mutex
 )
+
+func setCatchall(ctx context.Context, domainName, catchall string) error {
+	address := fmt.Sprintf("@%s", domainName)
+	if catchall != "" {
+		var count int
+		count, err := g.DB().Model("alias").
+			Where("address", address).
+			Where("domain", domainName).
+			Count()
+		if err != nil {
+			return fmt.Errorf("failed to check alias existence: %v", err)
+		}
+		if count > 0 {
+			_, err = g.DB().Model("alias").
+				Where("address", address).
+				Where("domain", domainName).
+				Data(g.Map{"goto": catchall, "active": 1, "update_time": time.Now().Unix()}).
+				Update()
+			if err != nil {
+				return fmt.Errorf("failed to update alias: %v", err)
+			}
+		} else {
+			_, err = g.DB().Model("alias").Data(g.Map{
+				"address":     address,
+				"goto":        catchall,
+				"domain":      domainName,
+				"active":      1,
+				"create_time": time.Now().Unix(),
+				"update_time": time.Now().Unix(),
+			}).Insert()
+			if err != nil {
+				return fmt.Errorf("failed to insert alias: %v", err)
+			}
+		}
+	} else {
+		// catchall is empty, disabled
+		_, _ = g.DB().Model("alias").
+			Where("address", address).
+			Where("domain", domainName).
+			Data(g.Map{"active": 0, "update_time": time.Now().Unix()}).
+			Update()
+	}
+	return nil
+}
 
 func Add(ctx context.Context, domain *v1.Domain) error {
 	domain.CreateTime = time.Now().Unix()
@@ -59,30 +105,52 @@ func Add(ctx context.Context, domain *v1.Domain) error {
 			}
 
 			// update postfix environment parameter
-			_, err = public.DockerApiFromCtx(ctx).ExecCommandByName(ctx, "billionmail-postfix-billionmail-1", []string{"bash", "-c", fmt.Sprintf("sed -i '/^BILLIONMAIL_HOSTNAME=/d' /postfix.sh && sed -i '/^#!\\/bin\\/bash/a BILLIONMAIL_HOSTNAME=%s' /postfix.sh", public.FormatMX(domain.Domain))}, "root")
+			_, err = public.DockerApiFromCtx(ctx).ExecCommandByName(ctx, consts.SERVICES.Postfix, []string{"bash", "-c", fmt.Sprintf("sed -i '/^BILLIONMAIL_HOSTNAME=/d' /postfix.sh && sed -i '/^#!\\/bin\\/bash/a BILLIONMAIL_HOSTNAME=%s' /postfix.sh", public.FormatMX(domain.Domain))}, "root")
 
 			if err != nil {
 				return fmt.Errorf("failed to update BILLIONMAIL_HOSTNAME in postfix container: %v", err)
 			}
 
 			// restart postfix service
-			err = public.DockerApiFromCtx(ctx).RestartContainerByName(ctx, "billionmail-postfix-billionmail-1")
+			err = public.DockerApiFromCtx(ctx).RestartContainerByName(ctx, consts.SERVICES.Postfix)
 
 			if err != nil {
 				return fmt.Errorf("failed to restart postfix container: %v", err)
 			}
 		}
+
+		// catchall
+		if domain.Catchall != "" {
+			err = setCatchall(ctx, domain.Domain, domain.Catchall)
+		}
+		return err
 	}
 
 	return err
 }
 
-func Update(ctx context.Context, domain *v1.Domain) error {
+func Update(ctx context.Context, updateData map[string]interface{}) error {
+
+	domainName, _ := updateData["domain"].(string)
+
 	_, err := g.DB().Model("domain").
 		Ctx(ctx).
-		Where("domain", domain.Domain).
-		Update(domain)
-	return err
+		Where("domain", domainName).
+		Update(updateData)
+
+	if err != nil {
+		return err
+	}
+
+	// catchall
+	if catchall, ok := updateData["catchall"].(string); ok && catchall != "" {
+		err = setCatchall(ctx, domainName, catchall)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func Delete(ctx context.Context, domainName string) error {
@@ -97,6 +165,13 @@ func Delete(ctx context.Context, domainName string) error {
 			Ctx(ctx).
 			Where("domain", domainName).
 			Delete()
+
+		// remove associated alias
+		_, err = g.DB().Model("alias").
+			Ctx(ctx).
+			Where("domain", domainName).
+			Delete()
+
 	}
 
 	return err
@@ -117,8 +192,35 @@ func Get(ctx context.Context, keyword string, page, pageSize int) ([]v1.Domain, 
 	var domains []v1.Domain
 	err = m.Page(page, pageSize).Scan(&domains)
 
-	if err != nil {
+	if err != nil && err != sql.ErrNoRows {
 		return nil, 0, err
+	}
+
+	var defaultDomain string
+	val, err := g.DB().Model("bm_options").Where("name", "default_sender_domain").Value("value")
+	if err == nil && val != nil {
+		defaultDomain = val.String()
+	}
+	MultiIPDomainConfigs, err := multi_ip_domain.MultiIPDomainServiceInstance.GetConfigs(ctx)
+	g.Log().Debug(ctx, "多域名专属ip  Multi IP Domain Configs:", MultiIPDomainConfigs)
+
+	// 创建域名到专属IP配置的映射
+	multiIPMap := make(map[string][]v1.MultiIPDomain)
+	for _, config := range MultiIPDomainConfigs {
+		multiIPMap[config.Domain] = append(multiIPMap[config.Domain], v1.MultiIPDomain{
+			ID:             config.ID,
+			Domain:         config.Domain,
+			OutboundIP:     config.OutboundIP,
+			NetworkName:    config.NetworkName,
+			Subnet:         config.Subnet,
+			PostfixIP:      config.PostfixIP,
+			Aliases:        config.Aliases,
+			SMTPServerName: config.SMTPServerName,
+			Active:         config.Active,
+			CreateTime:     config.CreateTime,
+			UpdateTime:     config.UpdateTime,
+			Status:         config.Status,
+		})
 	}
 
 	crt := mail_service.NewCertificate()
@@ -128,6 +230,18 @@ func Get(ctx context.Context, keyword string, page, pageSize int) ([]v1.Domain, 
 	wg := sync.WaitGroup{}
 
 	for i, domain := range domains {
+		if domain.Domain == defaultDomain {
+			domains[i].Default = 1
+		} else {
+			domains[i].Default = 0
+		}
+		// 补充专属ip信息
+		if multiIPConfigs, exists := multiIPMap[domain.Domain]; exists && len(multiIPMap) > 0 {
+			domains[i].MultiIPDomains = &multiIPConfigs[0]
+		} else {
+			domains[i].MultiIPDomains = nil
+		}
+
 		wg.Add(1)
 		go func(i int, domain v1.Domain) {
 			defer wg.Done()
@@ -143,6 +257,38 @@ func Get(ctx context.Context, keyword string, page, pageSize int) ([]v1.Domain, 
 			if err != nil {
 				err = nil
 				domains[i].CertInfo, _ = crt.GetSSLInfo(public.FormatMX(domain.Domain))
+			}
+
+		}(i, domain)
+
+		// catchall
+		wg.Add(1)
+		go func(i int, domain v1.Domain) {
+			defer wg.Done()
+			type Alias struct {
+				Address    string `json:"address"     dc:"Alias address"`
+				Goto       string `json:"goto"        dc:"Forwarding target"`
+				Domain     string `json:"domain"      dc:"Domain name"`
+				CreateTime int64  `json:"create_time" dc:"Creation time"`
+				UpdateTime int64  `json:"update_time" dc:"Update time"`
+				Active     int    `json:"active"      dc:"Status: 1-enabled, 0-disabled"`
+			}
+
+			address := fmt.Sprintf("@%s", domain.Domain)
+			var alias Alias
+			err := g.DB().Model("alias").
+				Where("address = ? AND domain = ?", address, domain.Domain).
+				Scan(&alias)
+
+			if err != nil {
+				domains[i].Catchall = ""
+
+			} else {
+				if alias.Active == 1 {
+					domains[i].Catchall = alias.Goto
+				} else {
+					domains[i].Catchall = ""
+				}
 			}
 
 		}(i, domain)
@@ -313,7 +459,7 @@ func GetDKIMRecord(domain string, validateImmediate bool) (record v1.DNSRecord, 
 		defer mutex.Unlock()
 
 		var res *v2.ExecResult
-		res, err = dk.ExecCommandByName(context.Background(), "billionmail-rspamd-billionmail-1", []string{"rspamadm", "dkim_keygen", "-s", "'default'", "-b", "2048", "-d", domain, "-k", fmt.Sprintf("/var/lib/rspamd/dkim/%s/default.private", domain)}, "root")
+		res, err = dk.ExecCommandByName(context.Background(), consts.SERVICES.Rspamd, []string{"rspamadm", "dkim_keygen", "-s", "'default'", "-b", "2048", "-d", domain, "-k", fmt.Sprintf("/var/lib/rspamd/dkim/%s/default.private", domain)}, "root")
 
 		if err != nil {
 			err = fmt.Errorf("Failed to generate DKIM key pair: %v", err)
@@ -377,7 +523,7 @@ domain {
 		}
 
 		// Restart rspamd service
-		err = dk.RestartContainerByName(context.Background(), "billionmail-rspamd-billionmail-1")
+		err = dk.RestartContainerByName(context.Background(), consts.SERVICES.Rspamd)
 
 		if err != nil {
 			err = fmt.Errorf("Failed to restart rspamd container: %v", err)
@@ -496,12 +642,12 @@ func GetMXRecord(domain string, validateImmediate bool) (record v1.DNSRecord, er
 	record = v1.DNSRecord{
 		Type:  "MX",
 		Host:  "@",
-		Value: "mail." + domain,
+		Value: public.FormatMX(domain),
 	}
 
 	if validateImmediate {
 		// Validate the MX record
-		record.Valid = ValidateMXRecord(record, domain)
+		record.Valid = ValidateMXRecord(record, domain, public.FormatMX(domain))
 	}
 
 	return
@@ -524,7 +670,7 @@ func GetARecord(domain string, validateImmediate bool) (record v1.DNSRecord, err
 
 	record = v1.DNSRecord{
 		Type:  recordType,
-		Host:  "mail." + domain,
+		Host:  public.FormatMX(domain),
 		Value: serverIP,
 	}
 
@@ -548,7 +694,7 @@ func GetPTRRecord(domain string, validateImmediate bool) (record v1.DNSRecord, e
 	record = v1.DNSRecord{
 		Type:  "PTR",
 		Host:  serverIP,
-		Value: "mail." + domain,
+		Value: public.FormatMX(domain),
 	}
 
 	if validateImmediate {
@@ -694,7 +840,7 @@ func RepairDKIMSigningConfig(ctx context.Context) error {
 
 	defer dk.Close()
 
-	err = dk.RestartContainerByName(ctx, "billionmail-rspamd-billionmail-1")
+	err = dk.RestartContainerByName(ctx, consts.SERVICES.Rspamd)
 	if err != nil {
 		return fmt.Errorf("Failed to restart rspamd container: %v", err)
 	}

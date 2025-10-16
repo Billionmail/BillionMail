@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Subscribe to Our Newsletter</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            position: relative;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            max-width: 420px;
+            width: 100%;
+            margin: auto;
+            border-radius: 8px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.2);
+            padding: 32px 24px 48px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        @keyframes gradient {
+            0%,
+            100% {
+                background-position: 0% 50%;
+            }
+            50% {
+                background-position: 100% 50%;
+            }
+        }
+
+        .container:hover {
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.3);
+        }
+
+        .title {
+            background: linear-gradient(135deg, #20a53a, #16a085);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-size: 28px;
+            margin-bottom: 24px;
+            font-weight: 700;
+            text-align: center;
+            letter-spacing: -0.5px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+            position: relative;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #4a5568;
+            font-size: 14px;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+
+        input[type='text'],
+        input[type='email'] {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            background: #f8fafc;
+        }
+
+        input[type='text']:focus,
+        input[type='email']:focus {
+            outline: none;
+            border-color: #20a53a;
+            background: #fff;
+            box-shadow: 0 0 0 4px rgba(32, 165, 58, 0.1);
+            transform: translateY(-2px);
+        }
+
+        input[type='text']:focus + label,
+        input[type='email']:focus + label {
+            color: #20a53a;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #20a53a 0%, #16a085 100%);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn:hover {
+            background: linear-gradient(135deg, #1a8c31 0%, #138d75 100%);
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(32, 165, 58, 0.3);
+        }
+
+        .btn:active {
+            transform: translateY(-1px);
+        }
+
+        .msg {
+            color: #e53e3e;
+            margin-top: 12px;
+            text-align: center;
+            font-size: 14px;
+            padding: 10px;
+            background: rgba(229, 62, 62, 0.1);
+            border-radius: 8px;
+            border-left: 4px solid #e53e3e;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 480px) {
+            body {
+                padding: 5px;
+            }
+
+            .container {
+                padding: 20px 16px;
+                margin: 5px;
+            }
+
+            .title {
+                font-size: 24px;
+            }
+        }
+
+        /* Loading Animation */
+        .container {
+            animation: slideUp 0.6s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Input Icons */
+        .input-group {
+            position: relative;
+        }
+
+        .input-icon {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #a0aec0;
+            font-size: 18px;
+            transition: color 0.3s ease;
+        }
+
+        .input-group input:focus + .input-icon {
+            color: #20a53a;
+        }
+    </style>
+    <script>
+        // Automatically add token to form action and hidden field after page load
+        window.onload = function () {
+            var url = new URL(window.location.href);
+            var token = url.searchParams.get('token');
+            var hostUrl = url.origin;
+            var form = document.getElementById('subscribeForm');
+            form.action = hostUrl + "/api/subscribe/submit";
+            if (token) {
+                var input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'token';
+                input.value = token;
+                form.appendChild(input);
+            }
+        };
+    </script>
+</head>
+<body>
+<div class="container">
+    <div class="title">🔔 Join our subscribe</div>
+    <form id="subscribeForm" method="post">
+        <div class="form-group">
+            <div class="input-group">
+                <label for="email">Email Address</label>
+                <input type="email" id="email" name="email" required placeholder="Please enter your email address" />
+            </div>
+        </div>
+        <div class="form-group">
+            <div class="input-group">
+                <label for="name">Name (Optional)</label>
+                <input type="text" id="name" name="name" placeholder="Please enter your name" />
+            </div>
+        </div>
+        <!-- Hidden field: for submitting custom attributes -->
+        <input type="hidden" id="attribs" name="attribs" value="" />
+        <!-- Extensible for more custom fields  Attribs:map["key":"value","key":"value"]   -->
+        <button class="btn" type="submit">Subscribe Now</button>
+    </form>
+
+    <script>
+        document.getElementById('subscribeForm').onsubmit = function (e) {
+            var form = this;
+            var attribs = {};
+            // Iterate through all input elements
+            var inputs = form.querySelectorAll('input');
+            for (var i = 0; i < inputs.length; i++) {
+                var input = inputs[i];
+                // Skip email field and attribs hidden field
+                if (input.name === 'email' || input.name === 'attribs' || (input.type === 'hidden' && input.name === 'token')) continue;
+                // Only collect fields with name attribute
+                if (input.name && input.value !== undefined) {
+                    attribs[input.name] = input.value;
+                }
+            }
+            // Assign to hidden field
+            form.querySelector('input[name="attribs"]').value = JSON.stringify(attribs);
+            // Submit form normally
+        };
+    </script>
+</div>
+</body>
+</html>

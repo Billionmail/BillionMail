@@ -132,6 +132,19 @@ func init() {
 			CREATE INDEX IF NOT EXISTS clicked_postfixMessageId_logTime_url ON mailstat_clicked (postfix_message_id, log_time, url)`,
 			`CREATE INDEX IF NOT EXISTS clicked_logTime_millis ON mailstat_clicked (log_time_millis)`,
 			`CREATE INDEX IF NOT EXISTS clicked_campaignId_logTime_url_recipient ON mailstat_clicked (campaign_id, log_time, url, recipient)`,
+
+			`-- Mail complaint/FBL records
+			CREATE TABLE IF NOT EXISTS mailstat_complaints (
+				id SERIAL PRIMARY KEY,
+				postfix_message_id TEXT NOT NULL DEFAULT '',
+				recipient TEXT NOT NULL DEFAULT '',
+				log_time_millis BIGINT NOT NULL DEFAULT (EXTRACT(EPOCH FROM CURRENT_TIMESTAMP)::INTEGER),
+				log_time INTEGER GENERATED ALWAYS AS (log_time_millis / 1000) STORED
+			)`,
+
+			`-- Indexes
+			CREATE INDEX IF NOT EXISTS complaints_postfixMessageId_logTime ON mailstat_complaints (postfix_message_id, log_time)`,
+			`CREATE INDEX IF NOT EXISTS complaints_logTime_millis ON mailstat_complaints (log_time_millis)`,
 		}
 
 		for _, sql := range sqlList {

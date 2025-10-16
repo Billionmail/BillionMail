@@ -4,8 +4,10 @@ import (
 	"context"
 	"crypto/x509"
 	"encoding/pem"
+	"github.com/gogf/gf/os/gtimer"
 	"os"
 	"path/filepath"
+	"time"
 
 	"billionmail-core/api/settings/v1"
 	"billionmail-core/internal/consts"
@@ -84,11 +86,18 @@ func (c *ControllerV1) SetSSLConfig(ctx context.Context, req *v1.SetSSLConfigReq
 		return res, nil
 	}
 	// Restart the container
-	err = public.DockerApiFromCtx(ctx).RestartContainerByName(ctx, "billionmail-core-billionmail-1")
-	if err != nil {
-		res.SetError(gerror.New(public.LangCtx(ctx, "Failed to restart container: {}", err)))
-		return res, nil
-	}
+	gtimer.AddOnce(500*time.Millisecond, func() {
+		err = public.DockerApiFromCtx(ctx).RestartContainerByName(context.Background(), consts.SERVICES.Core)
+		if err != nil {
+			return
+		}
+	})
+
+	_ = public.WriteLog(ctx, public.LogParams{
+		Type: consts.LOGTYPE.Settings,
+		Log:  "SSL certificate updated successfully",
+		Data: req,
+	})
 
 	res.SetSuccess(public.LangCtx(ctx, "SSL certificate updated successfully"))
 	return res, nil

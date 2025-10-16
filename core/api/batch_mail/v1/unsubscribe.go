@@ -26,3 +26,19 @@ type GetUserGroupsRes struct {
 	api_v1.StandardRes
 	Data []*GroupInfo `json:"data" dc:"user groups"`
 }
+
+type UnsubscribeNewReq struct {
+	g.Meta `path:"/unsubscribe_new" method:"post" tags:"Unsubscribe" summary:"New unsubscribe API - direct unsubscribe"`
+	Jwt    string `json:"jwt" v:"required" dc:"JWT token containing unsubscribe information"`
+}
+
+type UnsubscribeNewRes struct {
+	api_v1.StandardRes
+	Data UnsubscribeResult `json:"data" dc:"Unsubscribe result"`
+}
+
+type UnsubscribeResult struct {
+	Email       string `json:"email" dc:"Email address"`
+	GroupName   string `json:"group_name" dc:"Group name"`
+	RedirectUrl string `json:"redirect_url" dc:"Redirect URL after unsubscribe"`
+}

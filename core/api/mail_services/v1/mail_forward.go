@@ -32,9 +32,8 @@ type GetMailForwardListRes struct {
 
 type AddMailForwardReq struct {
 	g.Meta  `path:"/mail_forward/add" method:"post" summary:"add mail forward"`
-	Address string `json:"address" v:"required|email" desc:"forwarded email address, e.g. user@example.com"`
+	Address string `json:"address" v:"required" desc:"forwarded email address, e.g. user@example.com"`
 	Goto    string `json:"goto" v:"required" desc:"forward target address, multiple addresses separated by newline"`
-	Domain  string `json:"domain" v:"required" desc:"domain"`
 	Active  int    `json:"active" v:"in:0,1" desc:"status: 1-enabled, 0-disabled" default:"1"`
 }
 
@@ -45,7 +44,7 @@ type AddMailForwardRes struct {
 type EditMailForwardReq struct {
 	g.Meta  `path:"/mail_forward/edit" method:"post" summary:"edit mail forward"`
 	Address string `json:"address" v:"required" desc:"forwarded email address"`
-	Goto    string `json:"goto" desc:"forward target address, multiple addresses separated by newline. not set means only modify status"`
+	Goto    string `json:"goto" v:"email" desc:"forward target address, multiple addresses separated by newline. not set means only modify status"`
 	Active  int    `json:"active" v:"in:0,1" desc:"status: 1-enabled, 0-disabled"`
 }
 

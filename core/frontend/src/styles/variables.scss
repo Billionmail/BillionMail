@@ -2,7 +2,7 @@
 	--color-primary-1: #20a53a;
 	--color-primary-2: #e9f6eb;
 	--color-primary-3: #90dda2;
-	--color-primary-hover-1: #20a53a;
+	--color-primary-hover-1: #18802a;
 	--color-warning-1: #f0ad4e;
 	--color-error-1: #ef0808;
 	--color-bg-1: #fff;
@@ -25,6 +25,7 @@
 	--color-button-text-1: #ffffff;
 	--color-table-th-1: rgba(250, 250, 252, 1);
 	--color-table-td-1: #ffffff;
+	--color-command: #101010;
 }
 
 :root[theme-mode='dark'] {
@@ -54,4 +55,5 @@
 	--color-button-text-1: #ffffff;
 	--color-table-th-1: #2c2c2c;
 	--color-table-td-1: #242424;
+	--color-command: #101010;
 }

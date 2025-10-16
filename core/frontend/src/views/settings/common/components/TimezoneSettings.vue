@@ -1,6 +1,6 @@
 <template>
 	<div>
-		<label class="block text-sm font-medium text-gray-700 mb-3">
+		<label class="block text-sm font-medium text-basic mb-3">
 			{{ t('settings.common.system.timezone') }}
 		</label>
 		<div class="grid items-start grid-cols-1 md:grid-cols-2 gap-4">

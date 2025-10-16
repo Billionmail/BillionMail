@@ -1,6 +1,7 @@
 package public
 
 import (
+	v1 "billionmail-core/api/domains/v1"
 	docker "billionmail-core/internal/service/dockerapi"
 	"billionmail-core/utility/types/api_v1"
 	"bufio"
@@ -150,6 +151,7 @@ var CodeMap = map[int]api_v1.StandardRes{
 }
 
 var HostWorkDir string //Host working directory
+var LogTypeMap map[string]string
 
 // Convert string to integer
 func IpToLong(ip string) int64 {
@@ -598,7 +600,9 @@ func GetCwdPath() string {
 }
 
 // Get absolute path
-func AbsPath(p string) string {
+func AbsPath(ps ...string) string {
+	p := filepath.Join(ps...)
+
 	// In Linux, if the path starts with "/", it is an absolute path
 	if strings.HasPrefix(p, "/") {
 		return p
@@ -749,8 +753,8 @@ func GetLanguageList() []map[string]interface{} {
 		{
 			"name":   "zh",
 			"google": "zh-cn",
-			"title":  "Simplified Chinese",
-			"cn":     "Simplified Chinese",
+			"title":  "简体中文",
+			"cn":     "简体中文",
 		},
 		{
 			"name":   "en",
@@ -770,15 +774,17 @@ func GetLanguageList() []map[string]interface{} {
 		return default_languages
 	}
 
-	// Convert language pack to map
-	lang_map := make([]map[string]interface{}, 0)
-	err = json.Unmarshal([]byte(lang_data), &lang_map)
-	if err != nil {
+	type langSettings struct {
+		Languages []map[string]interface{} `json:"languages"`
+	}
+	var settings langSettings
+	err = json.Unmarshal([]byte(lang_data), &settings)
+	if err != nil || len(settings.Languages) == 0 {
 		return default_languages
 	}
 
-	SetCache(filename, lang_map, 60)
-	return lang_map
+	SetCache(filename, settings.Languages, 60)
+	return settings.Languages
 }
 
 // Get language from context
@@ -2147,11 +2153,37 @@ func GetLocalIP() (string, error) {
 		return "", err
 	}
 
+	localIp := ""
+
 	for _, addr := range addrs {
 		if ipNet, ok := addr.(*net.IPNet); ok && !ipNet.IP.IsLoopback() && ipNet.IP.To4() != nil {
-			return ipNet.IP.String(), nil
+			localIp = ipNet.IP.String()
+			break
 		}
 	}
+
+	if strings.HasPrefix(localIp, "172.") {
+		dk, err := docker.NewDockerAPI()
+
+		if err == nil {
+			defer dk.Close()
+			// If the local IP starts with 172., it may be a Docker container, so we try to get the host's IP
+			res, err := dk.ExecHostShellCommand(context.Background(), "ip addr | grep -E -o '[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}' | grep -E -v \"^127\\.|^255\\.|^0\\.\" | head -n 1")
+
+			if err == nil && res != nil {
+				res.Output = SanitizeIPChars(res.Output)
+
+				if IsIpAddr(res.Output) {
+					localIp = res.Output
+				}
+			}
+		}
+	}
+
+	if localIp != "" {
+		return localIp, nil
+	}
+
 	return "", errors.New("local IP not found")
 }
 
@@ -2584,6 +2616,19 @@ func SanitizeUTF8(s string) string {
 	return string(result)
 }
 
+// SanitizeIPChars clean up invalid IPv4 characters in a string
+func SanitizeIPChars(s string) string {
+	// substitute invalid UTF-8 characters with a replacement character
+	result := make([]rune, 0, len(s))
+	for _, r := range s {
+		if (r >= '0' && r <= '9') || (r >= 'a' && r <= 'z') || r == '.' || r == ':' {
+			result = append(result, r)
+		}
+	}
+
+	return string(result)
+}
+
 func AddUnsubscribeButton(content string) string {
 	// Unsubscribe button HTML
 	unsubscribeButton := `<div style="padding: 16px 0; text-align: center"><a href="{{ UnsubscribeURL . }}" style="color: #ccc; font-size: 12px">Unsubscribe</a></div>`
@@ -2611,6 +2656,12 @@ func AddUnsubscribeButton(content string) string {
 
 // FormatMX format the email domain
 func FormatMX(domain string) string {
+	val, err := g.DB().Model("domain").Where("domain", domain).WhereOr("a_record", domain).Value("a_record")
+
+	if err == nil && !val.IsEmpty() {
+		return val.String()
+	}
+
 	return "mail." + strings.TrimPrefix(domain, "mail.")
 }
 
@@ -2642,4 +2693,88 @@ func LoadEnvFile() (map[string]string, error) {
 	}
 
 	return envMap, nil
+}
+
+func GethostUrl() string {
+	scheme := "https"
+	serverPort := 443
+	if p := g.Server(consts.DEFAULT_SERVER_NAME).GetListenedHTTPSPort(); p != -1 {
+		serverPort = p
+	} else if p := g.Server(consts.DEFAULT_SERVER_NAME).GetListenedPort(); p != -1 {
+		scheme = "http"
+		serverPort = p
+	}
+
+	withPort := true
+	if serverPort == 80 || serverPort == 443 {
+		withPort = false
+	}
+
+	serverIP, localIP, err := GetServerIPAndLocalIP()
+	if err != nil {
+		return ""
+	}
+
+	if appEnv, err := DockerEnv("APP_ENV"); err == nil && appEnv != "" {
+		switch appEnv {
+		case "development":
+			hostUrl := scheme + "://" + localIP
+			if withPort {
+				hostUrl += ":" + fmt.Sprintf("%d", serverPort)
+			}
+			return hostUrl
+		}
+	}
+
+	hostname := MustGetDockerEnv("BILLIONMAIL_HOSTNAME", "")
+	if hostname == "" {
+		hostname, _ = DockerEnv("BILLIONMAIL_HOSTNAME")
+	}
+
+	if hostname != "" && hostname != "mail.example.com" {
+		record := v1.DNSRecord{
+			Type:  "A",
+			Host:  hostname,
+			Value: serverIP,
+			Valid: true,
+		}
+
+		if ValidateARecord(record) {
+			hostUrl := scheme + "://" + hostname
+			if withPort {
+				hostUrl += ":" + fmt.Sprintf("%d", serverPort)
+			}
+			return hostUrl
+		}
+	}
+	hostUrl := scheme + "://" + serverIP
+	if withPort {
+		hostUrl += ":" + fmt.Sprintf("%d", serverPort)
+	}
+	return hostUrl
+}
+
+func ValidateARecord(record v1.DNSRecord) bool {
+	if strings.ToUpper(record.Type) != "A" && strings.ToUpper(record.Type) != "AAAA" {
+		return false
+	}
+
+	// Query A records
+	ips, err := net.LookupIP(record.Host)
+	if err != nil {
+		return false
+	}
+
+	// Check if any IP matches the expected server IP
+	for _, ip := range ips {
+		if ip.String() == record.Value {
+			return true
+		}
+	}
+
+	return false
+}
+
+func ChownDovecot(path string) error {
+	return os.Chown(path, 150, 8)
 }

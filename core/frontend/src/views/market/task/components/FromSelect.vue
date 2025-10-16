@@ -12,6 +12,7 @@
 			v-model:value="sender"
 			:loading="loading"
 			:options="senderOptions"
+			:filterable="true"
 			@update:value="handleUpdateSender">
 		</n-select>
 	</div>
@@ -31,7 +32,7 @@ const name = defineModel<string>('name')
 
 const loading = ref<boolean>(false)
 
-const domain = ref<string | null>(null)
+const domain = defineModel<string | null>('domain')
 
 const domainOptions = ref<SelectOption[]>([])
 
@@ -47,7 +48,8 @@ const senderOptions = computed(() => {
 		}))
 })
 
-const handleUpdateDomain = () => {
+const handleUpdateDomain = async () => {
+	await nextTick()
 	if (senderOptions.value.length > 0) {
 		sender.value = senderOptions.value[0].value
 		handleUpdateSender(sender.value, senderOptions.value[0])
@@ -72,15 +74,20 @@ const getDomainOptions = async () => {
 			label: item.domain,
 			value: item.domain,
 		}))
-		if (domain.value === null && domainRes.length > 0) {
-			domain.value = domainRes[0].domain
+		if (!domain.value && domainRes.length > 0) {
+			const domainData = domainRes.filter(item => item.default)
+			if (domainData.length > 0) {
+				domain.value = domainData[0].domain
+			} else {
+				domain.value = domainRes[0].domain
+			}
 		}
 	}
 }
 
 // 获取邮箱列表
 const getSenderOptions = async () => {
-	const res = await getMailboxList({ page: 1, page_size: 1000, domain: domain.value })
+	const res = await getMailboxList({ page: 1, page_size: 1000, domain: '' })
 	if (isObject<{ list: MailBox[] }>(res)) {
 		mailboxList.value = res.list
 	}
@@ -92,7 +99,11 @@ const initData = async () => {
 		await getSenderOptions()
 		await getDomainOptions()
 		await nextTick()
-		handleUpdateDomain()
+		if (sender.value === null) {
+			handleUpdateDomain()
+		} else if (sender.value) {
+			domain.value = sender.value.split('@')[1]
+		}
 	} finally {
 		loading.value = false
 	}

@@ -204,6 +204,7 @@ func (s *SenderIpWarmupService) EvaluateIpScore(ctx context.Context, senderIp st
 			Count()
 	}
 
+	finishedWarmup := false
 	currentScore := float64(warmupStatus.Score) // Adjust starting from the current score
 
 	if totalSent == 0 && len(relevantPmids) == 0 && len(senderIdentities) == 0 {
@@ -211,27 +212,31 @@ func (s *SenderIpWarmupService) EvaluateIpScore(ctx context.Context, senderIp st
 		g.Log().Infof(ctx, "EvaluateIpScore: IP %s has no configured sender identities. Score remains %d.", senderIp, warmupStatus.Score)
 	} else if totalSent < minSendVolumeForFullScoring && totalSent > 0 { // Low sending volume
 		if hardBounces > 0 {
-			currentScore -= 15 // Low volume but with hard bounces, heavy penalty
+			currentScore -= 1.5 // Low volume but with hard bounces, heavy penalty
 		} else if softBounces > 0 {
-			currentScore -= 7 // Low volume with soft bounces
+			currentScore -= 0.7 // Low volume with soft bounces
 		} else if successfulSends > 0 {
-			currentScore += 2 // Low volume but with successes
+			currentScore += 0.2 // Low volume but with successes
 		} else { // Low volume and no successes (could be all deferred or other issues)
-			currentScore -= 5
+			currentScore -= 0.5
 		}
 	} else if totalSent >= minSendVolumeForFullScoring { // Sufficient sending volume for a more comprehensive scoring
+		if totalSent >= 70000 {
+			finishedWarmup = true
+		}
+
 		successRate := float64(successfulSends) / float64(totalSent)
 		hardBounceRate := float64(hardBounces) / float64(totalSent)
 		softBounceRate := float64(softBounces) / float64(totalSent)
 		deferredRate := float64(deferredSends) / float64(totalSent)
 
 		// Adjust based on success rate
-		currentScore += (successRate - 0.8) * 30 // 80% success rate is the baseline, fluctuation affects 30 points
+		currentScore += math.Max(0, successRate-0.8) * 30 // 80% success rate is the baseline, fluctuation affects 30 points
 
 		// Adjust based on bounce rate
-		currentScore -= hardBounceRate * 100 // Penalty coefficient for hard bounces is 100
-		currentScore -= softBounceRate * 50  // Penalty coefficient for soft bounces is 50
-		currentScore -= deferredRate * 20    // Penalty coefficient for deferred is 20
+		currentScore -= hardBounceRate * 10 // Penalty coefficient for hard bounces is 10
+		currentScore -= softBounceRate * 5  // Penalty coefficient for soft bounces is 5
+		currentScore -= deferredRate * 2    // Penalty coefficient for deferred is 2
 
 		// Adjust based on open and click rates (requires openedCount, clickedCount data)
 		if successfulSends > 0 {
@@ -245,7 +250,7 @@ func (s *SenderIpWarmupService) EvaluateIpScore(ctx context.Context, senderIp st
 	} else { // totalSent == 0 (but there are relevant pmids or identities, indicating no sending within the window)
 		if warmupStatus.Progress > 65 { // High progress but no sending
 			if warmupStatus.Score < 50 {
-				currentScore -= 1 // If the score is already not high and there is continuous no sending, decrease slowly
+				currentScore -= 0.3 // If the score is already not high and there is continuous no sending, decrease slowly
 			} else if warmupStatus.Score > 70 {
 				currentScore -= 0.2 // If the score is high but there is continuous no sending, decrease very slowly
 			}
@@ -254,15 +259,25 @@ func (s *SenderIpWarmupService) EvaluateIpScore(ctx context.Context, senderIp st
 
 	finalScore := int(math.Max(0, math.Min(100, currentScore)))
 
+	curTime := gtime.Now().Timestamp()
+
+	updateData := g.Map{
+		"last_evaluate_time": curTime,
+		"score":              finalScore,
+		"update_time":        curTime,
+	}
+
+	if finishedWarmup {
+		updateData["period"] = 0 // Set period to 0 to indicate warmup is complete
+		updateData["end_time"] = curTime
+		updateData["progress"] = 100 // Set progress to 100% if warmup is complete
+	}
+
 	_, err = g.DB().
 		Model("bm_sender_ip_warmup").
 		Ctx(ctx).
 		Where("id", warmupStatus.Id).
-		Data(g.Map{
-			"last_evaluate_time": gtime.Now().Timestamp(),
-			"score":              finalScore,
-			"update_time":        gtime.Now().Timestamp(),
-		}).
+		Data(updateData).
 		Update()
 
 	if err != nil {
@@ -400,15 +415,15 @@ func (s *SenderIpWarmupService) GetSendingRateFactor(ctx context.Context, sender
 
 	// Warmup not complete, and score is very low, or warmup has just begun
 	if record.Progress < 100 {
-		if record.Score < minScoreForSending {
-			return 0.0, nil // Pause sending
-		}
+		//if record.Score < minScoreForSending {
+		//	return 0.0, nil // Pause sending
+		//}
 		// In the early stages of warmup, the rate should be very low and gradually increase with progress and score
 		// This is a simplified step-wise increase example
 		baseProgressFactor := float64(record.Progress) / 100.0
 		scoreFactor := (float64(record.Score) - float64(minScoreForSending)) / (100.0 - float64(minScoreForSending))
 		if scoreFactor < 0 {
-			scoreFactor = 0
+			scoreFactor = 0.05 // Ensure the score factor is not negative, default to a very cautious rate
 		}
 
 		// Example: a smoother warmup rate = (base progress rate * 0.3) + (score performance rate * 0.7)
@@ -425,7 +440,7 @@ func (s *SenderIpWarmupService) GetSendingRateFactor(ctx context.Context, sender
 			rate = 1.0
 		}
 		if rate < 0 {
-			rate = 0
+			rate = 0.05 // Ensure the rate is not negative, default to a very cautious rate
 		}
 		g.Log().Debugf(ctx, "GetSendingRateFactor: IP %s (Progress: %d%%, Score: %d) -> In Warmup, Rate Factor: %.2f", senderIp, record.Progress, record.Score, rate)
 		return rate, nil

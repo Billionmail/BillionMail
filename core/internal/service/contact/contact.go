@@ -4,20 +4,27 @@ import (
 	v1 "billionmail-core/api/contact/v1"
 	"billionmail-core/internal/model/entity"
 	"context"
+	"database/sql"
 	"encoding/json"
+	"fmt"
+	"github.com/gogf/gf/crypto/gmd5"
 	"github.com/gogf/gf/v2/database/gdb"
 	"github.com/gogf/gf/v2/frame/g"
+	"math/rand"
 	"strings"
 	"time"
 )
 
-func CreateGroup(ctx context.Context, name, description string) (int, error) {
+func CreateGroup(ctx context.Context, name, description string, double_optin int) (int, error) {
 	now := time.Now().Unix()
+	token := GfMd5Short()
 	data := g.Map{
-		"name":        name,
-		"description": description,
-		"create_time": int(now),
-		"update_time": int(now),
+		"name":         name,
+		"description":  description,
+		"create_time":  int(now),
+		"update_time":  int(now),
+		"token":        token,
+		"double_optin": double_optin,
 	}
 	lastInsertId, err := g.DB().Model("bm_contact_groups").Ctx(ctx).Data(data).InsertAndGetId()
 	return int(lastInsertId), err
@@ -42,7 +49,7 @@ func GetAllGroups(ctx context.Context, keyword string) ([]*v1.ContactGroup, erro
 
 	var groups []*v1.ContactGroup
 	err := model.Scan(&groups)
-	if err != nil {
+	if err != nil && err != sql.ErrNoRows {
 		return nil, err
 	}
 
@@ -117,7 +124,7 @@ func BatchCreateContactsIgnoreDuplicate(ctx context.Context, contacts []*entity.
 		// Count affected rows
 		affected, err := result.RowsAffected()
 		if err != nil {
-			g.Log().Warning(ctx, "Could not get affected rows for batch %d/%d: %v", i+1, totalBatches, err)
+			g.Log().Debugf(ctx, "Could not get affected rows for batch %d/%d: %v", i+1, totalBatches, err)
 		} else {
 			totalAffected += int(affected)
 			g.Log().Debug(ctx, "Batch %d/%d inserted %d records successfully", i+1, totalBatches, affected)
@@ -271,18 +278,17 @@ func GetContactGroupsInfo(ctx context.Context, email string, status int) ([]*ent
 	return groups, nil
 }
 
-func GetContactsTrend(ctx context.Context, startTime, endTime time.Time) ([]*struct {
+type ContactTrend struct {
 	Month            string `json:"month"`
 	SubscribeCount   int    `json:"subscribe_count"`
 	UnsubscribeCount int    `json:"unsubscribe_count"`
-}, error) {
-	var trends []*struct {
-		Month            string `json:"month"`
-		SubscribeCount   int    `json:"subscribe_count"`
-		UnsubscribeCount int    `json:"unsubscribe_count"`
-	}
+}
 
-	err := g.DB().Model("bm_contacts").
+func GetContactsTrend(ctx context.Context, startTime, endTime time.Time, groupId int) ([]*ContactTrend, error) {
+
+	var trends []*ContactTrend
+
+	db := g.DB().Model("bm_contacts").
 		Fields(
 			"to_char(to_timestamp(create_time), 'YYYY-MM') as month",
 			"SUM(CASE WHEN active = 1 THEN 1 ELSE 0 END) as subscribe_count",
@@ -290,10 +296,21 @@ func GetContactsTrend(ctx context.Context, startTime, endTime time.Time) ([]*str
 		).
 		Where("create_time BETWEEN ? AND ?", startTime.Unix(), endTime.Unix()).
 		Group("month").
-		Order("month ASC").
-		Scan(&trends)
+		Order("month ASC")
 
-	return trends, err
+	if groupId != 0 {
+		db = db.Where("group_id = ?", groupId)
+	}
+
+	if err := db.Scan(&trends); err != nil {
+		return nil, fmt.Errorf("failed to get contacts trend: %w", err)
+	}
+
+	if trends == nil {
+		return make([]*ContactTrend, 0), nil
+	}
+
+	return trends, nil
 }
 
 func UpdateContactsGroups(ctx context.Context, emails []string, status int, newGroupIds []int) (int, error) {
@@ -519,4 +536,9 @@ func BatchCreateContactsWithOverwrite(ctx context.Context, contacts []*entity.Co
 	}
 
 	return totalSuccessCount, nil
+}
+
+func GfMd5Short() string {
+	str := fmt.Sprintf("%s_%d_%d", time.Now().UnixNano(), rand.Intn(100000))
+	return gmd5.MustEncryptString(str)[:12]
 }

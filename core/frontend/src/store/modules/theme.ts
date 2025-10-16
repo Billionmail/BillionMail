@@ -102,6 +102,10 @@ export default defineStore(
 				Progress: {
 					textColorLineInner: '#fff',
 				},
+				Button: {
+					color: getCssVar('--color-bg-1'),
+					colorHover: getCssVar('--color-bg-1'),
+				},
 			}
 		}
 

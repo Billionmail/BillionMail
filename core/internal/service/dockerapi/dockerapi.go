@@ -2,6 +2,7 @@ package docker
 
 import (
 	v1 "billionmail-core/api/dockerapi/v1"
+	"billionmail-core/internal/consts"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -202,7 +203,16 @@ func (d *DockerAPI) ExecCommandByName(ctx context.Context, name string, cmd []st
 
 // ListContainers lists all containers
 func (d *DockerAPI) ListContainers(ctx context.Context) ([]container.Summary, error) {
-	return d.client.ContainerList(ctx, container.ListOptions{All: true})
+	args := filters.NewArgs()
+
+	for _, v := range gconv.Map(consts.SERVICES) {
+		args.Add("name", v.(string))
+	}
+
+	return d.client.ContainerList(ctx, container.ListOptions{
+		All:     true,
+		Filters: args,
+	})
 }
 
 // GetContainerByName gets a container by its name

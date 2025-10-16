@@ -1,0 +1,66 @@
+@use '@/styles/index' as base;
+
+@mixin content-wrapper {
+	width: 866px;
+	margin: 0 auto;
+	padding-top: 32px;
+}
+
+@mixin page-tit {
+	@include base.row-flex;
+	justify-content: space-between;
+	gap: 5px;
+
+	.left-tit {
+		@include base.row-flex-start;
+		gap: 8px;
+
+		.back-tool {
+			color: var(--color-primary-1);
+			@include base.row-flex-start;
+			gap: 5px;
+			cursor: pointer;
+			@include base.transition-all;
+
+			.back-btn {
+				font-size: 18px;
+			}
+		}
+
+		.tit-content {
+			font-size: 16px;
+			color: var(--color-text-1);
+			font-weight: bold;
+		}
+	}
+
+	.right-tit {
+	}
+}
+
+@mixin form-label {
+	font-size: 14px;
+	color: var(--color-text-2);
+}
+
+@mixin operation-close {
+	width: 34px;
+	height: 34px;
+	@include base.row-flex-center;
+	background: var(--color-bg-1);
+	border: 1px solid var(--color-border-1);
+	border-radius: 5px;
+	color: var(--color-text-2);
+	transition: 0.2s all ease-in-out;
+	cursor: pointer;
+
+	&.close {
+		border-color: var(--color-error-1);
+		color: var(--color-error-1);
+	}
+
+	&.close:hover {
+		color: #fff;
+		background: var(--color-error-1);
+	}
+}

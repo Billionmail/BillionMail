@@ -21,6 +21,7 @@ type JWTCustomClaims struct {
 	AccountId int64    `json:"accountId"`
 	Username  string   `json:"username"`
 	Roles     []string `json:"roles"`
+	ApiToken  bool     `json:"apiToken"`
 	jwt.RegisteredClaims
 }
 
@@ -105,6 +106,32 @@ func (s *JWTService) GenerateRefreshToken(accountId int64, username string) (str
 	return signedToken, nil
 }
 
+// GenerateApiToken generates a JWT token for API access
+func (s *JWTService) GenerateApiToken(accountId int64, username string, roles []string) (string, int64, error) {
+	claims := &JWTCustomClaims{
+		AccountId: accountId,
+		Username:  username,
+		Roles:     roles,
+		ApiToken:  true,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: nil,
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			NotBefore: jwt.NewNumericDate(time.Now()),
+			Issuer:    consts.DEFAULT_SERVER_NAME,
+			Subject:   "api_token",
+			ID:        guid.S() + guid.S(),
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	signedToken, err := token.SignedString([]byte(s.Secret))
+	if err != nil {
+		return "", 0, err
+	}
+
+	return signedToken, 0, nil
+}
+
 // ParseToken parses and validates a JWT token
 func (s *JWTService) ParseToken(tokenString string) (*JWTCustomClaims, error) {
 	tokenString = strings.TrimPrefix(tokenString, "Bearer ")
@@ -122,6 +149,16 @@ func (s *JWTService) ParseToken(tokenString string) (*JWTCustomClaims, error) {
 	}
 
 	return nil, gerror.New("invalid token")
+}
+
+// ParseTokenByRequest parses a JWT token from the request context
+func (s *JWTService) ParseTokenByRequest(r *ghttp.Request) (*JWTCustomClaims, error) {
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		return nil, gerror.New("no authorization header found")
+	}
+	// Parse token from Authorization header
+	return s.ParseToken(strings.TrimPrefix(authHeader, "Bearer "))
 }
 
 // InvalidateToken invalidates a JWT token
@@ -151,7 +188,18 @@ func (s *JWTService) IsTokenBlacklisted(token *JWTCustomClaims) bool {
 // JWTAuthMiddleware provides JWT authentication middleware
 func (s *JWTService) JWTAuthMiddleware(r *ghttp.Request) {
 	// Skip authentication for login and refresh token endpoints
-	if r.URL.Path == "/api/login" || r.URL.Path == "/api/refresh-token" || r.URL.Path == "/api/unsubscribe/user_group" || r.URL.Path == "/api/get_validate_code" || r.URL.Path == "/api/unsubscribe" || r.URL.Path == "/api/languages/set" || r.URL.Path == "/api/languages/get" || r.URL.Path == "/api/batch_mail/api/send" {
+	if r.URL.Path == "/api/login" ||
+		r.URL.Path == "/api/refresh-token" ||
+		r.URL.Path == "/api/unsubscribe/user_group" ||
+		r.URL.Path == "/api/get_validate_code" ||
+		r.URL.Path == "/api/unsubscribe" ||
+		r.URL.Path == "/api/unsubscribe_new" ||
+		r.URL.Path == "/api/languages/set" ||
+		r.URL.Path == "/api/languages/get" ||
+		r.URL.Path == "/api/batch_mail/api/send" ||
+		r.URL.Path == "/api/batch_mail/api/batch_send" ||
+		r.URL.Path == "/api/subscribe/submit" ||
+		r.URL.Path == "/api/subscribe/confirm" {
 		r.Middleware.Next()
 		return
 	}
@@ -203,10 +251,10 @@ func (s *JWTService) JWTAuthMiddleware(r *ghttp.Request) {
 	}
 
 	// Update Session
-	err = r.Session.Set("UserLogin", true)
+	err = r.Session.Set("SignedToken", tokenString)
 
 	if err != nil {
-		g.Log().Warning(r.GetCtx(), "set UserLogin failed ", err)
+		g.Log().Warning(r.GetCtx(), "Save SignedToken failed ", err)
 	}
 
 	r.Middleware.Next()

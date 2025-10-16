@@ -7,6 +7,7 @@ toolchain go1.23.2
 require (
 	github.com/GehirnInc/crypt v0.0.0-20230320061759-8cc1b52080c5
 	github.com/docker/docker v28.0.2+incompatible
+	github.com/fsnotify/fsnotify v1.8.0
 	github.com/g0rbe/go-chattr v1.0.1
 	github.com/go-acme/lego/v4 v4.22.2
 	github.com/gogf/gf v1.16.9
@@ -14,9 +15,12 @@ require (
 	github.com/gogf/gf/contrib/nosql/redis/v2 v2.9.0
 	github.com/gogf/gf/v2 v2.9.0
 	github.com/golang-jwt/jwt/v5 v5.2.1
+	github.com/google/uuid v1.6.0
 	github.com/mojocn/base64Captcha v1.3.8
 	github.com/nwaples/rardecode v1.1.3
 	github.com/panjf2000/ants/v2 v2.11.3
+	github.com/pkoukk/tiktoken-go v0.1.7
+	github.com/sashabaranov/go-openai v1.40.5
 	github.com/tomasen/fcgi_client v0.0.0-20180423082037-2bb3d819fd19
 	github.com/xuri/excelize/v2 v2.9.0
 	golang.org/x/crypto v0.33.0
@@ -43,12 +47,12 @@ require (
 	github.com/containerd/log v0.1.0 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/distribution/reference v0.6.0 // indirect
+	github.com/dlclark/regexp2 v1.10.0 // indirect
 	github.com/docker/go-connections v0.5.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/fatih/color v1.18.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
-	github.com/fsnotify/fsnotify v1.8.0 // indirect
 	github.com/go-jose/go-jose/v4 v4.0.4 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
@@ -56,7 +60,6 @@ require (
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/grokify/html-strip-tags-go v0.1.0 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect

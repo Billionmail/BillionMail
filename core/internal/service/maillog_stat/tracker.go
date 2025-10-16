@@ -1,6 +1,8 @@
 package maillog_stat
 
 import (
+	"billionmail-core/internal/model/entity"
+	"billionmail-core/internal/service/contact_activity"
 	"fmt"
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/net/ghttp"
@@ -59,6 +61,24 @@ func CampaignEventHandler(r *ghttp.Request, encStr string) {
 			g.Log().Error(ctx, err)
 		}
 
+		// Update contact activity when email is opened
+		var groupId int
+		if data.CampaignId > 1000000000 {
+			// It's from API
+			groupId = 0
+		} else {
+			var tasks *entity.EmailTask
+			err = g.DB().Model("email_tasks").Where("id", data.CampaignId).Scan(&tasks)
+			if err != nil {
+				g.Log().Error(ctx, "Failed to get email task info: ", err)
+				groupId = 0
+			} else {
+				groupId = tasks.GroupId
+			}
+		}
+		// Update contact activity when email is opened (user interaction)
+		contact_activity.UpdateActivityByEmailAndGroup(data.Recipient, groupId)
+
 		// Create a 1x1 transparent PNG image
 		img := image.NewRGBA(image.Rect(0, 0, 1, 1))
 		// Set the pixel to transparent
@@ -84,6 +104,26 @@ func CampaignEventHandler(r *ghttp.Request, encStr string) {
 		if err != nil {
 			g.Log().Error(ctx, err)
 		}
+		g.Log().Debug(ctx, "记录点击 !!! Click event data: ", data.Recipient)
+
+		// Update contact activity when link is clicked
+		var groupId int
+		if data.CampaignId > 1000000000 {
+			// It's from API
+			groupId = 0
+		} else {
+			var tasks *entity.EmailTask
+			err = g.DB().Model("email_tasks").Where("id", data.CampaignId).Scan(&tasks)
+			if err != nil {
+				g.Log().Error(ctx, "Failed to get email task info: ", err)
+				groupId = 0
+			} else {
+				groupId = tasks.GroupId
+			}
+		}
+		g.Log().Debug(ctx, "开始记录活跃时间 !!! Click event data: ", data.Recipient, "组->", groupId)
+		// Update contact activity when link is clicked (user interaction)
+		contact_activity.UpdateActivityByEmailAndGroup(data.Recipient, groupId)
 
 		// Redirect to the target URL
 		r.Response.RedirectTo(data.Url)

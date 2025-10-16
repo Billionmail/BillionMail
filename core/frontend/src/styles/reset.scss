@@ -28,9 +28,20 @@ a {
 }
 
 p,
-ul {
+ul,
+pre {
 	margin: 0;
 	padding: 0;
+}
+
+pre {
+	font-family: Menlo, Monaco, Consolas, 'Courier New', monospace;
+	white-space: pre-wrap;
+}
+
+iframe {
+	border: none;
+	outline: none;
 }
 
 // 滚动条整体样式

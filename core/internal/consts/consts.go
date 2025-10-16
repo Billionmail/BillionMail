@@ -18,3 +18,23 @@ const (
 	DOVECOT_CONF_D_PATH              = "../conf/dovecot/conf.d"
 	SSL_PATH                         = "/etc/ssl/mail"
 )
+
+var (
+	SERVICES = struct {
+		Pgsql   string
+		Redis   string
+		Rspamd  string
+		Dovecot string
+		Postfix string
+		Webmail string
+		Core    string
+	}{
+		Pgsql:   "pgsql-billionmail",
+		Redis:   "redis-billionmail",
+		Rspamd:  "rspamd-billionmail",
+		Dovecot: "dovecot-billionmail",
+		Postfix: "postfix-billionmail",
+		Webmail: "webmail-billionmail",
+		Core:    "core-billionmail",
+	}
+)

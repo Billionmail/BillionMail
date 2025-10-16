@@ -21,9 +21,3 @@ onBeforeUnmount(() => {
 	settingsStore.reset()
 })
 </script>
-
-<style lang="scss" scoped>
-.n-card {
-	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-}
-</style>

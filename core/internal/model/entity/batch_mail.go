@@ -1,5 +1,9 @@
 package entity
 
+import (
+	"encoding/json"
+)
+
 // ContactGroup Entity
 type ContactGroup struct {
 	Id          int    `json:"id"          dc:"Group ID"`
@@ -7,18 +11,39 @@ type ContactGroup struct {
 	Description string `json:"description" dc:"Description"`
 	CreateTime  int    `json:"create_time" dc:"Create Time"`
 	UpdateTime  int    `json:"update_time" dc:"Update Time"`
+	Token       string `json:"token"      dc:"Subscription Token"`
+	DoubleOptin int    `json:"double_optin" dc:"Double Opt-in Status(0: Single Opt-in 1: Double Opt-in)"`
+	WelcomeHtml string `json:"welcome_mail_html" dc:"Welcome Email Html"`
+	WelcomeDrag string `json:"welcome_mail_drag" dc:"Welcome Email Drag"`
+
+	WelcomeSubject   string `json:"welcome_subject" dc:"Welcome Email Subject"`
+	SendWelcomeEmail int    `json:"send_welcome_email" dc:"Whether to send a welcome email"`
+	ConfirmSubject   string `json:"confirm_subject" dc:"Confirmation Email Subject"`
+
+	ConfirmHtml            string `json:"confirm_mail_html" dc:"Confirmation Email Html"`
+	ConfirmDrag            string `json:"confirm_mail_drag" dc:"Confirmation Email Drag"`
+	SuccessUrl             string `json:"success_url" dc:"Success URL"`
+	ConfirmUrl             string `json:"confirm_url" dc:"Confirmation URL"`
+	AlreadyUrl             string `json:"already_url" dc:"Already Subscribed URL"`
+	SubscribeForm          string `json:"subscribe_form" dc:"Subscription Form HTML"`
+	UnsubscribeMailHtml    string `json:"unsubscribe_mail_html" dc:"Unsubscribe Email Html"`
+	UnsubscribeMailDrag    string `json:"unsubscribe_mail_drag" dc:"Unsubscribe EmailDrag"`
+	UnsubscribeSubject     string `json:"unsubscribe_subject" dc:"Unsubscribe Email Subject"`
+	UnsubscribeRedirectUrl string `json:"unsubscribe_redirect_url" dc:"Unsubscribe Success RedirectURL"`
+	SendUnsubscribeEmail   int    `json:"send_unsubscribe_email" dc:"Whether to send unsubscribe email"`
 }
 
 // Contact Entity
 type Contact struct {
-	Id         int               `json:"id"          dc:"Contact ID"`
-	Email      string            `json:"email"       dc:"Email Address"`
-	GroupId    int               `json:"group_id"    dc:"Group ID"`
-	Active     int               `json:"active"      dc:"Status(1:Subscribed 0:Unsubscribed)"`
-	TaskId     int               `json:"task_id"     dc:"Bulk Mail Task ID"`
-	CreateTime int               `json:"create_time" dc:"Create Time"`
-	Status     int               `json:"Status" dc:"1:Confirmed   0:Unconfirmed"`
-	Attribs    map[string]string `json:"attribs"`
+	Id           int               `json:"id"          dc:"Contact ID"`
+	Email        string            `json:"email"       dc:"Email Address"`
+	GroupId      int               `json:"group_id"    dc:"Group ID"`
+	Active       int               `json:"active"      dc:"Status(1:Subscribed 0:Unsubscribed)"`
+	TaskId       int               `json:"task_id"     dc:"Bulk Mail Task ID"`
+	CreateTime   int               `json:"create_time" dc:"Create Time"`
+	Status       int               `json:"Status" dc:"1:Confirmed   0:Unconfirmed"`
+	Attribs      map[string]string `json:"attribs"`
+	LastActiveAt int               `json:"last_active_at" dc:"Last Active At"`
 }
 
 // EmailTemplate Entity
@@ -46,17 +71,60 @@ type EmailTask struct {
 	IsRecord       int    `json:"is_record"       dc:"Record to Outbox"`
 	Unsubscribe    int    `json:"unsubscribe"     dc:"Allow Unsubscribe"`
 	Threads        int    `json:"threads"         dc:"Thread Count"`
-	Etypes         string `json:"etypes"          dc:"Contact Group IDs"`
-	TrackOpen      int    `json:"track_open"      dc:"Track Opens"`
-	TrackClick     int    `json:"track_click"     dc:"Track Clicks"`
-	StartTime      int    `json:"start_time"      dc:"Start Time"`
-	CreateTime     int    `json:"create_time"     dc:"Create Time"`
-	UpdateTime     int    `json:"update_time"     dc:"Update Time"`
-	Remark         string `json:"remark"          dc:"Remark"`
-	Active         int    `json:"active"          dc:"Status"`
+	//Etypes          string `json:"etypes"          dc:"Contact Group IDs"`
+	TrackOpen       int    `json:"track_open"      dc:"Track Opens"`
+	TrackClick      int    `json:"track_click"     dc:"Track Clicks"`
+	StartTime       int    `json:"start_time"      dc:"Start Time"`
+	CreateTime      int    `json:"create_time"     dc:"Create Time"`
+	UpdateTime      int    `json:"update_time"     dc:"Update Time"`
+	Remark          string `json:"remark"          dc:"Remark"`
+	Active          int    `json:"active"          dc:"Status"`
+	AddType         int    `json:"addType"          description:""`
+	SendsCount      int    `json:"sendsCount"       description:""`
+	DeliveredCount  int    `json:"deliveredCount"   description:""`
+	BouncedCount    int    `json:"bouncedCount"     description:""`
+	DeferredCount   int    `json:"deferredCount"    description:""`
+	StatsUpdateTime int    `json:"statsUpdateTime"  description:""`
+	GroupId         int    `json:"group_id"        dc:"Group ID"`
+	TagIdsRaw       string `json:"-"               dc:"Tag IDs (JSON string - internal use)" orm:"tag_ids"`
+	TagIds          []int  `json:"tag_ids"         dc:"Tag IDs (parsed array)"`
+	TagLogic        string `json:"tag_logic"       dc:"Tag Logic (AND/OR)"`
+	UseTagFilter    int    `json:"use_tag_filter"  dc:"Use Tag Filter (0: no, 1: yes)"`
 }
 
-// RecipientInfo Entity
+// MarshalJSON implements custom JSON marshaling to convert TagIdsRaw to TagIds array
+func (e *EmailTask) MarshalJSON() ([]byte, error) {
+	// Create a temporary struct with all fields
+	type Alias EmailTask
+	aux := &struct {
+		*Alias
+	}{
+		Alias: (*Alias)(e),
+	}
+
+	// Parse TagIdsRaw to TagIds if not already parsed
+	if e.TagIdsRaw != "" && len(e.TagIds) == 0 {
+		var tagIds []int
+		err := json.Unmarshal([]byte(e.TagIdsRaw), &tagIds)
+		if err == nil {
+			aux.TagIds = tagIds
+		}
+	}
+
+	return json.Marshal(aux)
+}
+
+// AfterFind is called after retrieving data from database
+func (e *EmailTask) AfterFind() {
+	if e.TagIdsRaw != "" {
+		var tagIds []int
+		err := json.Unmarshal([]byte(e.TagIdsRaw), &tagIds)
+		if err == nil {
+			e.TagIds = tagIds
+		}
+	}
+}
+
 type RecipientInfo struct {
 	Id         int    `json:"id"          dc:"Recipient ID"`
 	TaskId     int    `json:"task_id"     dc:"Task ID"`
@@ -108,4 +176,12 @@ type ApiMailLogs struct {
 	MessageId string `json:"message_id" dc:"message id"`
 	Addresser string `json:"addresser" dc:"addresser"`
 	SendTime  int    `json:"send_time" dc:"send time"`
+}
+
+type Tag struct {
+	Id         int    `json:"id"          dc:"Tag ID"`
+	GroupId    int    `json:"group_id"    dc:"Group ID"`
+	GroupName  string `json:"group_name" dc:"Group Name"`
+	Name       string `json:"name"       dc:"Tag Name"`
+	CreateTime int    `json:"create_time" dc:"Create Time"`
 }

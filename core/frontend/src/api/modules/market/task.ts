@@ -1,4 +1,4 @@
-import i18n from '@/i18n'
+import { i18n } from '@/i18n'
 import { instance } from '@/api'
 import type { TaskParams } from '@/views/market/task/interface'
 
@@ -31,7 +31,7 @@ interface TaskAddParams {
 	addresser: string
 	full_name: string
 	subject: string
-	group_ids: number[]
+	group_id: number
 	template_id: number
 	is_record: number
 	warmup: number
@@ -39,6 +39,8 @@ interface TaskAddParams {
 	threads: number
 	start_time: number
 	remark: string
+	tag_ids: number[]
+	tag_logic: string
 }
 
 /**
@@ -48,6 +50,18 @@ export function addTask(params: TaskAddParams) {
 	return instance.post('/batch_mail/task/create', params, {
 		fetchOptions: {
 			loading: t('market.task.loading.creating'),
+			successMessage: true,
+		},
+	})
+}
+
+/**
+ * 更新任务
+ */
+export function updateTask(params: TaskAddParams & { task_id: number }) {
+	return instance.post('/batch_mail/task/update', params, {
+		fetchOptions: {
+			loading: t('market.task.loading.updating'),
 			successMessage: true,
 		},
 	})

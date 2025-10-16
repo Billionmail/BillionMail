@@ -19,17 +19,21 @@ type Mailbox struct {
 	CreateTime     int64  `json:"create_time"     dc:"Creation time"`
 	UpdateTime     int64  `json:"update_time"     dc:"Update time"`
 	Active         int    `json:"active"          dc:"Status: 1-enabled, 0-disabled"`
+	UsedQuota      int64  `json:"used_quota"           dc:"Used Mailbox quota"`
+	QuotaActive    int    `json:"quota_active"    dc:"Quota switch 1: On 0: Off"`
 }
 
 type AddMailboxReq struct {
 	g.Meta        `path:"/mailbox/create" tags:"MailBox" method:"post" summary:"Create mailbox" in:"body"`
 	Authorization string `json:"authorization" dc:"Authorization" in:"header"`
 	Domain        string `json:"domain" v:"required|domain" dc:"Domain"`
-	FullName      string `json:"full_name" v:"required|min-length:1|regex:[\\w-]{1,}" dc:"username"`
+	FullName      string `json:"full_name" v:"min-length:1" dc:"username"`
+	LocalPart     string `json:"local_part" v:"required|min-length:1|regex:[\\w-]{1,}" dc:"local_part"`
 	Password      string `json:"password" v:"required|min-length:8" dc:"Password"`
 	Active        int    `json:"active" v:"required" dc:"Status" d:"1"`
 	IsAdmin       int    `json:"isAdmin" v:"required" dc:"IsAdmin" d:"0"`
-	Quota         int    `json:"quota" v:"required|min:1" dc:"Quota" d:"5242880"`
+	Quota         int    `json:"quota"  dc:"Quota" d:"5242880"`
+	QuotaActive   int    `json:"quota_active" v:"in:0,1" dc:"Quota switch 1: On 0: Off" d:"1"`
 }
 
 type AddMailboxRes struct {
@@ -40,10 +44,10 @@ type BatchAddMailboxReq struct {
 	g.Meta        `path:"/mailbox/batch_create" tags:"MailBox" method:"post" summary:"Batch create mailbox" in:"body"`
 	Authorization string `json:"authorization" dc:"Authorization" in:"header"`
 	Domain        string `json:"domain" v:"required|domain" dc:"Domain"`
-	Password      string `json:"password" v:"required|min-length:8" dc:"Password"`
-	Quota         int    `json:"quota" v:"required|min:1" dc:"Quota" d:"5242880"`
-	Count         int    `json:"count" v:"required|min:2" dc:"Count" d:"10"`
-	Prefix        string `json:"prefix" v:"regex:[\\w-]{0,}" dc:"Email name prefix, optional" d:"user"`
+	Quota  int    `json:"quota"   dc:"Quota" d:"5242880"`
+	Count  int    `json:"count" v:"required|min:2" dc:"Count" d:"10"`
+	Prefix string `json:"prefix" v:"regex:[\\w-]{0,}" dc:"Email name prefix, optional" d:"user"`
+	QuotaActive   int    `json:"quota_active" v:"in:0,1" dc:"Quota switch 1: On 0: Off" d:"1"`
 }
 
 type BatchAddMailboxRes struct {
@@ -54,11 +58,13 @@ type UpdateMailboxReq struct {
 	g.Meta        `path:"/mailbox/update" tags:"MailBox" method:"post" summary:"Update mailbox" in:"body"`
 	Authorization string `json:"authorization" dc:"Authorization" in:"header"`
 	Domain        string `json:"domain" v:"required|domain" dc:"Domain"`
-	FullName      string `json:"full_name" v:"required|min-length:1|regex:[\\w-]{1,}" dc:"username"`
+	FullName      string `json:"full_name" v:"min-length:1" dc:"username"`
+	LocalPart     string `json:"local_part" v:"required|min-length:1|regex:[\\w-]{1,}" dc:"local_part"`
 	Password      string `json:"password" v:"required|min-length:8" dc:"Password"`
 	Active        int    `json:"active" v:"required" dc:"Status" d:"1"`
 	IsAdmin       int    `json:"isAdmin" v:"required" dc:"IsAdmin" d:"0"`
-	Quota         int    `json:"quota" v:"required|min:1" dc:"Quota" d:"5242880"`
+	Quota         int    `json:"quota"  dc:"Quota" d:"5242880"`
+	QuotaActive   int    `json:"quota_active" v:"in:0,1" dc:"Quota switch 1: On 0: Off" d:"1"`
 }
 
 type UpdateMailboxRes struct {
@@ -66,9 +72,9 @@ type UpdateMailboxRes struct {
 }
 
 type DeleteMailboxReq struct {
-	g.Meta        `path:"/mailbox/delete" tags:"MailBox" method:"post" summary:"Delete mailbox" in:"body"`
-	Authorization string `json:"authorization" dc:"Authorization" in:"header"`
-	Email         string `json:"email" v:"required|email" dc:"Email"`
+	g.Meta        `path:"/mailbox/delete" tags:"MailBox" method:"post" summary:"Delete mailbox (batch supported)" in:"body"`
+	Authorization string   `json:"authorization" dc:"Authorization" in:"header"`
+	Emails        []string `json:"emails" v:"required" dc:"Email address list for delete"`
 }
 
 type DeleteMailboxRes struct {
@@ -115,4 +121,28 @@ type GetAllEmailReq struct {
 type GetAllEmailRes struct {
 	api_v1.StandardRes
 	Data []string `json:"data"` // List of email addresses
+}
+
+// 导出邮箱
+type ExportMailboxReq struct {
+	g.Meta        `path:"/mailbox/export" tags:"MailBox" method:"post" summary:"Export mailbox" in:"query"`
+	Authorization string `json:"authorization" dc:"Authorization" in:"header"`
+	Domain        string `json:"domain" v:"domain" dc:"Domain"`
+	FileType      string `json:"file_type" v:"in:csv,txt,json" dc:"File type to export, csv or txt or json (default: csv)"`
+}
+
+type ExportMailboxRes struct {
+	api_v1.StandardRes
+}
+
+// 导入邮箱
+type ImportMailboxReq struct {
+	g.Meta        `path:"/mailbox/import" tags:"MailBox" method:"post" summary:"Import mailbox" in:"body"`
+	Authorization string `json:"authorization" dc:"Authorization" in:"header"`
+	FileData      string `json:"file_data" v:"required" dc:"File data in base64 format"`
+	FileType      string `json:"file_type" v:"in:csv,txt,json" dc:"File type to import, csv or txt or json (default: csv)"`
+}
+
+type ImportMailboxRes struct {
+	api_v1.StandardRes
 }

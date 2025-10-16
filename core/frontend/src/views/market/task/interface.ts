@@ -27,6 +27,11 @@ export interface Task {
 	success_count: number
 	error_count: number
 	estimated_time_with_warmup: number
+	group_id: number
+	group_name: string
+	tag_ids: number[]
+	tag_logic: string
+	tags: Array<{ id: number; name: string }>
 }
 
 export interface Group {

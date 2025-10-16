@@ -18,9 +18,13 @@
 
 		<!-- Main Metric Cards -->
 		<div class="metrics-cards">
-			<template v-for="(item, key) in rateData" :key="key">
-				<metric-card :title="item.label" :value="item.value" />
-			</template>
+			<metric-card
+				v-for="(item, key) in rateData"
+				:key="key"
+				:title="item.label"
+				:value="item.value"
+				:unit="item.unit">
+			</metric-card>
 		</div>
 
 		<!-- Data Details Area -->
@@ -46,7 +50,7 @@
 <script lang="ts" setup>
 import { getDayTimeRange, getNumber, isArray, isObject } from '@/utils'
 import { getTaskDetails, getTaskOverview } from '@/api/modules/market/task'
-import type { MailOverview, MailProvider, RateData, RateKey } from '@/views/overview/interface'
+import type { MailOverview, MailProvider, RateData } from '@/views/overview/types'
 
 import MetricCard from '@/views/overview/components/MetricCard.vue'
 import ProviderTable from '@/views/overview/components/ProviderTable.vue'
@@ -66,10 +70,10 @@ const dateRange = ref(getDayTimeRange())
 const providers = ref<MailProvider[]>([])
 
 const rateData = reactive<RateData>({
-	delivery: { label: t('overview.delivered'), value: 0 },
-	open: { label: t('overview.opened'), value: 0 },
-	click: { label: t('overview.clicked'), value: 0 },
-	bounce: { label: t('overview.bounced'), value: 0 },
+	delivery_rate: { label: t('overview.delivered'), value: 0, unit: '%' },
+	open_rate: { label: t('overview.opened'), value: 0, unit: '%' },
+	click_rate: { label: t('overview.clicked'), value: 0, unit: '%' },
+	bounce_rate: { label: t('overview.bounced'), value: 0, unit: '%' },
 })
 
 const sendMail = ref<MailOverview['send_mail_chart']>({
@@ -102,9 +106,8 @@ const openRate = ref<MailOverview['open_rate_chart']>({
 // Function to update rate data
 const updateRateData = (dashboard: MailOverview['dashboard']) => {
 	Object.entries(dashboard).forEach(([key, value]) => {
-		const rateKey = key.replace('_rate', '') as RateKey
-		if (rateKey in rateData) {
-			rateData[rateKey].value = value
+		if (key in rateData) {
+			rateData[key].value = value
 		}
 	})
 }

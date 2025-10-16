@@ -3,6 +3,7 @@ package contact
 
 import (
 	"billionmail-core/api/contact/v1"
+	"billionmail-core/internal/consts"
 	"billionmail-core/internal/model/entity"
 	"billionmail-core/internal/service/contact"
 	"billionmail-core/internal/service/public"
@@ -13,6 +14,7 @@ import (
 	"fmt"
 	"github.com/gogf/gf/v2/errors/gerror"
 	"github.com/gogf/gf/v2/frame/g"
+	"github.com/gogf/gf/v2/util/gvalid"
 	"io"
 	"strings"
 )
@@ -124,7 +126,7 @@ func parseCSVContent(ctx context.Context, content string) ([]*entity.Contact, er
 			break
 		}
 		if err != nil {
-			g.Log().Warning(ctx, "Error reading CSV record: %v", err)
+			g.Log().Debugf(ctx, "Error reading CSV record: %v", err)
 			continue
 		}
 
@@ -133,9 +135,15 @@ func parseCSVContent(ctx context.Context, content string) ([]*entity.Contact, er
 			continue
 		}
 
-		contact := &entity.Contact{
+		// Validate email format
+		if err := gvalid.New().Rules("email").Data(email).Run(ctx); err != nil {
+			g.Log().Debugf(ctx, "Invalid email format in CSV, skipping: %s", email)
+			continue
+		}
+
+		contact_s := &entity.Contact{
 			Email:   email,
-			Active:  -1,
+			Active:  1,
 			Attribs: make(map[string]string),
 		}
 
@@ -143,9 +151,9 @@ func parseCSVContent(ctx context.Context, content string) ([]*entity.Contact, er
 		if activeIdx, ok := columnIndexes["active"]; ok && len(record) > activeIdx {
 			activeStr := strings.TrimSpace(record[activeIdx])
 			if activeStr == "0" {
-				contact.Active = 0
+				contact_s.Active = 0
 			} else if activeStr == "1" {
-				contact.Active = 1
+				contact_s.Active = 1
 			}
 		}
 
@@ -155,14 +163,14 @@ func parseCSVContent(ctx context.Context, content string) ([]*entity.Contact, er
 			if attribsStr != "" {
 				attribs, err := parseJSONAttributes(ctx, attribsStr)
 				if err != nil {
-					g.Log().Warning(ctx, "Failed to parse attributes for email %s: %v", email, err)
+					g.Log().Debugf(ctx, "Failed to parse attributes for email %s: %v", email, err)
 				} else {
-					contact.Attribs = attribs
+					contact_s.Attribs = attribs
 				}
 			}
 		}
 
-		contacts = append(contacts, contact)
+		contacts = append(contacts, contact_s)
 	}
 
 	return contacts, nil
@@ -204,9 +212,9 @@ func parseEmailContent(ctx context.Context, content string, importType int) []*e
 			continue
 		}
 
-		contact := &entity.Contact{
+		contactInfo := &entity.Contact{
 			Email:   email,
-			Active:  -1,
+			Active:  1,
 			Attribs: make(map[string]string),
 		}
 
@@ -215,12 +223,12 @@ func parseEmailContent(ctx context.Context, content string, importType int) []*e
 			if attribsStr != "" && attribsStr != "null" {
 				attribs, err := parseJSONAttributes(ctx, attribsStr)
 				if err == nil {
-					contact.Attribs = attribs
+					contactInfo.Attribs = attribs
 				}
 			}
 		}
 
-		contacts = append(contacts, contact)
+		contacts = append(contacts, contactInfo)
 	}
 
 	return contacts
@@ -281,9 +289,14 @@ func (c *ControllerV1) ImportContacts(ctx context.Context, req *v1.ImportContact
 			contactInfo := *c
 			contactInfo.GroupId = groupId
 
-			if contactInfo.Active == -1 {
-				contactInfo.Active = req.DefaultActive
+			if err := gvalid.New().Rules("email").Data(contactInfo.Email).Run(ctx); err != nil {
+				g.Log().Debugf(ctx, "Invalid email format in CSV, skipping: %s", contactInfo.Email)
+				continue
 			}
+
+			//if contactInfo.Active == -1 {
+			//	contactInfo.Active = req.DefaultActive
+			//}
 
 			contactInfo.Status = req.Status
 			groupContacts = append(groupContacts, &contactInfo)
@@ -305,6 +318,18 @@ func (c *ControllerV1) ImportContacts(ctx context.Context, req *v1.ImportContact
 			successCount += count
 		}
 	}
+	var groups []*entity.ContactGroup
+	err = g.DB().Model("bm_contact_groups").Ctx(ctx).WhereIn("id", req.GroupIds).Scan(&groups)
+	groupNames := make([]string, 0, len(groups))
+	for _, group := range groups {
+		groupNames = append(groupNames, group.Name)
+	}
+	groupNamesStr := strings.Join(groupNames, ", ")
+	_ = public.WriteLog(ctx, public.LogParams{
+		Type: consts.LOGTYPE.Contacts,
+		Log:  fmt.Sprintf("Import contacts: %s successfully", groupNamesStr),
+		Data: contactList,
+	})
 
 	res.Data.ImportedCount = successCount
 	res.SetSuccess(public.LangCtx(ctx, "Successfully imported {} contacts", successCount))

@@ -6,7 +6,7 @@
 
 <script setup lang="ts">
 import { DataTableColumns, NDataTable } from 'naive-ui'
-import { MailProvider } from '../interface'
+import { MailProvider } from '../types'
 
 const { t } = useI18n()
 

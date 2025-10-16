@@ -39,7 +39,9 @@ if [[ ${FAIL2BAN_INIT} == "y" ]]; then
 
     if ! grep -q "restart_fail2ban.sh" /var/spool/cron/crontabs/root; then
         chmod +x /restart_fail2ban.sh
-        echo "02 0,12 * * * bash /restart_fail2ban.sh" >> /var/spool/cron/crontabs/root       
+        echo "02 0,12 * * * bash /restart_fail2ban.sh" >> /var/spool/cron/crontabs/root
+        chmod 600 /var/spool/cron/crontabs/root
+        chown root:crontab /var/spool/cron/crontabs/root    
         pkill -9 crond
     fi
     bash /restart_fail2ban.sh

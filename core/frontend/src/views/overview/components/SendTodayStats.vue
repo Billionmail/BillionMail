@@ -27,7 +27,7 @@
 <script setup lang="ts">
 import { PropType } from 'vue'
 import { formatTime } from '@/utils'
-import type { SendMail } from '../interface'
+import type { SendMail } from '../types'
 
 import BarChart from './BarChart.vue'
 

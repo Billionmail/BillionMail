@@ -1,6 +1,8 @@
 package domains
 
 import (
+	"billionmail-core/internal/consts"
+	"billionmail-core/internal/service/public"
 	"context"
 
 	"github.com/gogf/gf/v2/errors/gerror"
@@ -19,6 +21,11 @@ func (c *ControllerV1) DeleteDomain(ctx context.Context, req *v1.DeleteDomainReq
 	if err = domains.Delete(ctx, req.Domain); err != nil {
 		return nil, err
 	}
+
+	_ = public.WriteLog(ctx, public.LogParams{
+		Type: consts.LOGTYPE.Domain,
+		Log:  "Delete domain :" + req.Domain + " successfully",
+	})
 
 	res.SetSuccess("Domain deleted successfully")
 	return

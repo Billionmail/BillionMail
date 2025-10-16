@@ -1,6 +1,7 @@
 package mail_services
 
 import (
+	"billionmail-core/internal/consts"
 	"billionmail-core/internal/service/public"
 	"context"
 	"os"
@@ -44,7 +45,7 @@ func (c *ControllerV1) SaveConfigFile(ctx context.Context, req *v1.SaveConfigFil
 	if gfile.Exists(configPath) {
 		backupPath = configPath + ".bak." + time.Now().Format("20060102150405")
 		if err := gfile.Copy(configPath, backupPath); err != nil {
-			g.Log().Warningf(ctx, "Failed to back up configuration file %s: %v", configPath, err)
+			g.Log().Debugf(ctx, "Failed to back up configuration file %s: %v", configPath, err)
 		} else {
 			g.Log().Infof(ctx, "A configuration file backup has been created: %s", backupPath)
 			backupMade = true
@@ -59,6 +60,12 @@ func (c *ControllerV1) SaveConfigFile(ctx context.Context, req *v1.SaveConfigFil
 		res.SetError(gerror.New(public.LangCtx(ctx, "Failed to save file: {}", err.Error())))
 		return nil, err
 	}
+
+	_ = public.WriteLog(ctx, public.LogParams{
+		Type: consts.LOGTYPE.Service,
+		Log:  "The" + req.ServiceType + " configuration file was saved successfully",
+		Data: req,
+	})
 
 	res.SetSuccess(public.LangCtx(ctx, "The configuration file was saved successfully"))
 	return

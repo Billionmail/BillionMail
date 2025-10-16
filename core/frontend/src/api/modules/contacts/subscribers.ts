@@ -1,11 +1,25 @@
 import { instance } from '@/api'
+import { i18n } from '@/i18n'
 import { SubscriberParams } from '@/views/contacts/subscribers/interface'
-import i18n from '@/i18n'
 
 const { t } = i18n.global
 
 export const getSubscriberList = (params: SubscriberParams) => {
 	return instance.get('/contact/list', { params })
+}
+
+export const getSubscriberListNdp = (params: SubscriberParams) => {
+	return instance.get('/contact/list_ndp', { params })
+}
+
+export const getSubscriberTrend = (params: {
+	group_id: number
+	active: number
+	last_active_status: number
+	time_interval: number
+	tags: string
+}) => {
+	return instance.get('/contact/trend', { params })
 }
 
 export const importSubscribers = (data: {
@@ -20,7 +34,7 @@ export const importSubscribers = (data: {
 }) => {
 	return instance.post('/contact/group/import', data, {
 		fetchOptions: {
-			loading: t('contacts.group.loading.importSubscribers'),
+			loading: t('contacts.subscribers.loading.importSubscribers'),
 			successMessage: true,
 		},
 	})
@@ -34,7 +48,7 @@ export const updateSubscriberGroup = (data: {
 }) => {
 	return instance.post('/contact/update_group', data, {
 		fetchOptions: {
-			loading: t('contacts.group.loading.updateSubscriberGroup'),
+			loading: t('contacts.subscribers.loading.updateSubscriberGroup'),
 			successMessage: true,
 		},
 	})
@@ -43,12 +57,27 @@ export const updateSubscriberGroup = (data: {
 export const editContact = (data: {
 	emails: string
 	active: number
+	status: number
 	attribs: string
 	group_ids: number[]
 }) => {
 	return instance.post('/contact/edit', data, {
 		fetchOptions: {
-			loading: t('contacts.group.loading.updateSubscriberGroup'),
+			loading: t('contacts.subscribers.loading.updateSubscriberGroup'),
+			successMessage: true,
+		},
+	})
+}
+
+export const editContactNdp = (data: {
+	id: number
+	active: number
+	status: number
+	attribs: string
+}) => {
+	return instance.post('/contact/edit_ndp', data, {
+		fetchOptions: {
+			loading: t('contacts.subscribers.loading.updateSubscriberGroup'),
 			successMessage: true,
 		},
 	})
@@ -57,7 +86,25 @@ export const editContact = (data: {
 export const deleteSubscriber = (data: { emails: string[]; status: number }) => {
 	return instance.post('/contact/delete', data, {
 		fetchOptions: {
-			loading: t('contacts.group.loading.deleteSubscriber'),
+			loading: t('contacts.subscribers.loading.deleteSubscriber'),
+			successMessage: true,
+		},
+	})
+}
+
+export const deleteSubscriberNdp = (data: { ids: number[] }) => {
+	return instance.post('/contact/delete_ndp', data, {
+		fetchOptions: {
+			loading: t('contacts.subscribers.loading.deleteSubscriber'),
+			successMessage: true,
+		},
+	})
+}
+
+export const batchSetTag = (data: { ids: number[]; tag_ids: number[]; action: number }) => {
+	return instance.post('/contact/batch_tags_opt', data, {
+		fetchOptions: {
+			loading: t('contacts.subscribers.loading.batchSetTag'),
 			successMessage: true,
 		},
 	})

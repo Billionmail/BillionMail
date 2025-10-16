@@ -7,7 +7,11 @@
 					:placeholder="$t('api.form.apiNamePlaceholder')"></n-input>
 			</n-form-item>
 			<n-form-item :label="$t('market.task.edit.from')" path="addresser">
-				<from-select v-model:value="form.addresser" v-model:name="form.full_name"> </from-select>
+				<from-select
+					v-model:value="form.addresser"
+					v-model:domain="form.domain"
+					v-model:name="form.full_name">
+				</from-select>
 			</n-form-item>
 			<n-form-item :label="$t('market.task.edit.displayName')" path="full_name">
 				<n-input
@@ -26,7 +30,14 @@
 					<template-select v-model:value="form.template_id" v-model:content="form.template_content">
 					</template-select>
 				</div>
-				<n-button text type="primary" class="ml-12px" @click="handlePreviewTemplate">
+				<n-button text type="primary" class="ml-12px" @click="handleEditTemplate">
+					{{ $t('common.actions.edit') }}
+				</n-button>
+				<n-button
+					text
+					type="primary"
+					class="ml-12px"
+					@click="handlePreviewTemplate(form.template_content)">
 					{{ $t('common.actions.preview') }}
 				</n-button>
 			</n-form-item>
@@ -43,6 +54,8 @@
 					:placeholder="$t('api.form.ipWhitelistPlaceholder')">
 				</n-input>
 			</n-form-item>
+
+			<form-modal />
 			<preview-modal />
 		</bt-form>
 	</modal>
@@ -50,10 +63,14 @@
 
 <script lang="ts" setup>
 import { FormRules } from 'naive-ui'
+import { isObject } from '@/utils'
 import { useModal } from '@/hooks/modal/useModal'
 import { createApi, updateApi } from '@/api/modules/api'
+import { getTemplateDetails } from '@/api/modules/market/template'
+import type { Template } from '@/views/template/interface'
 import type { Api } from '../types/base'
 
+import TemplateForm from '@/views/template/components/TemplateForm.vue'
 import FromSelect from '@/views/market/task/components/FromSelect.vue'
 import TemplateSelect from '@/views/market/task/components/TemplateSelect.vue'
 import TemplatePreview from '@/views/market/template/components/TemplatePreview.vue'
@@ -74,6 +91,7 @@ const form = reactive({
 	template_id: null as number | null,
 	template_content: '',
 	subject: '',
+	domain: null as string | null,
 	addresser: null as string | null,
 	full_name: '',
 	unsubscribe: 1,
@@ -108,10 +126,38 @@ const [PreviewModal, previewModalApi] = useModal({
 	component: TemplatePreview,
 })
 
-const handlePreviewTemplate = () => {
-	previewModalApi.setState({ html: form.template_content })
+const handlePreviewTemplate = (html: string) => {
+	previewModalApi.setState({ html })
 	previewModalApi.open()
 }
+
+const handleEditTemplate = async () => {
+	const res = await getTemplateDetails({ id: `${form.template_id}` })
+	if (isObject<Template>(res)) {
+		if (res.add_type == 2 && res.chat_id) {
+			window.open(`/template/ai-template/${res.chat_id}`)
+		} else {
+			formModalApi.setState({ isEdit: true, row: res })
+			formModalApi.open()
+		}
+	}
+}
+
+const [FormModal, formModalApi] = useModal({
+	component: TemplateForm,
+	state: {
+		isEdit: true,
+		refresh: async () => {
+			const res = await getTemplateDetails({ id: `${form.template_id}` })
+			if (isObject<Template>(res)) {
+				form.template_content = res.html_content
+			}
+		},
+		preview: (html: string) => {
+			handlePreviewTemplate(html)
+		},
+	},
+})
 
 const resetForm = () => {
 	form.id = 0
@@ -148,6 +194,7 @@ const [Modal, modalApi] = useModal({
 				form.id = row.id
 				form.api_name = row.api_name
 				form.template_id = row.template_id
+				form.domain = row.addresser.split('@')[1]
 				form.subject = row.subject
 				form.addresser = row.addresser
 				form.full_name = row.full_name

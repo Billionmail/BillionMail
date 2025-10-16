@@ -3,6 +3,7 @@ package batch_mail
 import (
 	"billionmail-core/api/batch_mail/v1"
 	"billionmail-core/internal/model/entity"
+	"billionmail-core/internal/service/maillog_stat"
 	"billionmail-core/internal/service/public"
 	"billionmail-core/internal/service/warmup"
 	"context"
@@ -11,8 +12,15 @@ import (
 	"github.com/gogf/gf/v2/errors/gerror"
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/util/gconv"
+	"github.com/gogf/gf/v2/util/gvalid"
+	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
+)
+
+var (
+	updateTaskStatsRunning int32 // 0: not running, 1: running
 )
 
 type CreateTaskArgs struct {
@@ -25,11 +33,14 @@ type CreateTaskArgs struct {
 	Threads     int    `json:"threads"`     // Number of threads to use
 	TrackOpen   int    `json:"track_open"`  // Track email opens
 	TrackClick  int    `json:"track_click"` // Track email clicks
-	Etypes      string `json:"etypes"`      // Email types (e.g., group IDs)
-	Remark      string `json:"remark"`      // Task remark
-	StartTime   int    `json:"start_time"`  // Scheduled start time
-	Warmup      int    `json:"warmup"`      // Warmup campaign association
-	AddType     int    `json:"add_type"`    // Add type (0: normal)
+	//Etypes      string `json:"etypes"`      // Email types (e.g., group IDs)
+	Remark    string `json:"remark"`     // Task remark
+	StartTime int    `json:"start_time"` // Scheduled start time
+	Warmup    int    `json:"warmup"`     // Warmup campaign association
+	AddType   int    `json:"add_type"`   // Add type (0: normal)
+	GroupId   int    `json:"group_id"`   // Groups to unsubscribe from
+	TagIds    []int  `json:"tag_ids"`    // Tag IDs for filtering contacts
+	TagLogic  string `json:"tag_logic"`  // Tag logic (AND/OR)
 }
 
 // ============= task related operations =============
@@ -61,9 +72,10 @@ func GetTasksWithPage(ctx context.Context, page, pageSize int, keyword string, s
 		return 0, nil, err
 	}
 
-	// pagination query
+	// pagination query - include tag_ids field and map it to TagIdsRaw
 	list = make([]*v1.EmailTask, 0)
 	err = model.Page(page, pageSize).
+		Fields("*, tag_ids as TagIdsRaw").
 		Order("create_time DESC").
 		Scan(&list)
 
@@ -110,6 +122,13 @@ func CreateTask(ctx context.Context, args CreateTaskArgs) (int, error) {
 	now := time.Now().Unix()
 	// generate task name
 	taskName := "task_" + gconv.String(now)
+
+	// Convert tag IDs to JSON string for database storage
+	tagIdsJson := ""
+	if len(args.TagIds) > 0 {
+		tagIdsJson = gconv.String(args.TagIds)
+	}
+
 	result, err := g.DB().Model("email_tasks").Insert(g.Map{
 		"task_name":       taskName,
 		"addresser":       args.Addresser,
@@ -122,18 +141,21 @@ func CreateTask(ctx context.Context, args CreateTaskArgs) (int, error) {
 		"is_record":       args.IsRecord,
 		"unsubscribe":     args.Unsubscribe,
 		"threads":         args.Threads,
-		"etypes":          args.Etypes,
-		"track_open":      args.TrackOpen,
-		"track_click":     args.TrackClick,
-		"start_time":      args.StartTime,
-		"create_time":     now,
-		"update_time":     now,
-		"active":          1,
-		"remark":          args.Remark,
-		"add_type":        args.AddType,
+		//"etypes":          args.Etypes,
+		"track_open":  args.TrackOpen,
+		"track_click": args.TrackClick,
+		"start_time":  args.StartTime,
+		"create_time": now,
+		"update_time": now,
+		"active":      1,
+		"remark":      args.Remark,
+		"add_type":    args.AddType,
+		"group_id":    args.GroupId,
+		"tag_ids":     tagIdsJson,
+		"tag_logic":   args.TagLogic,
 	})
 	if err != nil {
-		g.Log().Warning(ctx, "Failed to create campaign:", err.Error())
+		g.Log().Debug(ctx, "Failed to create campaign:", err.Error())
 		return 0, err
 	}
 
@@ -226,15 +248,50 @@ func ImportRecipients(ctx context.Context, taskId int, contacts []*entity.Contac
 		// Count affected rows
 		affected, err := result.RowsAffected()
 		if err != nil {
-			g.Log().Warning(ctx, "Could not get affected rows for batch %d/%d: %v", i+1, totalBatches, err)
+			g.Log().Debugf(ctx, "Could not get affected rows for batch %d/%d: %v", i+1, totalBatches, err)
 		} else {
 			totalImported += int(affected)
-			g.Log().Debug(ctx, "Task %d: Batch %d/%d imported %d recipients successfully",
-				taskId, i+1, totalBatches, affected)
 		}
 	}
 
 	g.Log().Info(ctx, "Task %d: Total %d recipients imported successfully", taskId, totalImported)
+	return nil
+}
+
+// ImportRecipientsTx
+func ImportRecipientsTx(ctx context.Context, tx gdb.TX, taskId int, contacts []*entity.Contact) error {
+	if len(contacts) == 0 {
+		return nil
+	}
+	const batchSize = 1000
+	totalBatches := (len(contacts) + batchSize - 1) / batchSize
+	now := time.Now().Unix()
+	for i := 0; i < totalBatches; i++ {
+		startIdx := i * batchSize
+		endIdx := (i + 1) * batchSize
+		if endIdx > len(contacts) {
+			endIdx = len(contacts)
+		}
+		currentBatch := contacts[startIdx:endIdx]
+		values := make([]g.Map, len(currentBatch))
+		for j, contact := range currentBatch {
+			values[j] = g.Map{
+				"task_id":     taskId,
+				"recipient":   contact.Email,
+				"is_sent":     0,
+				"sent_time":   0,
+				"message_id":  "",
+				"create_time": now,
+			}
+		}
+		result, err := tx.Ctx(ctx).Model("recipient_info").InsertIgnore(values)
+		if err != nil {
+			return fmt.Errorf("failed to import recipients (batch %d/%d): %w", i+1, totalBatches, err)
+		}
+		if _, err = result.RowsAffected(); err != nil {
+			g.Log().Debugf(ctx, "ImportRecipientsTx: could not get affected rows for batch %d/%d: %v", i+1, totalBatches, err)
+		}
+	}
 	return nil
 }
 
@@ -273,112 +330,181 @@ func GetActiveContacts(ctx context.Context, groupId int) ([]*entity.Contact, err
 	err := g.DB().Model("bm_contacts").
 		Where("group_id", groupId).
 		Where("active", 1).
+		Where("status", 1). // Confirmed email address
 		Scan(&contacts)
 	return contacts, err
 }
 
+type ContactFilter struct {
+	GroupId  int
+	TagIds   []int
+	TagLogic string // "AND" or "OR"
+}
+
+func GetFilteredContacts(ctx context.Context, filter ContactFilter) ([]*entity.Contact, error) {
+	var contacts []*entity.Contact
+
+	model := g.DB().Model("bm_contacts c").
+		Where("c.active", 1).
+		Where("c.status", 1). // Confirmed email address
+		Fields("c.*")
+
+	if filter.GroupId > 0 {
+		model = model.Where("c.group_id", filter.GroupId)
+	}
+
+	if len(filter.TagIds) > 0 {
+		if filter.TagLogic == "AND" {
+			// AND
+			for i, tagId := range filter.TagIds {
+				alias := g.NewVar("ct" + g.NewVar(i).String()).String()
+				model = model.InnerJoin(
+					"bm_contact_tags "+alias,
+					"c.id = "+alias+".contact_id AND "+alias+".tag_id = "+g.NewVar(tagId).String(),
+				)
+			}
+		} else {
+			// OR
+			var inValues []string
+			for _, tagId := range filter.TagIds {
+
+				inValues = append(inValues, strconv.Itoa(tagId))
+			}
+
+			subQuery := fmt.Sprintf(
+				"(SELECT DISTINCT contact_id FROM bm_contact_tags WHERE tag_id IN (%s)) ct",
+				strings.Join(inValues, ","),
+			)
+
+			model = model.InnerJoin(
+				subQuery,
+				"c.id = ct.contact_id",
+			)
+		}
+	}
+
+	err := model.Scan(&contacts)
+	if err != nil {
+		g.Log().Error(ctx, "Failed to get filtered contacts: %v", err)
+		return nil, err
+	}
+
+	return contacts, nil
+}
+
 // ============= business logic combination =============
-// add type parameter add_type default 0
+
 func CreateTaskWithRecipients(ctx context.Context, req *v1.CreateTaskReq, addType int) (int, error) {
 	var taskId int
 	var err error
 	err = g.DB().Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
-		etype := strings.Join(gconv.SliceStr(req.GroupIds), ",")
 
-		taskId, err = CreateTask(ctx, CreateTaskArgs{
-			Addresser:   req.Addresser,
-			Subject:     req.Subject,
-			FullName:    req.FullName,
-			TemplateId:  req.TemplateId,
-			IsRecord:    req.IsRecord,
-			Unsubscribe: req.Unsubscribe,
-			Threads:     req.Threads,
-			TrackOpen:   req.TrackOpen,
-			TrackClick:  req.TrackClick,
-			Etypes:      etype,
-			Remark:      req.Remark,
-			StartTime:   req.StartTime,
-			Warmup:      req.Warmup,
-			AddType:     addType,
-		})
-		if err != nil {
-			return gerror.New(public.LangCtx(ctx, "Failed to create task {}", err.Error()))
+		now := time.Now().Unix()
+		taskName := fmt.Sprintf("task_%d", now)
+		var tagIdsJson string
+		if len(req.TagIds) > 0 {
+			tagIdsJson = gconv.String(req.TagIds)
 		}
+
+		res, e := tx.Ctx(ctx).Model("email_tasks").Insert(g.Map{
+			"task_name":       taskName,
+			"addresser":       req.Addresser,
+			"subject":         req.Subject,
+			"full_name":       req.FullName,
+			"recipient_count": 0,
+			"task_process":    0,
+			"pause":           0,
+			"template_id":     req.TemplateId,
+			"is_record":       req.IsRecord,
+			"unsubscribe":     req.Unsubscribe,
+			"threads":         req.Threads,
+			"track_open":      req.TrackOpen,
+			"track_click":     req.TrackClick,
+			"start_time":      req.StartTime,
+			"create_time":     now,
+			"update_time":     now,
+			"active":          1,
+			"remark":          req.Remark,
+			"add_type":        addType,
+			"group_id":        req.GroupId,
+			"tag_ids":         tagIdsJson,
+			"tag_logic":       req.TagLogic,
+		})
+		if e != nil {
+			return gerror.New(public.LangCtx(ctx, "Failed to create task {}", e.Error()))
+		}
+		id64, _ := res.LastInsertId()
+		taskId = int(id64)
 
 		var abnormalRecipients []struct {
 			Recipient string `json:"recipient"`
 			Count     int    `json:"count"`
 		}
-
-		err = tx.Model("abnormal_recipient").
-			Where("count >= ?", 3).
-			Fields("recipient, count").
-			Scan(&abnormalRecipients)
-
-		if err != nil {
-			g.Log().Warning(ctx, "Failed to get the exception recipient list: %v", err)
+		if e = tx.Model("abnormal_recipient").Where("count >= ?", 3).Fields("recipient, count").Scan(&abnormalRecipients); e != nil {
+			g.Log().Debugf(ctx, "Failed to get the exception recipient list: %v", e)
+		}
+		abnormalMap := make(map[string]int, len(abnormalRecipients))
+		for _, ar := range abnormalRecipients {
+			abnormalMap[ar.Recipient] = ar.Count
 		}
 
-		abnormalMap := make(map[string]int)
-		if len(abnormalRecipients) > 0 {
-			for _, ar := range abnormalRecipients {
-				abnormalMap[ar.Recipient] = ar.Count
-			}
-		}
-
-		// import recipient information
-		totalRecipients := 0
-		totalSkipped := 0
-
-		for _, groupId := range req.GroupIds {
-			contacts, err := GetActiveContacts(ctx, groupId)
+		filter := ContactFilter{GroupId: req.GroupId, TagIds: req.TagIds, TagLogic: req.TagLogic}
+		var contacts []*entity.Contact
+		if len(req.TagIds) > 0 {
+			contacts, err = GetFilteredContacts(ctx, filter)
 			if err != nil {
-				return gerror.New(public.LangCtx(ctx, "Failed to get contacts for group {}: {}", groupId, err.Error()))
+				return gerror.New(public.LangCtx(ctx, "Failed to get filtered contacts: {}", err.Error()))
 			}
-			if len(contacts) == 0 {
+		} else {
+			if req.GroupId <= 0 {
+				return gerror.New(public.LangCtx(ctx, "Group ID is required when not using tag filter"))
+			}
+			contacts, err = GetActiveContacts(ctx, req.GroupId)
+			if err != nil {
+				return gerror.New(public.LangCtx(ctx, "Failed to get contacts for group {}: {}", req.GroupId, err.Error()))
+			}
+		}
+		if len(contacts) == 0 {
+			if len(req.TagIds) > 0 {
+				return gerror.New(public.LangCtx(ctx, "No contacts found matching the tag filter criteria"))
+			}
+			return gerror.New(public.LangCtx(ctx, "No contacts found in group {}", req.GroupId))
+		}
+
+		filteredContacts := make([]*entity.Contact, 0, len(contacts))
+		for _, contact := range contacts {
+			if _, exists := abnormalMap[contact.Email]; exists {
 				continue
 			}
+			if e := gvalid.New().Rules("email").Data(contact.Email).Run(ctx); e != nil {
+				g.Log().Debug(ctx, "Skip erroneous email addresses:", contact.Email, " Error:", e)
+				continue
+			}
+			filteredContacts = append(filteredContacts, contact)
+		}
+		if len(filteredContacts) == 0 {
+			return gerror.New(public.LangCtx(ctx, "No valid contacts found after filtering"))
+		}
 
-			// abnormal skip
-			filteredContacts := make([]*entity.Contact, 0, len(contacts))
-			skippedInGroup := 0
+		if err = ImportRecipientsTx(ctx, tx, taskId, filteredContacts); err != nil {
+			return gerror.New(public.LangCtx(ctx, "Failed to import recipients: {}", err.Error()))
+		}
 
-			for _, contact := range contacts {
-				if _, exists := abnormalMap[contact.Email]; exists {
-					skippedInGroup++
-					continue
+		if actualCount, e2 := GetActualRecipientCount(ctx, taskId); e2 == nil && actualCount > 0 {
+			if _, e2 = tx.Ctx(ctx).Model("email_tasks").Where("id", taskId).Data(g.Map{"recipient_count": actualCount}).Update(); e2 != nil {
+				return gerror.New(public.LangCtx(ctx, "Failed to update recipient count for task {}: {}", taskId, e2.Error()))
+			}
+		}
+
+		if req.Warmup == 1 {
+			if serverIP, _ := public.GetServerIP(); serverIP != "" {
+				if _, e2 := warmup.WarmupCampaign().AssociateCampaignWithWarmup(ctx, int64(taskId), serverIP); e2 != nil {
+					g.Log().Warning(ctx, "Failed to associate campaign with warmup for task ID %d: %v", taskId, e2)
 				}
-				filteredContacts = append(filteredContacts, contact)
-			}
-
-			if skippedInGroup > 0 {
-				totalSkipped += skippedInGroup
-
-			}
-
-			if len(filteredContacts) == 0 {
-				continue
-			}
-
-			err = ImportRecipients(ctx, taskId, filteredContacts)
-			if err != nil {
-				return gerror.New(public.LangCtx(ctx, "Failed to import recipients for group {}: {}", groupId, err.Error()))
-			}
-
-			totalRecipients += len(filteredContacts)
-		}
-
-		// update recipient count
-		actualCount, err := GetActualRecipientCount(ctx, taskId)
-		if err == nil && actualCount > 0 {
-			err = UpdateRecipientCount(ctx, taskId, actualCount)
-			if err != nil {
-				return gerror.New(public.LangCtx(ctx, "Failed to update recipient count for task {}: {}", taskId, err.Error()))
 			}
 		}
 		return nil
 	})
-
 	if err != nil {
 		return 0, err
 	}
@@ -391,6 +517,7 @@ func GetTaskInfo(ctx context.Context, taskId int) (*entity.EmailTask, error) {
 	var task entity.EmailTask
 	err := g.DB().Model("email_tasks").
 		Where("id", taskId).
+		Fields("*, tag_ids as TagIdsRaw").
 		Scan(&task)
 
 	if err != nil {
@@ -486,4 +613,153 @@ func GetActualRecipientCount(ctx context.Context, taskId int) (int, error) {
 	}
 
 	return count, nil
+}
+
+// Regularly update the linked query data of marketing tasks
+func UpdateTaskJoinMailstat(ctx context.Context) {
+
+	if !atomic.CompareAndSwapInt32(&updateTaskStatsRunning, 0, 1) {
+		g.Log().Info(ctx, "UpdateTaskJoinMailstat is already running, skipping this run.")
+		return
+	}
+	defer atomic.StoreInt32(&updateTaskStatsRunning, 0)
+
+	// Search for tasks that need to be updated
+	// 1. Tasks that are currently in progress or have been paused (task_process = 1 or 3)
+	// 2. Tasks that have been completed but have sent fewer messages than the number of recipients (task_process = 2 and sends_count < recipient_count)
+	// 3. Tasks that have never been updated (stats_update_time = 0)
+	var tasksToUpdate []*entity.EmailTask
+	err := g.DB().Model("email_tasks").
+		Where("task_process IN (?)", []int{1, 3}).
+		WhereOr("task_process = 2 AND sends_count < recipient_count*0.99").
+		WhereOr("stats_update_time", 0).
+		Order("id DESC").
+		Scan(&tasksToUpdate)
+	if err != nil {
+		g.Log().Errorf(ctx, "UpdateTaskJoinMailstat: failed to get tasks to update: %v", err)
+		return
+	}
+
+	if len(tasksToUpdate) == 0 {
+		g.Log().Debug(ctx, "UpdateTaskJoinMailstat: no tasks to update.")
+		return
+	}
+
+	g.Log().Infof(ctx, "UpdateTaskJoinMailstat: found %d tasks to update.", len(tasksToUpdate))
+
+	for _, task := range tasksToUpdate {
+		//g.Log().Warningf(ctx, "start %d: %s", task.Id, task.TaskName)
+
+		stats := getSingleTaskStats(ctx, int64(task.Id))
+		if stats == nil {
+			//g.Log().Warningf(ctx, "UpdateTaskJoinMailstat: could not get stats for task %d, skipping.", task.Id)
+			continue
+		}
+
+		_, err := g.DB().Model("email_tasks").
+			Where("id", task.Id).
+			Data(g.Map{
+				"sends_count":       stats["sends"],
+				"delivered_count":   stats["delivered"],
+				"bounced_count":     stats["bounced"],
+				"deferred_count":    stats["deferred"],
+				"stats_update_time": time.Now().Unix(),
+			}).
+			Update()
+
+		if err != nil {
+			g.Log().Errorf(ctx, "UpdateTaskJoinMailstat: failed to update stats for task %d: %v", task.Id, err)
+
+		} else {
+			g.Log().Debugf(ctx, "UpdateTaskJoinMailstat: successfully updated stats for task %d.", task.Id)
+		}
+	}
+
+	return
+}
+
+// getSingleTaskStats Obtain the statistical data for a single task
+func getSingleTaskStats(ctx context.Context, taskId int64) map[string]interface{} {
+
+	overview := maillog_stat.NewOverview()
+	stats := overview.OverviewDashboard(taskId, "", 0, 0)
+
+	if stats == nil {
+		g.Log().Errorf(ctx, "getSingleTaskStats: OverviewDashboard returned nil for task %d", taskId)
+		return nil
+	}
+
+	requiredKeys := []string{"sends", "delivered", "bounced", "deferred"}
+	for _, key := range requiredKeys {
+		if _, ok := stats[key]; !ok {
+			//g.Log().Warningf(ctx, "getSingleTaskStats: 任务 %d is missing key '%s'", taskId, key)
+
+			stats[key] = 0
+		}
+	}
+
+	return stats
+}
+
+// GetTagsByIds get tags by IDs
+func GetTagsByIds(ctx context.Context, tagIds []int) ([]v1.TagInfo, error) {
+	if len(tagIds) == 0 {
+		return []v1.TagInfo{}, nil
+	}
+
+	var tags []v1.TagInfo
+	err := g.DB().Model("bm_tags").
+		WhereIn("id", tagIds).
+		Fields("id, name, create_time").
+		Scan(&tags)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return tags, nil
+}
+
+// GetTaskTagIds get tag IDs from task tag_ids field (JSON array)
+func GetTaskTagIds(tagIdsStr string) []int {
+	if tagIdsStr == "" {
+		return []int{}
+	}
+
+	var tagIds []int
+	if err := gconv.Scan(tagIdsStr, &tagIds); err != nil {
+		g.Log().Warningf(context.Background(), "Failed to parse tag_ids: %s, error: %v", tagIdsStr, err)
+		return []int{}
+	}
+
+	return tagIds
+}
+
+// GetGroupsByIds get groups by IDs
+func GetGroupsByIds(ctx context.Context, groupIds []int) (map[int]string, error) {
+	if len(groupIds) == 0 {
+		return make(map[int]string), nil
+	}
+
+	var groups []struct {
+		Id   int    `json:"id"`
+		Name string `json:"name"`
+	}
+
+	err := g.DB().Model("bm_contact_groups").
+		WhereIn("id", groupIds).
+		Fields("id, name").
+		Scan(&groups)
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to map for quick lookup
+	groupMap := make(map[int]string)
+	for _, group := range groups {
+		groupMap[group.Id] = group.Name
+	}
+
+	return groupMap, nil
 }

@@ -1,11 +1,11 @@
 package mail_service
 
 import (
-	"billionmail-core/internal/service/mail_boxes"
 	"billionmail-core/internal/service/public"
 	"bytes"
 	"context"
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -136,7 +136,7 @@ func NewEmailSenderWithLocal(email string) (es *EmailSender, err error) {
 
 	es.Email = email
 	es.UserName = email
-	es.Password, err = mail_boxes.PasswordByEmail(context.Background(), email)
+	es.Password, err = PasswordPlainByEmail(context.Background(), email)
 
 	if err != nil {
 		return
@@ -148,6 +148,26 @@ func NewEmailSenderWithLocal(email string) (es *EmailSender, err error) {
 	}
 
 	return
+}
+
+// PasswordPlainByEmail
+func PasswordPlainByEmail(ctx context.Context, email string) (string, error) {
+	val, err := g.DB().Model("mailbox").Where("username", email).Value("password_encode")
+	if err != nil {
+		return "", fmt.Errorf("query password failed: %w", err)
+	}
+	if val.IsEmpty() {
+		return "", fmt.Errorf("password not found for %s", email)
+	}
+	rawHex, err := hex.DecodeString(val.String())
+	if err != nil {
+		return "", fmt.Errorf("hex decode failed: %w", err)
+	}
+	plainBytes, err := base64.StdEncoding.DecodeString(string(rawHex))
+	if err != nil {
+		return "", fmt.Errorf("base64 decode failed: %w", err)
+	}
+	return string(plainBytes), nil
 }
 
 // Close closes the SMTP connection
@@ -389,11 +409,13 @@ func (e *EmailSender) doSend(message Message, recipients []string) error {
 	}()
 
 	// Set the sender
+	// MAIL FROM
 	if err = e.client.Mail(e.Email); err != nil {
 		return fmt.Errorf("SMTP mail: %w", err)
 	}
 
 	// Set the recipients
+	// RCPT TO
 	for _, to := range recipients {
 		if err = e.client.Rcpt(to); err != nil {
 			return fmt.Errorf("SMTP rcpt: %w", err)

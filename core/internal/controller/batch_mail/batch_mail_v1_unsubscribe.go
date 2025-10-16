@@ -3,6 +3,7 @@ package batch_mail
 import (
 	"billionmail-core/api/batch_mail/v1"
 	"billionmail-core/internal/service/batch_mail"
+	"billionmail-core/internal/service/contact_activity"
 	"billionmail-core/internal/service/public"
 	"context"
 	"github.com/gogf/gf/v2/database/gdb"
@@ -27,16 +28,14 @@ func (c *ControllerV1) Unsubscribe(ctx context.Context, req *v1.UnsubscribeReq) 
 
 	// Input validation
 	if claims.Email == "" {
-
 		res.SetError(gerror.New(public.LangCtx(ctx, "Email address is required")))
 		return
 	}
 
 	if len(req.GroupId) == 0 {
-		g.Log().Warning(ctx, "No group IDs provided for unsubscribe - Email: %s", claims.Email)
+		g.Log().Debugf(ctx, "No group IDs provided for unsubscribe - Email: %s", claims.Email)
 		res.SetError(gerror.New(public.LangCtx(ctx, "No group IDs provided for unsubscribe")))
 		return
-
 	}
 
 	// Begin transaction to ensure data consistency
@@ -48,6 +47,9 @@ func (c *ControllerV1) Unsubscribe(ctx context.Context, req *v1.UnsubscribeReq) 
 				Where("group_id", groupId).
 				Data(g.Map{"active": 0}).
 				Update()
+
+			// Update contact activity when user unsubscribes (user interaction)
+			contact_activity.UpdateActivityByEmailAndGroup(claims.Email, groupId)
 
 			if err != nil {
 				g.Log().Error(ctx, "Failed to update contact status: %v", err)
@@ -74,6 +76,7 @@ func (c *ControllerV1) Unsubscribe(ctx context.Context, req *v1.UnsubscribeReq) 
 				g.Log().Error(ctx, "Failed to record unsubscribe: %v", err)
 				return err
 			}
+
 		}
 
 		return nil

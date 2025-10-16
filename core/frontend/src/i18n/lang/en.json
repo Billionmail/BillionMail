@@ -46,7 +46,9 @@
 			"preview": "Preview",
 			"modify": "Modify",
 			"config": "Config",
-			"help": "Help"
+			"help": "Help",
+			"settings": "Settings",
+			"clear": "Clear"
 		},
 		"useCopy": {
 			"noText": "No text to copy",
@@ -89,7 +91,11 @@
 			"common": "Common Settings",
 			"bcc": "BCC",
 			"forward": "Mail Forward",
-			"logout": "Logout"
+			"logout": "Logout",
+			"service": "Service",
+			"logs": "Logs",
+			"operation_logs": "Operation Logs",
+			"error_logs": "Error Logs"
 		}
 	},
 	"login": {
@@ -129,6 +135,7 @@
 		"opened": "Opened",
 		"clicked": "Clicked",
 		"bounced": "Bounced",
+		"delayedQueue": "Delayed Queue",
 		"mailProviders": "Mail Providers",
 		"sendStats": "Send Statistics",
 		"provider": {
@@ -160,6 +167,72 @@
 				"status": "Status",
 				"relay": "Relay",
 				"details": "Details"
+			}
+		},
+		"sendQueue": {
+			"title": "Send Queue",
+			"breadcrumb": "Send Queue",
+			"buttons": {
+				"refresh": "Refresh Queue",
+				"quickClear": "Quick Clear",
+				"paramConfig": "Queue Parameter Configuration",
+				"resend": "Resend",
+				"batchDelete": "Batch Delete",
+				"batchResend": "Resend"
+			},
+			"table": {
+				"columns": {
+					"sender": "Sender",
+					"recipient": "Recipient",
+					"arrivalTime": "Arrival Time",
+					"messageSize": "Message Size",
+					"delayReason": "Delay Reason",
+					"action": "Action"
+				}
+			},
+			"confirm": {
+				"quickClear": {
+					"title": "Quick Clear",
+					"content": "Are you sure you want to quickly clear the queue?"
+				},
+				"resend": {
+					"title": "Resend",
+					"content": "Are you sure you want to resend the queue?"
+				},
+				"delete": {
+					"title": "Delete Queue",
+					"content": "Are you sure you want to delete this queue?"
+				},
+				"batchDelete": {
+					"title": "Batch Delete",
+					"content": "Are you sure you want to delete {count} send queues?"
+				},
+				"batchResend": {
+					"title": "Batch Resend",
+					"content": "Are you sure you want to resend {count} send queues?"
+				}
+			},
+			"paramConfig": {
+				"title": "Queue Parameter Configuration",
+				"fields": {
+					"bounceQueueLifetime": "Bounce Queue Lifetime",
+					"maximalQueueLifetime": "Maximal Queue Lifetime",
+					"minimalBackoffTime": "Minimal Backoff Time",
+					"maximalBackoffTime": "Maximal Backoff Time",
+					"queueRunDelay": "Queue Run Delay",
+					"triggerTimeout": "Trigger Timeout"
+				}
+			},
+			"queueLogs": {
+				"title": "Queue Logs"
+			}
+		},
+		"api": {
+			"loading": {
+				"resendQueue": "Resending queue, please wait...",
+				"deleteQueue": "Deleting queue, please wait...",
+				"setQueueConfig": "Setting queue parameters, please wait...",
+				"clearQueue": "Clearing queue, please wait..."
 			}
 		}
 	},
@@ -222,6 +295,7 @@
 			},
 			"edit": {
 				"addTitle": "Add Task",
+				"editTitle": "Edit Task",
 				"from": "From",
 				"to": "To",
 				"displayName": "Display Name",
@@ -248,6 +322,8 @@
 				"testEmailPlaceholder": "Please enter test email",
 				"sendTest": "Send test mail",
 				"viewCase": "View case",
+				"tags": "Tags",
+				"tagLogic": "Tag Logic",
 				"preview": {
 					"empty": "Please select an email template to preview"
 				},
@@ -275,6 +351,7 @@
 			},
 			"loading": {
 				"creating": "Creating task, please wait...",
+				"updating": "Updating task, please wait...",
 				"deleting": "Deleting task, please wait...",
 				"pausing": "Pausing task, please wait...",
 				"resuming": "Resuming task, please wait...",
@@ -298,6 +375,15 @@
 				"name": "Template Name",
 				"type": "Type",
 				"createdAt": "Created At"
+			},
+			"types": {
+				"drag": "Drag",
+				"html": "HTML",
+				"ai": "AI"
+			},
+			"edit": {
+				"confirm": "Confirm",
+				"cancel": "Cancel"
 			},
 			"search": {
 				"namePlaceholder": "Search template name"
@@ -330,34 +416,115 @@
 			}
 		}
 	},
+	"template": {
+		"template": "Template",
+		"createTpl": {
+			"sourceUrl": "Source Url",
+			"useAiTools": "Use AI tools to help you automatically generate email content and improve your work efficiency.",
+			"create": "Create",
+			"notices": {
+				"domainListEmpty": "Please create the first domain for BillionMail to send emails",
+				"aiConfigurationInvalid": "AI large model is not currently configured, you cannot use AI model to create email templates",
+				"invalidBrandDomain": "Please create brand information for the domain first"
+			},
+			"buttons": {
+				"createNow": "Create Now",
+				"configureNow": "Configure Now"
+			}
+		},
+		"ai": {
+			"title": "AI Template",
+			"welcomeMessage": "You can say: Create a welcome email for users joining {domain}",
+			"greeting": "Let's create a beautiful email template.",
+			"brandName": "BillionMail",
+			"buttons": {
+				"regenerate": "Regenerate",
+				"info": "Info",
+				"view": "View",
+				"edit": "Edit",
+				"copy": "Copy",
+				"copied": "Copied",
+				"apply": "Apply"
+			},
+			"spintax": {
+				"instruction": "Use Spintax syntax, with a requirement to include {count} variations"
+			},
+			"tips": {
+				"saveShortcut": "[Ctrl + s] to save your change"
+			},
+			"loading": {
+				"message": "Loading... Please wait."
+			},
+			"send": "Send"
+		}
+	},
 	"contacts": {
 		"subscribers": {
+			"joinGroup": "Join Group",
+			"tags": "Tags",
+			"selectGroupHint": "Please select a group on the right",
+			"trends": {
+				"title": "Subscription Trends",
+				"subscriber": "Subscriber"
+			},
 			"search": {
-				"emailPlaceholder": "Enter an email address to search"
+				"emailPlaceholder": "Enter email address to search"
 			},
 			"columns": {
 				"email": "Email",
 				"name": "Group Name",
-				"createdAt": "Creation Time"
+				"createdAt": "Created Time",
+				"lastActiveAt": "Last Active Time"
 			},
 			"status": {
 				"subscribed": "Subscribed",
-				"unsubscribed": "Unsubscribed"
+				"unsubscribed": "Unsubscribed",
+				"unconfirmed": "Unconfirmed"
+			},
+			"labels": {
+				"status": "Status: ",
+				"tags": "Tags: ",
+				"active": "Active: "
+			},
+			"activeSelect": {
+				"options": {
+					"all": "All",
+					"yes": "Yes",
+					"no": "No"
+				},
+				"timeOptions": {
+					"past7Days": "Past 7 days",
+					"pastMonth": "Past month",
+					"past90Days": "Past 90 days",
+					"pastHalfYear": "Past 6 months",
+					"pastYear": "Past year"
+				}
 			},
 			"actions": {
-				"changeGroup": "Change Group"
+				"changeGroup": "Change Group",
+				"setTag": "Set Tag"
 			},
 			"delete": {
 				"title": "Delete Subscriber",
-				"confirm": "Are you sure you want to delete the subscriber {email}?"
+				"confirm": "Are you sure you want to delete subscriber {email}?"
+			},
+			"batchDelete": {
+				"title": "Batch Delete",
+				"confirm": "Are you sure you want to delete the selected subscribers?"
 			},
 			"select": {
-				"prefix": "Group: "
+				"prefix": "Group:"
 			},
 			"edit": {
 				"title": "Change Group",
 				"email": "Email",
 				"group": "Group",
+				"status": "Status",
+				"attributes": "Attributes",
+				"statusOptions": {
+					"subscribe": "Subscribe",
+					"unsubscribe": "Unsubscribe"
+				},
 				"validation": {
 					"emailRequired": "Please enter email",
 					"groupRequired": "Please select group"
@@ -370,12 +537,12 @@
 				"pasteData": "Paste Data",
 				"uploadFile": "Upload File",
 				"pastePlaceholder": [
-					"Please paste data, one email, attributes(can be empty) per line",
-					"e.g., example1@example.com",
+					"Please paste data, one email per line, attributes (optional)",
+					"Example: example1@example.com",
 					"example1@example.com,\"{\"\"age\"\": \"\"13\"\", \"\"Gender\"\": \"\"XXX\"\"}\""
 				],
-				"fileTypeHint": "File type: csv, not exceeding 5 MB",
-				"overwriteLabel": "Overwrite Existing Users",
+				"fileTypeHint": "File type: csv, no more than 5 MB",
+				"overwriteLabel": "Overwrite existing users",
 				"overwriteDescription": "Whether to overwrite existing customer information in the list according to imported data during import",
 				"subscriptionStatus": "Subscription Status",
 				"status": "Status",
@@ -398,10 +565,25 @@
 					"fileRequired": "Please upload file"
 				}
 			},
+			"batchSetTag": {
+				"title": "Batch Set Tag",
+				"labels": {
+					"tag": "Tag",
+					"action": "Action"
+				},
+				"actions": {
+					"add": "Add",
+					"remove": "Remove"
+				}
+			},
+			"tagSelect": {
+				"manageTags": "Manage Tags"
+			},
 			"loading": {
 				"importSubscribers": "Importing contacts, please wait...",
 				"updateSubscriberGroup": "Updating group, please wait...",
-				"deleteSubscriber": "Deleting contacts, please wait..."
+				"deleteSubscriber": "Deleting contacts, please wait...",
+				"batchSetTag": "Processing, please wait..."
 			}
 		},
 		"group": {
@@ -412,7 +594,16 @@
 				"name": "Group Name",
 				"subscribers": "Subscribers",
 				"unsubscribe": "Unsubscribed",
-				"createdAt": "Created At"
+				"createdAt": "Created At",
+				"type": "Type"
+			},
+			"type": {
+				"doubleOptin": "Double Opt-In",
+				"singleOptin": "Single Opt-In"
+			},
+			"export": {
+				"title": "Export Group",
+				"confirm": "Export {count} group(s)?"
 			},
 			"form": {
 				"name": "Group Name",
@@ -430,13 +621,177 @@
 				"confirm": "Are you sure to delete group {name}?"
 			},
 			"fileUpload": {
-				"hint": "File type: csv, not exceeding 5 MB",
+				"hint": "File type: csv, not exceeding 10 MB",
 				"emptyHint": "An empty group will be created when no file is uploaded"
 			},
 			"loading": {
 				"createGroup": "Creating group, please wait...",
 				"updateGroup": "Updating group, please wait...",
-				"deleteGroup": "Deleting group, please wait..."
+				"deleteGroup": "Deleting group, please wait...",
+				"exportGroup": "Exporting, please wait...",
+				"saveSettings": "Saving, please wait..."
+			}
+		},
+		"settings": {
+			"title": "Settings",
+			"tabs": {
+				"subscribeForm": "Subscribe Form",
+				"subscribeSettings": "Subscribe Settings",
+				"unsubscribeSettings": "Unsubscribe Settings"
+			},
+			"subscribeForm": {
+				"separateSubscriptionPage": {
+					"title": "Separate Subscription Page",
+					"description": "Simply copy and share this URL with users – the subscription form is ready to use."
+				},
+				"embeddableForm": {
+					"title": "Embeddable Form",
+					"description": "Easily embed this subscription form into your website pages."
+				}
+			},
+			"subscribeSettings": {
+				"listType": {
+					"label": "List Type",
+					"placeholder": "Please select list type",
+					"options": {
+						"doubleOptin": "Double Opt-in",
+						"singleOptin": "Single Opt-in"
+					}
+				},
+				"confirmEmail": {
+					"subject": "Confirmation Email Subject",
+					"redirectLink": "Confirmation Redirect Link",
+					"redirectDescription": "Enter the custom link below to redirect users to a confirmation page for their 'Double Opt-in' subscription",
+					"emailContent": "Confirmation Email",
+					"emailTip1": "If you customize the confirmation email, don't forget to include the confirmation link",
+					"emailTip2": "somewhere in your message"
+				},
+				"welcomeEmail": {
+					"subject": "Welcome Email Subject",
+					"redirectLink": "Welcome Redirect Link",
+					"redirectDescription": "Please enter the link below to direct users to a custom confirmation page after they subscribe successfully",
+					"emailContent": "Welcome Email",
+					"sendThroughTip": "Messages are sent through the",
+					"mailboxTip": "mailbox of the default sending domain",
+					"enabledDescription": "When enabled, a thank you email will be sent to the user when they subscribe via the subscription form or API. This will not be triggered for manually added users.",
+					"templateVariablesTip": "You can use the information you collect in the subject and message of your thank you email, which is the Template Variables."
+				},
+				"alreadySubscribed": {
+					"redirectLink": "Already Subscribed Redirect Link"
+				}
+			},
+			"unsubscribeSettings": {
+				"subject": "Unsubscribe Subject",
+				"redirectLink": "Unsubscribe Redirect Link",
+				"emailPage": "Unsubscribe Email Page",
+				"enabledDescription": "When enabled, an unsubscribe email will be sent to users when they unsubscribe or API unsubscribe. Manually added users will not trigger this feature."
+			}
+		},
+		"suspend": {
+			"title": "Suspended Emails",
+			"buttons": {
+				"scanInvalidDomains": "Scan Invalid Domains",
+				"scanLogs": "Scan Logs",
+				"autoBlockFailedEmails": "Auto block failed emails"
+			},
+			"search": {
+				"emailPlaceholder": "Please enter email"
+			},
+			"columns": {
+				"email": "Email",
+				"description": "Description",
+				"status": "Status",
+				"addTime": "Add Time"
+			},
+			"status": {
+				"invalid": "Invalid",
+				"checking": "Checking"
+			},
+			"confirm": {
+				"clear": {
+					"title": "Clear",
+					"content": "This will clear all data under that type, do you continue?"
+				},
+				"delete": {
+					"title": "Delete",
+					"content": "Are you sure you want to delete [{email}]"
+				}
+			},
+			"scan": {
+				"title": "Scan Invalid Domains",
+				"confirmText": "Scan",
+				"form": {
+					"group": "Group",
+					"method": "Method",
+					"groupRequired": "Please select group"
+				},
+				"methods": {
+					"noOperation": "no-operation",
+					"addToExceptionTable": "Added to the exception prevention table",
+					"deleteFromGroup": "The abnormal mailbox is deleted from the group"
+				}
+			},
+			"scanLogs": {
+				"title": "Scan Logs",
+				"none": "None"
+			},
+			"api": {
+				"loading": {
+					"deleting": "Deleting, please wait...",
+					"scanning": "Scanning, please wait...",
+					"clearing": "Clearing, please wait...",
+					"setting": "Setting, please wait..."
+				}
+			}
+		},
+		"tags": {
+			"title": "Tag Management",
+			"addTag": "Add Tag",
+			"bulkTag": "Bulk Tag",
+			"searchPlaceholder": "Search tags",
+			"columns": {
+				"name": "Tag Name",
+				"groupName": "Group Name",
+				"createTime": "Created Time",
+				"actions": "Actions"
+			},
+			"delete": {
+				"title": "Delete Tag",
+				"confirm": "Are you sure you want to delete this tag 【{name}】?"
+			},
+			"bulk": {
+				"title": "Bulk tag contact",
+				"form": {
+					"group": "Group",
+					"tags": "Tags",
+					"emails": "Emails",
+					"action": "Action",
+					"emailsPlaceholder": "Please paste emails, one per line"
+				},
+				"actions": {
+					"tagThese": "Tag these emails",
+					"tagExcept": "Tag everyone except these emails"
+				}
+			},
+			"form": {
+				"title": {
+					"create": "Create Tag",
+					"edit": "Edit Tag"
+				},
+				"fields": {
+					"name": "Tag Name",
+					"group": "Group"
+				},
+				"validation": {
+					"nameRequired": "Please enter tag name",
+					"groupRequired": "Please select group"
+				}
+			},
+			"loading": {
+				"creating": "Creating tag, please wait...",
+				"deleting": "Deleting tag, please wait...",
+				"updating": "Updating tag, please wait...",
+				"bulkSetting": "Bulk setting, please wait..."
 			}
 		}
 	},
@@ -449,34 +804,81 @@
 			"quota": "Quota",
 			"mailboxes": "Mailboxes",
 			"defaultMailboxSize": "Default Mailbox Size",
+			"dedicatedIp": "Dedicated IP",
 			"actions": "Actions"
 		},
+		"ipSet": {
+			"title": "Dedicated IP Settings",
+			"titleWithDomain": "Dedicated IP Settings [{domain}]",
+			"dedicatedIp": "Dedicated IP: ",
+			"configFile": "Config File: ",
+			"connectionStatus": "Connection Status: ",
+			"warning": "You can activate the dedicated IP connection status by manually executing the following command in the SSH terminal\nIf you have multiple domains that need to configure dedicated IPs, we recommend that you configure all domains first and then execute the following command to avoid multiple interruptions to the mail server",
+			"getCommand": "Get Command",
+			"copyCommand": "Copy Command",
+			"operationReminder": "Operation Reminder",
+			"fixCommandTip": "If the command execution fails, you can execute this command to fix it: ",
+			"understood": "Got it",
+			"validation": {
+				"getCommandFirst": "Please get the command first"
+			}
+		},
+		"status": {
+			"default": "Default"
+		},
 		"actions": {
-			"dnsRecord": "DNS Records"
+			"dnsRecord": "DNS Records",
+			"setDefault": "Set Default"
+		},
+		"setDefault": {
+			"title": "Set Default [{domain}]",
+			"confirm": "Are you sure to set this domain as default?"
 		},
 		"delete": {
 			"title": "Delete Domain",
 			"confirm": "Are you sure you want to delete domain [{domain}]?"
+		},
+		"waitAndCheckDomainStatus": {
+			"success": "Brand information initialization successful.",
+			"error": "Brand information initialization failed.",
+			"loading": "Initializing brand information, please wait..."
 		},
 		"form": {
 			"addTitle": "Add Domain",
 			"editTitle": "Edit Domain",
 			"domain": "Domain",
 			"domainPlaceholder": "Please enter domain, e.g.: billionmail.com",
+			"urlsPlacement": "Please enter url, e.g.: https://billionmail.com",
 			"aRecord": "A Record",
 			"aRecordPlaceholder": "Please enter A record, e.g.: mail.aapanel.com",
 			"quota": "Domain Quota",
 			"mailboxCount": "Mailbox Count",
-			"globalCatch": "Global Catch",
+			"globalCatch": "Catch All",
 			"globalCatchPlaceholder": "Forward non-existent emails to this address",
+			"dedicatedIp": "Dedicated IP",
+			"notSet": "Not Set",
+			"testConnection": "Test Connection",
 			"validation": {
-				"domainRequired": "Domain name cannot be empty!"
+				"domainRequired": "Domain name cannot be empty!",
+				"domainInputRequired": "Please enter domain first",
+				"dedicatedIpRequired": "Please enter dedicated IP first"
 			},
 			"tips": {
 				"aRecordFailed": "A record resolution failed. Please check if the A record domain is resolved to the server IP",
 				"dnsSetup": "You need to add an A record in your DNS provider's console",
 				"cloudflare": "If using CloudFlare, please select [DNS only] when adding records"
-			}
+			},
+			"createBrandInfo": "Automatically create brand information",
+			"modelNotice": "To use this feature, you need to integrate an AI model first.",
+			"integrateImmediately": "Integrate immediately",
+			"modelDescription": "AI-driven information import automatically analyzes and creates brand information from email domains. After creation, you can modify it at your discretion.",
+			"extractBrand": "Extract brand and color",
+			"analyzeStructure": "Analyze content structure",
+			"importContent": "Import images and content",
+			"customLogo": "Use a custom logo (optional)",
+			"specifyDomain": "Specify a domain name",
+			"addMoreUrls": "Add more URLs",
+			"maxUrl": "Maximum of 3 URLs can be filled in."
 		},
 		"dns": {
 			"title": "DNS Records",
@@ -537,21 +939,159 @@
 				"defaultSite": "When no SSL default site is specified, sites without SSL configuration will use HTTPS to access sites with SSL enabled"
 			}
 		},
+		"edit": {
+			"pageTitle": "Domain / Edit domain",
+			"save": "Save",
+			"breadcrumb": {
+				"domain": "Domain",
+				"editDomain": "Edit Domain"
+			},
+			"tabs": {
+				"domainConfiguration": "Domain Configuration",
+				"projectDetails": "Project Details",
+				"companyProfile": "Company Profile",
+				"styling": "Styling",
+				"sitemap": "Sitemap",
+				"footerSettings": "Footer Settings",
+				"aiSettings": "AI Settings"
+			},
+			"domainConfiguration": {
+				"title": "Email Domain Configuration",
+				"domain": "Domain",
+				"domainQuota": "Domain Quota",
+				"mailboxCount": "Mailbox Count",
+				"catchAll": "Catch all",
+				"dedicatedIp": "Domain Dedicated IP",
+				"dedicatedIpDesc": "Domain {domain} will specify this dedicated IP in iptables when sending and receiving emails. If your server has only one IP, you don't need to set this feature",
+				"notSet": "Not Set",
+				"testConnection": "Test Connection",
+				"catchAllDesc": "After you fill in the email here, all unknown emails under this domain will be forwarded to this email",
+				"domainQuotaDesc": "Set the available space for this domain",
+				"mailboxCountDesc": "Set how many mailboxes can be created for this domain",
+				"autoCreateBrand": "Automatically create brand information",
+				"aiIntegrationWarning": "To use this feature, you need to integrate an AI model first.",
+				"integrateImmediately": "Integrate immediately",
+				"aiDescription": "AI-driven information import automatically analyzes and creates brand information from email domains. After creation, you can modify it at your discretion.",
+				"features": {
+					"extractBrand": "Extract brand and color",
+					"analyzeStructure": "Analyze content structure",
+					"importContent": "Import images and content",
+					"customLogo": "Use a custom logo (optional)"
+				},
+				"specifyDomain": "Specify a domain name",
+				"addMoreUrls": "Add more URLs",
+				"createNow": "Create Immediately",
+				"brandInfo": "Brand information",
+				"noBrandInfo": "No brand information available.",
+				"fillDomain": "Please fill in the domain name",
+				"fillValidDomain": "Please fill in a valid domain name",
+				"validation": {
+					"setDedicatedIpFirst": "Please set the domain dedicated IP first"
+				},
+				"api": {
+					"testingConnection": "Testing connection, please wait..."
+				}
+			},
+			"projectDetails": {
+				"title": "Project Details",
+				"projectName": "Project Name",
+				"description": "Description",
+				"brandLogos": "Brand Logos",
+				"logoSystem": "Logo System",
+				"logoSystemDesc": "Upload your brand's logo system to maintain consistent branding across your project",
+				"primaryLogo": "Primary Logo",
+				"primaryLogoDesc": "Horizontal version for headers",
+				"secondaryLogo": "Secondary Logo",
+				"secondaryLogoDesc": "Vertical/stacked version",
+				"favicon": "Favicon",
+				"faviconDesc": "Icon for browser tabs",
+				"loadingFailed": "loading failed",
+				"knowledgeBase": "Knowledge Base",
+				"newFile": "New File",
+				"edit": "Edit",
+				"preview": "Preview",
+				"newKnowledgeFile": "New Knowledge File",
+				"fileName": "File Name",
+				"day": "days",
+				"hour": "hours",
+				"minute": "minutes",
+				"ago": "ago",
+				"justNow": "just now",
+				"close": "Close",
+				"cancel": "Cancel",
+				"create": "Create",
+				"notice": "Notice",
+				"sureDel": "Are you sure you want to delete?"
+			},
+			"companyProfile": {
+				"title": "Company Detail",
+				"legalCompanyName": "Legal Company Name",
+				"website": "web_site",
+				"organizationNumber": "Organization Number",
+				"additionalInfo": "Additional Company Information",
+				"contactInfo": "Contact Information",
+				"contactEmail": "Contact Email",
+				"phoneNumber": "Phone Number",
+				"supportUrl": "Support URL"
+			},
+			"styling": {
+				"colorPalette": "Color Palette",
+				"accentColor": "Accent Color",
+				"textColor": "Text Color",
+				"pageBackground": "Page Background",
+				"containerBackground": "Container Background",
+				"linkFooterColor": "Link footer color",
+				"linkSocialColor": "Link social color",
+				"typography": "Typography",
+				"headingFont": "Heading Font",
+				"bodyFont": "Body Font",
+				"preview": "Preview:",
+				"previewText": "The quick brown fox jumps over the lazy dog",
+				"typographyGuidelines": "Typography Guidelines:",
+				"webSafeFonts": "Use web-safe fonts for better compatibility",
+				"fallbackFonts": "Always include fallback fonts for better performance"
+			},
+			"sitemap": {
+				"title": "Sitemap",
+				"addLink": "Add link"
+			},
+			"footerSettings": {
+				"title": "Footer Settings",
+				"additionalContent": "Additional Content",
+				"copyrightText": "Copyright Text"
+			},
+			"aiSettings": {
+				"title": "AI Settings",
+				"defaultInstructions": "Default AI Instructions",
+				"emailGenerationInstructions": "Instructions for Email Generation",
+				"instructionsDescription": "These instructions will be used as default guidelines when generating new emails. You can override these instructions for individual emails as needed."
+			},
+			"common": {
+				"daysAgo": "days ago",
+				"noBrandInfo": "There is no brand information for the current domain."
+			}
+		},
 		"api": {
 			"loading": {
-				"creating": "Creating Domain, please wait...",
-				"updating": "Updating Domain, please wait...",
-				"deleting": "Deleting Domain, please wait...",
-				"settingSSL": "Setting SSL, please wait...",
-				"applyingCert": "Applying SSL Certificate, please wait...",
-				"refreshingDns": "Refreshing DNS records, please wait..."
+				"creating": "Creating domain, please wait...",
+				"updating": "Updating domain, please wait...",
+				"deleting": "Deleting domain, please wait...",
+				"settingSSL": "Setting SSL certificate, please wait...",
+				"refreshingDns": "Refreshing DNS records, please wait...",
+				"applyingCert": "Applying certificate, please wait...",
+				"settingDefault": "Setting default domain, please wait...",
+				"settingBrandInfo": "Setting domain brand info, please wait...",
+				"testingConnection": "Testing connection, please wait..."
 			}
 		}
 	},
 	"mailbox": {
 		"title": "Mailbox Management",
 		"actions": {
-			"add": "Add Mailbox"
+			"add": "Add Mailbox",
+			"batchAdd": "Batch Add",
+			"batchDelete": "Batch Delete",
+			"exportAll": "Export All"
 		},
 		"search": {
 			"usernamePlaceholder": "Search username"
@@ -562,7 +1102,7 @@
 		"columns": {
 			"username": "Username",
 			"password": "Password",
-			"loginInfo": "Login Info",
+			"loginInfo": "Login Info(WebMail / SMTP)",
 			"quota": "Quota",
 			"type": "Type",
 			"status": "Status"
@@ -574,21 +1114,32 @@
 		"form": {
 			"addTitle": "Add Mailbox",
 			"editTitle": "Edit Mailbox",
+			"batchAddTitle": "Batch Add",
+			"exportTitle": "Export Mailbox",
+			"importTitle": "Import Mailbox",
 			"emailAddress": "Email Address",
 			"password": "Password",
 			"passwordPlaceholder": "Enter your mailbox password",
 			"quota": "Quota",
 			"userType": "User Type",
-			"status": "Status"
+			"status": "Status",
+			"domain": "Domain",
+			"prefix": "Email Prefix",
+			"count": "Email Count"
 		},
 		"validation": {
 			"emailRequired": "Please enter email address",
 			"passwordLength": "Password must be at least 8 characters",
-			"passwordFormat": "Password must contain at least one uppercase letter, one lowercase letter and one number"
+			"passwordFormat": "Password must contain at least one uppercase letter, one lowercase letter and one number",
+			"domainRequired": "Please select domain",
+			"prefixRequired": "Please enter email prefix",
+			"countRequired": "Please enter email count",
+			"fileRequired": "Please select upload file"
 		},
 		"delete": {
 			"title": "Delete Mailbox",
-			"confirm": "Are you sure you want to delete mailbox [{name}]?"
+			"confirm": "Are you sure you want to delete mailbox [{name}]?",
+			"batchConfirm": "Are you sure you want to delete {count} mailboxes?"
 		},
 		"loginInfo": {
 			"template": "WebMail: {webmail}\nUsername: {username}\nPassword: {password}\nPOP service [ Address: {mx} Port: 110/995 ]\nIMAP service [ Address: {mx} Port: 143/993 ]\nSMTP service [ Address: {mx} Port: 25/465/587 ]"
@@ -597,7 +1148,9 @@
 			"loading": {
 				"creating": "Creating Mailbox, please wait...",
 				"updating": "Updating Mailbox, please wait...",
-				"deleting": "Deleting Mailbox, please wait..."
+				"deleting": "Deleting Mailbox, please wait...",
+				"exporting": "Exporting Mailbox, please wait...",
+				"importing": "Importing Mailbox, please wait..."
 			}
 		}
 	},
@@ -620,7 +1173,8 @@
 			"domain": "Bound Domain",
 			"server": "Server",
 			"port": "Port",
-			"username": "Username"
+			"username": "Username",
+			"dnsUpdateRequired": "DNS records need updating"
 		},
 		"form": {
 			"addTitle": "Add SMTP",
@@ -631,8 +1185,15 @@
 			"port": "SMTP Port",
 			"username": "Username",
 			"password": "Password",
+			"authMethod": "Authentication Method",
+			"advancedFeatures": "Advanced Options",
 			"testConnection": "Test Connection",
 			"bind": " [Bound]",
+			"skipTlsVerify": "Skip TLS Verification",
+			"tlsOptions": {
+				"skip": "Skip",
+				"noSkip": "Don't Skip"
+			},
 			"validation": {
 				"nameRequired": "Please enter a relay name",
 				"domainRequired": "Please select a bound domain",
@@ -793,13 +1354,101 @@
 				"commandCopied": "Command copied to clipboard",
 				"timezone": "Timezone Settings",
 				"currentTime": "Current System Timezone"
+			},
+			"ipWhitelist": {
+				"title": "IP Whitelist",
+				"enable": "Enable",
+				"disable": "Disable",
+				"add": "Add",
+				"clear": "Clear",
+				"description": "Only allow IPs in the list to access, terminal command to disable: bm.sh cancel-ip-limit",
+				"placeholder": "Please enter IP address",
+				"validation": {
+					"ipRequired": "Please enter IP address"
+				},
+				"confirm": {
+					"deleteTitle": "Delete IP Whitelist",
+					"deleteContent": "Confirm to delete IP whitelist: {ip}",
+					"enableTitle": "Enable IP Whitelist",
+					"disableTitle": "Disable IP Whitelist",
+					"enableContent": "Confirm to enable IP whitelist, only whitelisted IP addresses can access after enabling",
+					"disableContent": "Confirm to disable IP whitelist, all IP addresses can access after disabling",
+					"clearTitle": "Clear IP Whitelist",
+					"clearContent": "Confirm to clear IP whitelist, all IP addresses can access after clearing"
+				}
+			},
+			"proxy": {
+				"title": "Reverse Proxy",
+				"description": "Reverse proxy address, used for external exposure, such as: subscription lists, unsubscribe emails, etc.",
+				"placeholder": "Please enter reverse proxy address",
+				"formatTip": "Format: https://example.com",
+				"reset": "Reset",
+				"resetConfirm": {
+					"title": "Reset Reverse Proxy",
+					"content": "Confirm to reset reverse proxy?"
+				}
+			},
+			"api": {
+				"title": "API Settings",
+				"enableApi": "Enable API",
+				"apiDocUrl": "API Documentation URL",
+				"swaggerUrl": "Swagger URL",
+				"token": "Token",
+				"confirm": {
+					"enable": "Enable API",
+					"disable": "Disable API",
+					"enableContent": "Do you want to enable API settings?",
+					"disableContent": "Do you want to disable API settings?"
+				}
 			}
 		},
 		"api": {
 			"loading": {
 				"restarting": "Restarting service, please wait...",
-				"saving": "Saving configuration, please wait..."
+				"saving": "Saving configuration, please wait...",
+				"setting": "Setting, please wait...",
+				"settingSSL": "Setting SSL, please wait...",
+				"applyingCert": "Applying certificate, please wait...",
+				"adding": "Adding, please wait...",
+				"deleting": "Deleting, please wait...",
+				"clearing": "Clearing, please wait..."
 			}
+		},
+		"aiModel": {
+			"modelId": "Model ID",
+			"modelAlias": "Model Alias",
+			"modelFeature": "Model Feature",
+			"contentLength": "Maximum Context Length",
+			"supplierTitle": "Supplier Title",
+			"supplierName": "Supplier Name",
+			"cancel": "Cancel",
+			"confirm": "Confirm",
+			"aPIKey": "API Key",
+			"apiPath": "Base Url",
+			"check": "Check",
+			"getKey": "Click to Get Key",
+			"example": "Example",
+			"saveAPI": "Save API",
+			"model": "Model",
+			"byDefault": "By default, all models are retrieved from /models",
+			"addModel": "Add Model"
+		}
+	},
+	"logs": {
+		"title": "Logs",
+		"table": {
+			"columns": {
+				"username": "Username",
+				"type": "Type",
+				"operatingTime": "Operating Time",
+				"details": "Details"
+			}
+		},
+		"filter": {
+			"all": "All"
+		},
+		"search": {
+			"placeholder": "Please enter details/IP to search"
 		}
 	},
 	"api": {

@@ -50,6 +50,7 @@ const form = reactive({
 	file_type: '',
 	description: '',
 	status: 1,
+	double_optin: 0,
 })
 
 const rules: FormRules = {

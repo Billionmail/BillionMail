@@ -9,9 +9,12 @@ import (
 	"bytes"
 	"encoding/csv"
 	"fmt"
+	"github.com/gogf/gf/crypto/gmd5"
 	"github.com/gogf/gf/v2/errors/gerror"
 	"github.com/xuri/excelize/v2"
+	"math/rand"
 	"strings"
+	"time"
 )
 
 const (
@@ -360,4 +363,10 @@ func exportToExcel(contacts []*entity.Contact) ([]byte, error) {
 	}
 
 	return buf.Bytes(), nil
+}
+
+// GfMd5Short generates a short MD5 hash based on the current time and a random number
+func GfMd5Short() string {
+	str := fmt.Sprintf("%s_%d_%d", time.Now().UnixNano(), rand.Intn(100000))
+	return gmd5.MustEncryptString(str)[:12]
 }

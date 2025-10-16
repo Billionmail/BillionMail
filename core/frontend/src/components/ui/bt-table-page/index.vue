@@ -24,6 +24,8 @@ interface Props {
 	showTotal?: boolean
 	showSizePicker?: boolean
 	showQuickJumper?: boolean
+	// eslint-disable-next-line no-unused-vars
+	onUpdatePage?: (page: number) => void
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -48,14 +50,14 @@ const page = defineModel<number>('page')
 const pageSize = defineModel<number>('pageSize')
 
 const updatePage = (val: number) => {
-	page.value = val
+	props.onUpdatePage?.(val)
 	emit('refresh')
 }
 
 // Switch page size
 const updatePageSize = (size: number) => {
 	page.value = 1
-	pageSize.value = size
+	props.onUpdatePage?.(1)
 	setPageSize(size)
 	emit('refresh')
 }

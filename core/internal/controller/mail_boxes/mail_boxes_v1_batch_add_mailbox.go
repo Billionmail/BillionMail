@@ -1,6 +1,8 @@
 package mail_boxes
 
 import (
+	"billionmail-core/internal/consts"
+	"billionmail-core/internal/service/public"
 	"context"
 	"fmt"
 
@@ -16,14 +18,19 @@ func (c *ControllerV1) BatchAddMailbox(ctx context.Context, req *v1.BatchAddMail
 		return nil, fmt.Errorf("You cannot create more than 5000 batches")
 	}
 
-	createdEmails, err := mail_boxes.BatchAdd(ctx, req.Domain, req.Password, req.Quota, req.Count, req.Prefix)
+	createdEmails, err := mail_boxes.BatchAdd(ctx, req.Domain, req.Quota, req.Count, req.Prefix, req.QuotaActive)
 	if err != nil {
 		return nil, err
 	}
 
 	successMsg := fmt.Sprintf("%d email accounts were successfully created", len(createdEmails))
+
+	_ = public.WriteLog(ctx, public.LogParams{
+		Type: consts.LOGTYPE.Mailboxes,
+		Log:  "Batch email creation was successful",
+		Data: req,
+	})
 	res.SetSuccess(successMsg)
 	res.Data = createdEmails
-
 	return res, nil
 }

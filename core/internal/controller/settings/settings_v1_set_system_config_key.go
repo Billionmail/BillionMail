@@ -1,6 +1,7 @@
 package settings
 
 import (
+	"billionmail-core/internal/consts"
 	"context"
 	"github.com/gogf/gf/os/gtimer"
 	"time"
@@ -21,6 +22,19 @@ func (c *ControllerV1) SetSystemConfigKey(ctx context.Context, req *v1.SetSystem
 		return res, nil
 	}
 
+	// ip_whitelist_enable The whitelist cannot be empty when the switch is on
+	if strings.ToLower(req.Key) == "ip_whitelist_enable" && req.Value == "true" {
+		whitelist, err := GetIPWhitelist()
+		if err != nil {
+			res.SetError(gerror.New(public.LangCtx(ctx, "Failed to get IP whitelist: {}", err)))
+			return res, nil
+		}
+		if len(whitelist) == 0 {
+			res.SetError(gerror.New(public.LangCtx(ctx, "IP whitelist list is empty. Whitelist function cannot be enabled")))
+			return res, nil
+		}
+	}
+
 	// 1. Read the current .env file content
 	envMap, err := public.LoadEnvFile()
 	if err != nil {
@@ -29,7 +43,7 @@ func (c *ControllerV1) SetSystemConfigKey(ctx context.Context, req *v1.SetSystem
 	}
 
 	// 2. Find the corresponding environment variable name based on the key
-	_, modified := convertJsonKeyToEnvKey(req.Key, req.Value, envMap)
+	envKey, modified := convertJsonKeyToEnvKey(req.Key, req.Value, envMap)
 	if !modified {
 		res.SetError(gerror.New(public.LangCtx(ctx, "Invalid configuration item or value not changed")))
 		return res, nil
@@ -43,12 +57,18 @@ func (c *ControllerV1) SetSystemConfigKey(ctx context.Context, req *v1.SetSystem
 
 	// 4. Restart the container
 	gtimer.AddOnce(500*time.Millisecond, func() {
-		err = public.DockerApiFromCtx(ctx).RestartContainerByName(ctx, "billionmail-core-billionmail-1")
+		err = public.DockerApiFromCtx(ctx).RestartContainerByName(context.Background(), consts.SERVICES.Core)
 		if err != nil {
 			g.Log().Error(ctx, "Failed to restart container: {}", err)
 			return
 		}
 
+	})
+
+	_ = public.WriteLog(ctx, public.LogParams{
+		Type: consts.LOGTYPE.Settings,
+		Log:  "Changed the configuration successfully: " + envKey + " changed to " + req.Value,
+		Data: req,
 	})
 
 	res.SetSuccess(public.LangCtx(ctx, "Configuration updated successfully"))

@@ -143,7 +143,7 @@ func ApplyCertToService(domain, crtPem, keyPem string) (err error) {
 
 			defer dk.Close()
 
-			err = dk.RestartContainerByName(context.Background(), "billionmail-core-billionmail-1")
+			err = dk.RestartContainerByName(context.Background(), consts.SERVICES.Core)
 		}()
 	}
 
@@ -178,7 +178,7 @@ func ApplyCertToConsole(crtPem, keyPem string) (err error) {
 
 		defer dk.Close()
 
-		err = dk.RestartContainerByName(context.Background(), "billionmail-core-billionmail-1")
+		err = dk.RestartContainerByName(context.Background(), consts.SERVICES.Core)
 	}()
 
 	return
@@ -227,10 +227,10 @@ func ApplyConsoleCert(ctx context.Context) error {
 		Limit(1).Scan(crt)
 
 	if err != nil && err != sql.ErrNoRows {
-		//g.Log().Warning(ctx, "letsencrypts query error:", err)
+		g.Log().Warning(ctx, "letsencrypts query error:", err)
 		return err
 	}
-	if crt == nil || crt.Certificate == "" {
+	if crt.CertId == 0 || crt.Certificate == "" {
 		g.Log().Debug(ctx, "No existing certificate found:", hostname)
 	} else {
 		if crt.Status == 1 && crt.EndTime > time.Now().Unix() {
@@ -351,6 +351,7 @@ func AutoRenewSSL(ctx context.Context) {
 	}
 
 	for _, domain := range domainList {
+		domain = public.FormatMX(domain)
 		certInfo, err = mail_service.NewCertificate().GetSSLInfo(domain)
 		if err == nil && certInfo.Endtime > 0 {
 			remain := certInfo.Endtime - int(time.Now().Unix())

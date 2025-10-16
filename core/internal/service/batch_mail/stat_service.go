@@ -172,7 +172,7 @@ func (s *TaskStatService) fillChartDataHourly(data []map[string]interface{}, fil
 				hour = h
 			}
 		default:
-			g.Log().Warningf(context.Background(), "Unexpected type for hour: %T, value: %v", item[fillKey], item[fillKey])
+			g.Log().Debugf(context.Background(), "Unexpected type for hour: %T, value: %v", item[fillKey], item[fillKey])
 			continue
 		}
 		dataMap[hour] = item

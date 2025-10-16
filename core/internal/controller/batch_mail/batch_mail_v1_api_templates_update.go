@@ -2,6 +2,7 @@ package batch_mail
 
 import (
 	"billionmail-core/api/batch_mail/v1"
+	"billionmail-core/internal/consts"
 	"billionmail-core/internal/service/public"
 	"context"
 	"github.com/gogf/gf/v2/errors/gerror"
@@ -58,7 +59,6 @@ func (c *ControllerV1) ApiTemplatesUpdate(ctx context.Context, req *v1.ApiTempla
 		"active":      req.Active,
 		"expire_time": req.ExpireTime,
 		"update_time": now,
-		//"ip_whitelist_enabled": req.IpWhitelistEnabled,
 	}
 
 	_, err = tx.Model("api_templates").
@@ -104,6 +104,12 @@ func (c *ControllerV1) ApiTemplatesUpdate(ctx context.Context, req *v1.ApiTempla
 	if err = tx.Commit(); err != nil {
 		return nil, err
 	}
+	updateMap["ip_whitelist"] = req.IpWhitelist
+	_ = public.WriteLog(ctx, public.LogParams{
+		Type: consts.LOGTYPE.SendAPI,
+		Log:  "Update API template :" + req.ApiName + " successfully",
+		Data: updateMap,
+	})
 
 	res.SetSuccess(public.LangCtx(ctx, "Update API successfully"))
 	return res, nil

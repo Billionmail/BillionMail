@@ -15,6 +15,7 @@ import (
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/os/gctx"
 	"github.com/panjf2000/ants/v2"
+	"regexp"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -142,6 +143,12 @@ type TaskExecutor struct {
 	isRunning    atomic.Bool
 	isPaused     atomic.Bool
 	lastActivity time.Time
+
+	// task configuration cache
+	taskConfig   *entity.EmailTask
+	configLoaded time.Time
+
+	spintaxTemplate *SpintaxTemplate
 
 	// rate controller
 	rateController *SimpleRateController
@@ -361,6 +368,7 @@ func (e *TaskExecutor) ProcessTask(ctx context.Context) error {
 		}
 		completeMsg := fmt.Sprintf("task %d is successfully marked as completed", task.Id)
 		g.Log().Info(ctx, completeMsg)
+		RemoveTaskExecutor(task.Id) // The executor is removed at the end of the task
 	}
 
 	return nil
@@ -405,21 +413,68 @@ func (e *TaskExecutor) PauseTask(taskId int) error {
 	// set pause status
 	e.isPaused.Store(true)
 
+	// Wait for the current batch processing to be completed
+	e.waitForCurrentBatch()
+
+	// Reset the records that have been retrieved but not sent (is_sent = 2 -> is_sent = 0)
+	resetCount, err := e.resetFetchedRecords(taskId)
+	if err != nil {
+		e.isPaused.Store(false)
+		return fmt.Errorf("failed to reset fetched records: %w", err)
+	}
+
 	// update database status
 	if err := UpdateTaskPauseStatus(context.Background(), taskId, true); err != nil {
 		e.isPaused.Store(false) // restore status
 		return fmt.Errorf("failed to update task pause status: %w", err)
 	}
 
-	//g.Log().Info(context.Background(), "Task %d paused successfully", taskId)
+	g.Log().Infof(context.Background(), "Task %d paused successfully, reset %d fetched records", taskId, resetCount)
 	return nil
 }
 
-// ResumeTask
+func (e *TaskExecutor) waitForCurrentBatch() {
+
+	done := make(chan struct{})
+	go func() {
+		e.wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		g.Log().Debug(context.Background(), "Current batch completed")
+	case <-time.After(30 * time.Second):
+		g.Log().Warning(context.Background(), "Timeout waiting for current batch to complete")
+	}
+}
+
+func (e *TaskExecutor) resetFetchedRecords(taskId int) (int64, error) {
+	result, err := g.DB().Model("recipient_info").
+		Where("task_id", taskId).
+		Where("is_sent", 2).
+		Data(g.Map{"is_sent": 0}).
+		Update()
+
+	if err != nil {
+		return 0, err
+	}
+
+	rowsAffected, _ := result.RowsAffected()
+	return rowsAffected, nil
+}
+
 func (e *TaskExecutor) ResumeTask(taskId int) error {
 	// if not paused, return immediately
 	if !e.isPaused.Load() {
 		return nil
+	}
+
+	// Reload task configuration (to obtain the latest modifications)
+	g.Log().Infof(context.Background(), "Task %d: reloading config before resume...", taskId)
+	if err := e.reloadTaskConfig(taskId); err != nil {
+		g.Log().Errorf(context.Background(), "Failed to reload task config: %v", err)
+		return fmt.Errorf("failed to reload task config: %w", err)
 	}
 
 	// restore running status
@@ -441,7 +496,7 @@ func (e *TaskExecutor) ResumeTask(taskId int) error {
 		return fmt.Errorf("failed to update task resume status: %w", err)
 	}
 
-	//g.Log().Info(context.Background(), "Task %d resumed successfully", taskId)
+	g.Log().Info(context.Background(), "Task %d resumed successfully with updated config", taskId)
 	return nil
 }
 
@@ -464,6 +519,32 @@ func (e *TaskExecutor) configureRateController(task *entity.EmailTask) {
 	g.Log().Info(context.Background(), "task %d: initialize send rate - max %d emails per minute, threads: %d",
 		task.Id, maxPerMinute, task.Threads)
 	e.rateController = NewSimpleRateController(maxPerMinute)
+}
+
+func (e *TaskExecutor) loadTaskConfig(taskId int) error {
+	task, err := GetTaskInfo(context.Background(), taskId)
+	if err != nil {
+		return fmt.Errorf("failed to load task config: %w", err)
+	}
+
+	if task == nil || task.Id == 0 {
+		return fmt.Errorf("task %d not found", taskId)
+	}
+
+	e.taskConfig = task
+	e.configLoaded = time.Now()
+
+	g.Log().Infof(context.Background(), "Task %d: config loaded into cache", taskId)
+	return nil
+}
+
+func (e *TaskExecutor) reloadTaskConfig(taskId int) error {
+	g.Log().Infof(context.Background(), "Task %d: reloading config from database...", taskId)
+	return e.loadTaskConfig(taskId)
+}
+
+func (e *TaskExecutor) getTaskConfig() *entity.EmailTask {
+	return e.taskConfig
 }
 
 // processTaskRecipients
@@ -529,7 +610,21 @@ func (e *TaskExecutor) processTaskRecipients(ctx context.Context, task *entity.E
 			// wait for resume signal
 			select {
 			case <-e.resumeChan:
-				g.Log().Debug(ctx, "Task %d received resume signal", task.Id)
+
+				if e.taskConfig != nil {
+					g.Log().Infof(ctx, "Using updated task config after resume: addresser=%s, subject=%s, template_id=%d, full_name=%s",
+						e.taskConfig.Addresser, e.taskConfig.Subject, e.taskConfig.TemplateId, e.taskConfig.FullName)
+
+					task = e.taskConfig
+
+					template, err := e.getTemplateInfo(ctx, task.TemplateId)
+					if err != nil {
+						g.Log().Errorf(ctx, "failed to get updated template: %v", err)
+					} else {
+						emailContent = e.processEmailContent(ctx, template.Content, task)
+
+					}
+				}
 			case <-ctx.Done():
 				g.Log().Info(ctx, "context canceled, stop task execution:", ctx.Err())
 				return ctx.Err()
@@ -573,17 +668,34 @@ func (e *TaskExecutor) processTaskRecipients(ctx context.Context, task *entity.E
 func (e *TaskExecutor) getNextRecipientBatch(ctx context.Context, taskId, lastId, batchSize int) ([]*entity.RecipientInfo, error) {
 	var recipients []*entity.RecipientInfo
 
-	// use ID paging, more efficient
 	err := g.DB().Model("recipient_info").
 		Where("task_id", taskId).
 		Where("is_sent", 0).
-		Where("sent_time = 0 OR sent_time < ?", time.Now().Unix()). // not sent yet
 		Where("id > ?", lastId).
 		Order("id ASC").
 		Limit(batchSize).
 		Scan(&recipients)
 
-	return recipients, err
+	if err != nil || len(recipients) == 0 {
+		return recipients, err
+	}
+
+	ids := make([]int, len(recipients))
+	for i, r := range recipients {
+		ids[i] = r.Id
+	}
+
+	_, err = g.DB().Model("recipient_info").
+		WhereIn("id", ids).
+		Data(g.Map{"is_sent": 2}).
+		Update()
+
+	if err != nil {
+		g.Log().Error(ctx, "Failed to mark recipients as fetched: %v", err)
+		return nil, err
+	}
+
+	return recipients, nil
 }
 
 // processRecipientBatch
@@ -651,7 +763,7 @@ func (e *TaskExecutor) processRecipientBatch(ctx context.Context, task *entity.E
 				return err
 			}
 			// record error but continue
-			g.Log().Warning(ctx, "Rate limit wait error: %v", err)
+			g.Log().Debugf(ctx, "Rate limit wait error: %v", err)
 
 		}
 
@@ -662,7 +774,7 @@ func (e *TaskExecutor) processRecipientBatch(ctx context.Context, task *entity.E
 					updates[recipient.Id] = waits * 2
 				}
 				// rate limit exceeded, skip this recipient
-				g.Log().Warningf(ctx, "Rate limit exceeded for recipient %d, wait for %d seconds after retry, skipping", recipient.Id, waits)
+				g.Log().Debug(ctx, "Rate limit exceeded for recipient %d, wait for %d seconds after retry, skipping", recipient.Id, waits)
 				continue
 			}
 		}
@@ -800,7 +912,7 @@ func (e *TaskExecutor) processSendResults(ctx context.Context, resultChan <-chan
 		if len(successResults) > 0 {
 			// prepare batch update
 			now := time.Now().Unix()
-
+			e.lastActivity = time.Now()
 			// batch update recipient status
 			// prepare batch update SQL
 			if len(successResults) > 0 {
@@ -849,6 +961,22 @@ func (e *TaskExecutor) processSendResults(ctx context.Context, resultChan <-chan
 
 		// clear failed records
 		if len(failedIDs) > 0 {
+			now := time.Now().Unix()
+			// 失败的也更新 is_sent 和 sent_time 避免卡住发送状态
+			_, err := g.DB().Model("recipient_info").
+				WhereIn("id", failedIDs).
+				Data(g.Map{
+					"is_sent":   1,
+					"sent_time": now,
+				}).
+				Update()
+
+			if err != nil {
+				g.Log().Error(ctx, "batch update failed recipients status failed: %v", err)
+			} else {
+				g.Log().Debug(ctx, "marked %d failed recipients as sent", len(failedIDs))
+			}
+
 			failedIDs = failedIDs[:0]
 		}
 	}
@@ -868,7 +996,7 @@ func (e *TaskExecutor) processSendResults(ctx context.Context, resultChan <-chan
 			} else {
 				failedIDs = append(failedIDs, result.RecipientID)
 
-				g.Log().Warning(ctx, "send email to recipient %d failed: %v",
+				g.Log().Debugf(ctx, "send email to recipient %d failed: %v",
 					result.RecipientID, result.Error)
 			}
 
@@ -919,6 +1047,13 @@ func (e *TaskExecutor) processEmailContent(ctx context.Context, content string, 
 
 		content = strings.ReplaceAll(content, "__UNSUBSCRIBE_URL__", "{{ UnsubscribeURL . }}")
 	}
+
+	// Preparse the spintax template
+	if e.spintaxTemplate == nil {
+		spintaxParser := GetSpintaxParser()
+		e.spintaxTemplate = spintaxParser.ParseTemplate(content)
+	}
+
 	return content
 }
 
@@ -943,23 +1078,36 @@ func (e *TaskExecutor) personalizeEmail(ctx context.Context, content string, tas
 	engine := GetTemplateEngine()
 
 	if task.Unsubscribe == 1 {
-		domain := domains.GetBaseURLBySender(task.Addresser)
-		unsubscribeURL := fmt.Sprintf("%s/api/unsubscribe", domain)
-		groupURL := fmt.Sprintf("%s/api/unsubscribe/user_group", domain)
+		//domain := domains.GetBaseURLBySender(task.Addresser)
+		domain := domains.GetBaseURL()
+
+		var contactGroupId int
+		contactGroupId = task.GroupId
 
 		jwtToken, err := GenerateUnsubscribeJWT(
 			recipient.Recipient,
 			task.TemplateId,
 			task.Id,
+			contactGroupId,
 		)
 		if err != nil {
 			g.Log().Error(ctx, "generate unsubscribe JWT failed: %v", err)
 			jwtToken = ""
 		}
 
-		// generate unsubscribe URL
-		unsubscribeJumpURL := fmt.Sprintf("%s/unsubscribe.html?jwt=%s&email=%s&url_type=%s&url_unsubscribe=%s",
-			domain, jwtToken, recipient.Recipient, groupURL, unsubscribeURL)
+		var unsubscribeJumpURL string
+		if contactGroupId > 0 {
+
+			unsubscribeJumpURL = fmt.Sprintf("%s/unsubscribe_new.html?jwt=%s",
+				domain, jwtToken)
+
+		} else {
+
+			unsubscribeURL := fmt.Sprintf("%s/api/unsubscribe", domain)
+			groupURL := fmt.Sprintf("%s/api/unsubscribe/user_group", domain)
+			unsubscribeJumpURL = fmt.Sprintf("%s/unsubscribe.html?jwt=%s&email=%s&url_type=%s&url_unsubscribe=%s",
+				domain, jwtToken, recipient.Recipient, groupURL, unsubscribeURL)
+		}
 
 		// render email content
 		renderedContent, err = engine.RenderEmailTemplate(ctx, content, &contact, &emailtask, unsubscribeJumpURL)
@@ -990,7 +1138,17 @@ func (e *TaskExecutor) personalizeEmail(ctx context.Context, content string, tas
 		}
 	}
 
+	// Restore the erroneous variable
+	renderedContent = e.restoreErrorVariables(renderedContent)
+	renderedSubject = e.restoreErrorVariables(renderedSubject)
+
 	return renderedContent, renderedSubject
+}
+
+// restoreErrorVariables 恢复 [__变量__] 为 {{变量}}
+func (e *TaskExecutor) restoreErrorVariables(content string) string {
+	re := regexp.MustCompile(`\[__([^_]+)__\]`)
+	return re.ReplaceAllString(content, "{{$1}}")
 }
 
 // sendEmail send email
@@ -1007,10 +1165,15 @@ func (e *TaskExecutor) sendEmail(ctx context.Context, task *entity.EmailTask, re
 		// continue execution
 	}
 
-	// get rendered content and subject
-	renderedContent, renderedSubject := e.personalizeEmail(ctx, content, task, recipient)
+	currentTask := task
+	if e.taskConfig != nil {
+		currentTask = e.taskConfig
+	}
 
-	sender, err := mail_service.NewEmailSenderWithLocal(task.Addresser)
+	// get rendered content and subject
+	renderedContent, renderedSubject := e.personalizeEmail(ctx, content, currentTask, recipient)
+
+	sender, err := mail_service.NewEmailSenderWithLocal(currentTask.Addresser)
 	if err != nil {
 		g.Log().Error(ctx, "create email sender failed: %v", err)
 		return &SendResult{
@@ -1024,8 +1187,9 @@ func (e *TaskExecutor) sendEmail(ctx context.Context, task *entity.EmailTask, re
 	messageID := sender.GenerateMessageID()
 
 	//Tracking emails
-	baseURL := domains.GetBaseURLBySender(task.Addresser)
-	mail_tracker := maillog_stat.NewMailTracker(renderedContent, task.Id, messageID, recipient.Recipient, baseURL)
+	//baseURL := domains.GetBaseURLBySender(currentTask.Addresser)
+	baseURL := domains.GetBaseURL()
+	mail_tracker := maillog_stat.NewMailTracker(renderedContent, currentTask.Id, messageID, recipient.Recipient, baseURL)
 	mail_tracker.TrackLinks()
 	mail_tracker.AppendTrackingPixel()
 	renderedContent = mail_tracker.GetHTML()
@@ -1035,9 +1199,12 @@ func (e *TaskExecutor) sendEmail(ctx context.Context, task *entity.EmailTask, re
 	message.SetMessageID(messageID)
 
 	// set sender display name
-	if task.FullName != "" {
-		message.SetRealName(task.FullName)
+	if currentTask.FullName != "" {
+		message.SetRealName(currentTask.FullName)
 	}
+
+	//g.Log().Infof(ctx, "sendEmail - final check before sending: sender=%s, display_name=%s, subject=%s, recipient=%s",
+	//	currentTask.Addresser, currentTask.FullName, renderedSubject, recipient.Recipient)
 
 	// send email
 	err = sender.Send(message, []string{recipient.Recipient})
@@ -1089,7 +1256,8 @@ func (e *TaskExecutor) sendEmailMock(ctx context.Context, task *entity.EmailTask
 	messageID := sender.GenerateMessageID()
 
 	// Track email
-	baseURL := domains.GetBaseURLBySender(task.Addresser)
+	//baseURL := domains.GetBaseURLBySender(task.Addresser)
+	baseURL := domains.GetBaseURL()
 	mail_tracker := maillog_stat.NewMailTracker(renderedContent, task.Id, messageID, recipient.Recipient, baseURL)
 	mail_tracker.TrackLinks()
 	mail_tracker.AppendTrackingPixel()
@@ -1120,7 +1288,7 @@ func (e *TaskExecutor) sendEmailMock(ctx context.Context, task *entity.EmailTask
 	}
 	_, err = g.DB().Model("mailstat_senders").InsertIgnore(senderRecord)
 	if err != nil {
-		g.Log().Warningf(ctx, "sendEmailMock: failed to insert mailstat_senders: %v", err)
+		g.Log().Debugf(ctx, "sendEmailMock: failed to insert mailstat_senders: %v", err)
 	}
 
 	// 2. Create MailMessageID record
@@ -1133,7 +1301,7 @@ func (e *TaskExecutor) sendEmailMock(ctx context.Context, task *entity.EmailTask
 	}
 	_, err = g.DB().Model("mailstat_message_ids").InsertIgnore(messageIDRecord)
 	if err != nil {
-		g.Log().Warningf(ctx, "sendEmailMock: failed to insert mailstat_message_ids: %v", err)
+		g.Log().Debugf(ctx, "sendEmailMock: failed to insert mailstat_message_ids: %v", err)
 	}
 
 	// 3. Create MailSendRecord record
@@ -1174,7 +1342,7 @@ func (e *TaskExecutor) sendEmailMock(ctx context.Context, task *entity.EmailTask
 			"postfix_message_id": postfixMessageID,
 		})
 		if err != nil {
-			g.Log().Warningf(ctx, "sendEmailMock: failed to insert mailstat_opened: %v", err)
+			g.Log().Debugf(ctx, "sendEmailMock: failed to insert mailstat_opened: %v", err)
 		}
 
 		// If opened, simulate a 20% click rate
@@ -1188,7 +1356,7 @@ func (e *TaskExecutor) sendEmailMock(ctx context.Context, task *entity.EmailTask
 				"postfix_message_id": postfixMessageID,
 			})
 			if err != nil {
-				g.Log().Warningf(ctx, "sendEmailMock: failed to insert mailstat_clicked: %v", err)
+				g.Log().Debugf(ctx, "sendEmailMock: failed to insert mailstat_clicked: %v", err)
 			}
 		}
 	}

@@ -1,6 +1,7 @@
 package mail_services
 
 import (
+	"billionmail-core/internal/consts"
 	"billionmail-core/internal/service/public"
 	"context"
 	"github.com/gogf/gf/v2/frame/g"
@@ -29,7 +30,10 @@ func (c *ControllerV1) DeleteMailForward(ctx context.Context, req *v1.DeleteMail
 		res.SetError(gerror.New(public.LangCtx(ctx, "delete mail forward failed: {}", err.Error())))
 		return res, nil
 	}
-
+	_ = public.WriteLog(ctx, public.LogParams{
+		Type: consts.LOGTYPE.MailForward,
+		Log:  "Delete mail forward :" + req.Address + " successfully",
+	})
 	res.SetSuccess(public.LangCtx(ctx, "delete mail forward success"))
 	return res, nil
 }

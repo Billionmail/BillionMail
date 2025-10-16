@@ -3,6 +3,7 @@ package batch_mail
 import (
 	"billionmail-core/internal/service/public"
 	"context"
+	"database/sql"
 	"github.com/gogf/gf/v2/frame/g"
 
 	"billionmail-core/api/batch_mail/v1"
@@ -17,7 +18,7 @@ func (c *ControllerV1) ApiOverviewStats(ctx context.Context, req *v1.ApiOverview
 		CreateTime int
 	}{}
 	err = g.DB().Model("api_templates").Fields("id, create_time").Scan(&apiList)
-	if err != nil {
+	if err != nil && err != sql.ErrNoRows {
 		return nil, err
 	}
 

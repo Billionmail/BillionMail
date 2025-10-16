@@ -11,7 +11,7 @@ type SmtpForm = {
 	rtype: string
 	remark: string
 	smtp_name: string
-	sender_domain: string
+	sender_domains: string[]
 	relay_host: string
 	relay_port: number
 	auth_user: string
@@ -38,7 +38,7 @@ export const editSmtp = (params: Partial<SmtpForm> & { id: number }) => {
 }
 
 export const testSmtp = (params: {
-	sender_domain: string
+	sender_domains: string[]
 	relay_host: string
 	relay_port: number
 	auth_user: string

@@ -1,6 +1,7 @@
 package email_template
 
 import (
+	"billionmail-core/internal/consts"
 	"billionmail-core/internal/service/email_template"
 	"billionmail-core/internal/service/public"
 	"context"
@@ -33,6 +34,12 @@ func (c *ControllerV1) UpdateTemplate(ctx context.Context, req *v1.UpdateTemplat
 		res.SetError(gerror.New(public.LangCtx(ctx, "Failed to update template")))
 		return
 	}
+
+	_ = public.WriteLog(ctx, public.LogParams{
+		Type: consts.LOGTYPE.Template,
+		Log:  "Update template :" + req.TempName + " successfully",
+		Data: req,
+	})
 
 	res.SetSuccess(public.LangCtx(ctx, "Template updated successfully"))
 	return

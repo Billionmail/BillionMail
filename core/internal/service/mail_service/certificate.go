@@ -8,12 +8,14 @@ import (
 	"billionmail-core/internal/service/public"
 	"context"
 	"fmt"
+	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/text/gregex"
 	"github.com/gogf/gf/v2/util/gconv"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 )
 
 // Certificate manages SSL certificates for mail services
@@ -299,7 +301,7 @@ func (c *Certificate) updatePostfixVMailConfig(domain, csrPem, keyPem string) er
 	}
 
 	// Create SNI mapping table
-	if err := c.updatePostfixSNIMap("mail."+strings.TrimPrefix(domain, "mail."), vmailCert, vmailKey); err != nil {
+	if err := c.updatePostfixSNIMap(public.FormatMX(domain), vmailCert, vmailKey); err != nil {
 		return fmt.Errorf("failed to update SNI map: %v", err)
 	}
 
@@ -335,7 +337,7 @@ func (c *Certificate) updatePostfixSNIMap(domain, certPath, keyPath string) erro
 	}
 
 	// Rehash configuration
-	if _, err := c.dockerApiClient().ExecCommandByName(context.Background(), "billionmail-postfix-billionmail-1", []string{"postmap", "/etc/postfix/conf/vmail_ssl.map"}, "root"); err != nil {
+	if _, err := c.dockerApiClient().ExecCommandByName(context.Background(), consts.SERVICES.Postfix, []string{"postmap", "/etc/postfix/conf/vmail_ssl.map"}, "root"); err != nil {
 		return fmt.Errorf("failed to hash postfix config: %v", err)
 	}
 
@@ -440,7 +442,7 @@ func (c *Certificate) updateConfigLine(config, key, value string) string {
 // restartPostfix restarts Postfix service
 func (c *Certificate) restartPostfix() error {
 	// Restart Postfix container
-	if err := c.dockerApiClient().RestartContainerByName(context.Background(), "billionmail-postfix-billionmail-1"); err != nil {
+	if err := c.dockerApiClient().RestartContainerByName(context.Background(), consts.SERVICES.Postfix); err != nil {
 		return fmt.Errorf("failed to restart postfix container: %v", err)
 	}
 
@@ -450,7 +452,7 @@ func (c *Certificate) restartPostfix() error {
 // restartDovecot restarts Dovecot service
 func (c *Certificate) restartDovecot() error {
 	// Restart Dovecot container
-	if err := c.dockerApiClient().RestartContainerByName(context.Background(), "billionmail-dovecot-billionmail-1"); err != nil {
+	if err := c.dockerApiClient().RestartContainerByName(context.Background(), consts.SERVICES.Dovecot); err != nil {
 		return fmt.Errorf("failed to restart dovecot container: %v", err)
 	}
 
@@ -468,7 +470,63 @@ func (c *Certificate) GetSSLStatus(domain string) (bool, error) {
 
 // GetSSLInfo retrieves SSL certificate information
 func (c *Certificate) GetSSLInfo(domain string) (certInfo v1.CertInfo, err error) {
-	// Check Postfix certificate
+	// First try to get certificate from database (acme managed certificates)
+
+	certInfo, err = c.getSSLInfoFromDatabase(domain)
+	if err == nil && certInfo.Endtime > 0 {
+		return // Successfully got certificate info from database
+	}
+
+	// Fallback to file system (legacy certificates)
+	return c.getSSLInfoFromFiles(domain)
+}
+
+// getSSLInfoFromDatabase retrieves SSL certificate from database
+func (c *Certificate) getSSLInfoFromDatabase(domain string) (certInfo v1.CertInfo, err error) {
+	// Query certificate from letsencrypts table
+	var cert struct {
+		Certificate string `json:"certificate"`
+		PrivateKey  string `json:"private_key"`
+		Endtime     int    `json:"endtime"`
+		Status      int    `json:"status"`
+		Subject     string `json:"subject"`
+		Issuer      string `json:"issuer"`
+		NotAfter    string `json:"not_after"`
+		NotBefore   string `json:"not_before"`
+		Dns         string `json:"dns"`
+	}
+
+	err = g.DB().Model("letsencrypts").
+		Where("dns::jsonb ? $1", public.FormatMX(domain)).
+		Where("status = 1").
+		Where("endtime > ?", time.Now().Unix()).
+		Order("endtime desc").
+		Limit(1).
+		Scan(&cert)
+
+	if err != nil {
+		return certInfo, fmt.Errorf("certificate not found in database: %v", err)
+	}
+
+	if cert.Certificate == "" {
+		return certInfo, fmt.Errorf("certificate content is empty in database")
+	}
+
+	// Parse certificate information
+	err = gconv.Struct(acme.GetCertInfo(cert.Certificate), &certInfo)
+	if err != nil {
+		return certInfo, fmt.Errorf("failed to parse certificate info: %v", err)
+	}
+
+	// Set certificate content
+	certInfo.CertPem = cert.Certificate
+	certInfo.KeyPem = cert.PrivateKey
+
+	return certInfo, nil
+}
+
+// getSSLInfoFromFiles retrieves SSL certificate from file system (legacy method)
+func (c *Certificate) getSSLInfoFromFiles(domain string) (certInfo v1.CertInfo, err error) {
 	csrPath := filepath.Join(consts.SSL_PATH, domain, "/fullchain.pem")
 	keyPath := filepath.Join(consts.SSL_PATH, domain, "/privkey.pem")
 

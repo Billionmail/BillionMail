@@ -37,11 +37,11 @@ let editorInstance: editor.IStandaloneCodeEditor | null = null
 
 const loading = ref(false)
 
-monacoLoader.config({
-	paths: {
-		vs: `${location.origin}/static/plugin/monaco/min/vs`,
-	},
-})
+// monacoLoader.config({
+// 	paths: {
+// 		vs: `${location.origin}/static/plugin/monaco`,
+// 	},
+// })
 
 // 初始化编辑器
 const initEditor = async () => {

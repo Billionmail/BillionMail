@@ -21,39 +21,100 @@ func (c *ControllerV1) ListTasks(ctx context.Context, req *v1.ListTasksReq) (res
 	}
 
 	task_list := make([]*v1.TaskDetail, len(tasks))
+
+	// Collect all tag IDs and group IDs from all tasks for batch loading
+	allTagIds := make(map[int]bool)
+	allGroupIds := make(map[int]bool)
+
+	for _, task := range tasks {
+		// Collect group IDs
+		if task.GroupId > 0 {
+			allGroupIds[task.GroupId] = true
+		}
+
+		// Collect tag IDs from TagIdsRaw field
+		if task.TagIdsRaw != "" {
+			tagIds := batch_mail.GetTaskTagIds(task.TagIdsRaw)
+			for _, tagId := range tagIds {
+				allTagIds[tagId] = true
+			}
+		}
+	}
+
+	// Convert map keys to slices for batch loading
+	var tagIdsToFetch []int
+	for tagId := range allTagIds {
+		tagIdsToFetch = append(tagIdsToFetch, tagId)
+	}
+
+	var groupIdsToFetch []int
+	for groupId := range allGroupIds {
+		groupIdsToFetch = append(groupIdsToFetch, groupId)
+	}
+
+	// Batch load all tags
+	var allTags []v1.TagInfo
+	if len(tagIdsToFetch) > 0 {
+		allTags, err = batch_mail.GetTagsByIds(ctx, tagIdsToFetch)
+		if err != nil {
+			g.Log().Warningf(ctx, "Failed to load tags: %v", err)
+			allTags = []v1.TagInfo{}
+		}
+	}
+
+	// Batch load all group names
+	var groupNameMap map[int]string
+	if len(groupIdsToFetch) > 0 {
+		groupNameMap, err = batch_mail.GetGroupsByIds(ctx, groupIdsToFetch)
+		if err != nil {
+			g.Log().Warningf(ctx, "Failed to load group names: %v", err)
+			groupNameMap = make(map[int]string)
+		}
+	} else {
+		groupNameMap = make(map[int]string)
+	}
+
+	// Create tag lookup map
+	tagMap := make(map[int]v1.TagInfo)
+	for _, tag := range allTags {
+		tagMap[tag.Id] = tag
+	}
+
 	for i, task := range tasks {
 		detail := &v1.TaskDetail{
 			EmailTask: *task,
 		}
 
-		stats := GetTaskStats(ctx, int64(task.Id))
-		if stats != nil {
-
-			detail.SentCount = stats["sends"].(int)
-			detail.SuccessCount = stats["delivered"].(int)
-			detail.Deferred = stats["deferred"].(int)
-
-			detail.ErrorCount = stats["bounced"].(int) + stats["deferred"].(int)
-
-			//detail.DeliveryRate = stats["delivery_rate"].(float64)
-			//detail.BounceRate = stats["bounce_rate"].(float64)
-			//detail.OpenRate = stats["open_rate"].(float64)
-			//detail.ClickRate = stats["click_rate"].(float64)
-			//detail.Opened = stats["opened"].(int)
-			//detail.Clicked = stats["clicked"].(int)
+		// Set group name
+		if groupName, exists := groupNameMap[task.GroupId]; exists {
+			detail.GroupName = groupName
 		}
+
+		// Load and populate tags for this task
+		if task.TagIdsRaw != "" {
+			tagIds := batch_mail.GetTaskTagIds(task.TagIdsRaw)
+			detail.Tags = make([]v1.TagInfo, 0, len(tagIds))
+			for _, tagId := range tagIds {
+				if tag, exists := tagMap[tagId]; exists {
+					detail.Tags = append(detail.Tags, tag)
+				}
+			}
+		} else {
+			detail.Tags = []v1.TagInfo{}
+		}
+
+		detail.SentCount = task.SendsCount
+		detail.SuccessCount = task.DeliveredCount
+		detail.Deferred = task.DeferredCount
+		detail.ErrorCount = task.BouncedCount + task.DeferredCount
 
 		sentCount := detail.SentCount
 
-		//sentCount, _ := batch_mail.GetSentCount(ctx, task.Id)
-		//detail.SentCount = sentCount
-
-		// Fix: Check if recipient_count is valid
 		if task.RecipientCount <= 0 {
 
 			actualCount, err := batch_mail.GetActualRecipientCount(ctx, task.Id)
 			if err == nil && actualCount > 0 {
-				// Update the recipient count in the database
+
 				_ = batch_mail.UpdateRecipientCount(ctx, task.Id, actualCount)
 				detail.RecipientCount = actualCount
 				task.RecipientCount = actualCount
@@ -66,32 +127,19 @@ func (c *ControllerV1) ListTasks(ctx context.Context, req *v1.ListTasksReq) (res
 		} else {
 			// If still inconsistent, set unsent count to 0
 			detail.UnsentCount = 0
-			g.Log().Warning(ctx, "Task %d has inconsistent data: recipient_count(%d) < sent_count(%d)",
+			g.Log().Infof(ctx, "Task %d has inconsistent data: recipient_count(%d) < sent_count(%d)",
 				task.Id, task.RecipientCount, sentCount)
 		}
 
-		// Calculate progress with safeguards against division by zero
 		if task.RecipientCount > 0 {
 			detail.Progress = int(float64(sentCount) / float64(task.RecipientCount) * 100)
-			// Ensure progress is between 0 and 100
-			if detail.Progress > 100 {
+			if detail.Progress > 100 || detail.Progress >= 98 {
 				detail.Progress = 100
 			}
 		} else {
 			// Default progress for tasks with no recipients
 			detail.Progress = 0
 		}
-
-		// Get success and error counts
-		//successCount, errorCount, err := batch_mail.GetTaskSendingStats(ctx, task.Id)
-		//if err == nil {
-		//	detail.SuccessCount = successCount
-		//	detail.ErrorCount = errorCount
-		//} else {
-		//	detail.SuccessCount = 0
-		//	detail.ErrorCount = 0
-		//	g.Log().Error(ctx, "Failed to get sending statistics: ", err)
-		//}
 
 		task_list[i] = detail
 	}
@@ -100,68 +148,4 @@ func (c *ControllerV1) ListTasks(ctx context.Context, req *v1.ListTasksReq) (res
 	res.Data.List = task_list
 	res.SetSuccess(public.LangCtx(ctx, "Task list retrieved successfully"))
 	return
-}
-
-func GetTaskStats(ctx context.Context, taskId int64) map[string]interface{} {
-	query := g.DB().Model("mailstat_send_mails sm")
-
-	query = query.LeftJoin("mailstat_message_ids mi", "sm.postfix_message_id=mi.postfix_message_id")
-	query = query.LeftJoin("recipient_info ri", "mi.message_id=ri.message_id")
-
-	query = query.Where("ri.task_id = ?", taskId)
-
-	query.Fields(
-		"count(*) as sends",
-		"coalesce(sum(case when sm.status='sent' and sm.dsn like '2.%' then 1 else 0 end), 0) as delivered", // success count
-		"coalesce(sum(case when sm.status='bounced' then 1 else 0 end), 0) as bounced",                      // bounced count
-		"coalesce(sum(case when sm.status='deferred' then 1 else 0 end), 0) as deferred",                    // deferred
-	)
-
-	result, err := query.One()
-	if err != nil {
-		g.Log().Error(ctx, err)
-		return nil
-	}
-
-	sends := result["sends"].Int()
-	delivered := result["delivered"].Int()
-	bounced := result["bounced"].Int()
-	deferred := result["deferred"].Int()
-	//if deferred != 0 {
-	//	g.Log().Warning(ctx, " task {} deferred: {}", taskId, deferred)
-	//}
-
-	//// 通过campaign_id查打开和点击
-	//campaignId := int(taskId)
-	//openedCount, _ := g.DB().Model("mailstat_opened").
-	//	Where("campaign_id", campaignId).
-	//	Fields("count(distinct postfix_message_id) as opened").
-	//	Value()
-	//clickedCount, _ := g.DB().Model("mailstat_clicked").
-	//	Where("campaign_id", campaignId).
-	//	Fields("count(distinct postfix_message_id) as clicked").
-	//	Value()
-
-	stats := map[string]interface{}{
-		"sends":     sends,
-		"delivered": delivered,
-		"deferred":  deferred,
-		//"opened":    openedCount.Int(),
-		//"clicked":   clickedCount.Int(),
-		"bounced": bounced,
-	}
-
-	if sends > 0 {
-		stats["delivery_rate"] = public.Round(float64(delivered)/float64(sends)*100, 2)
-		stats["bounce_rate"] = public.Round(float64(bounced)/float64(sends)*100, 2)
-		//stats["open_rate"] = public.Round(float64(stats["opened"].(int))/float64(sends)*100, 2)
-		//stats["click_rate"] = public.Round(float64(stats["clicked"].(int))/float64(sends)*100, 2)
-	} else {
-		stats["delivery_rate"] = 0.0
-		stats["bounce_rate"] = 0.0
-		//stats["open_rate"] = 0.0
-		//stats["click_rate"] = 0.0
-	}
-
-	return stats
 }

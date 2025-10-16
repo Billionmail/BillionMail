@@ -25,7 +25,8 @@
 				:key="service.id"
 				:service="service"
 				@edit="handleEdit"
-				@delete="handleDelete">
+				@delete="handleDelete"
+				@show-dns="handleShowDns">
 			</SmtpCard>
 		</div>
 		<div v-else class="flex-center h-400px text-center text-desc">
@@ -33,6 +34,7 @@
 		</div>
 
 		<form-modal></form-modal>
+		<smtp-dns-modal></smtp-dns-modal>
 	</div>
 </template>
 
@@ -45,6 +47,7 @@ import type { SmtpService } from './types/base'
 
 import SmtpCard from './components/SmtpCard.vue'
 import SmtpForm from './components/SmtpForm.vue'
+import SmtpDns from './components/SmtpDns.vue'
 import SmtpLoading from './components/SmtpLoading.vue'
 
 const { t } = useI18n()
@@ -112,6 +115,22 @@ const handleEdit = (service: SmtpService) => {
 		row: service,
 	})
 	formModalApi.open()
+}
+
+const [SmtpDnsModal, smtpDnsModalApi] = useModal({
+	component: SmtpDns,
+	state: {
+		isEdit: false,
+		type: 'custom',
+		refresh: getCardList,
+	},
+})
+
+const handleShowDns = (service: SmtpService) => {
+	smtpDnsModalApi.setState({
+		smtp: service,
+	})
+	smtpDnsModalApi.open()
 }
 
 const handleDelete = (service: SmtpService) => {

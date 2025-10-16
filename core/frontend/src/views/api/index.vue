@@ -17,7 +17,7 @@
 						<n-select
 							v-model:value="tableParams.active"
 							:options="activeOptions"
-							@update:value="refreshTable">
+							@update:value="() => fetchTable(true)">
 						</n-select>
 					</div>
 				</div>
@@ -27,12 +27,12 @@
 						<n-input
 							v-model:value="tableParams.keyword"
 							:placeholder="$t('api.searchPlaceholder')"
-							@keyup.enter="refreshTable">
+							@keyup.enter="() => fetchTable(true)">
 						</n-input>
 					</div>
 				</div>
 				<div class="flex gap-8px">
-					<n-button type="primary" ghost @click="refreshTable">
+					<n-button type="primary" ghost @click="() => fetchTable(true)">
 						{{ $t('common.actions.refresh') }}
 					</n-button>
 					<n-button type="primary" ghost @click="handleRefreshData">
@@ -53,10 +53,10 @@
 				</bt-help>
 			</template>
 			<template #table>
-				<n-data-table v-bind="tableConfig" :columns="columns"></n-data-table>
+				<n-data-table v-bind="tableProps" :columns="columns"></n-data-table>
 			</template>
 			<template #pageRight>
-				<bt-table-page v-bind="pageConfig" @refresh="refreshTable"> </bt-table-page>
+				<bt-table-page v-bind="pageProps" @refresh="fetchTable"> </bt-table-page>
 			</template>
 			<template #modal>
 				<form-modal></form-modal>
@@ -72,7 +72,7 @@ import { confirm } from '@/utils'
 import { useDataTable } from '@/hooks/useDataTable'
 import { useModal } from '@/hooks/modal/useModal'
 import { deleteApi, getApiList } from '@/api/modules/api'
-import type { Api } from './types/base'
+import type { Api, ApiParams } from './types/base'
 
 import ApiOverview from './components/Overview.vue'
 import ApiKey from './components/ApiKey.vue'
@@ -164,7 +164,6 @@ const columns = ref<DataTableColumns<Api>>([
 		render: row => (
 			<NFlex inline={true}>
 				<NButton
-					v-show={false}
 					type="primary"
 					text={true}
 					onClick={() => {
@@ -193,7 +192,7 @@ const columns = ref<DataTableColumns<Api>>([
 	},
 ])
 
-const { tableParams, tableConfig, pageConfig, refreshTable } = useDataTable<Api>({
+const { tableParams, tableProps, pageProps, fetchTable } = useDataTable<Api, ApiParams>({
 	params: {
 		page: 1,
 		page_size: 10,
@@ -217,14 +216,14 @@ const { tableParams, tableConfig, pageConfig, refreshTable } = useDataTable<Api>
 
 const handleRefreshData = async () => {
 	overviewRef.value?.getStats()
-	refreshTable()
+	fetchTable()
 }
 
 const [FormModal, formModalApi] = useModal({
 	component: ApiForm,
 	state: {
 		isEdit: false,
-		refresh: refreshTable,
+		refresh: fetchTable,
 	},
 })
 
@@ -262,12 +261,12 @@ const handleDelete = (row: Api) => {
 		content: t('api.confirmDelete.content'),
 		onConfirm: async () => {
 			await deleteApi({ id: row.id })
-			refreshTable()
+			fetchTable()
 		},
 	})
 }
 
 onMounted(() => {
-	refreshTable()
+	fetchTable()
 })
 </script>

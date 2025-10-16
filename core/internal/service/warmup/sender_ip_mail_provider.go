@@ -149,7 +149,7 @@ func (s *SenderIpMailProviderService) EvaluateScoreForProvider(ctx context.Conte
 	deferredSends := 0
 	openedCount := 0
 	clickedCount := 0
-	// complaintCount := 0 // TODO: Complaint rate
+	complaintCount := 0
 
 	if len(relevantPmids) > 0 {
 		// 1. Get sending statistics (mailstat_send_mails)
@@ -207,6 +207,14 @@ func (s *SenderIpMailProviderService) EvaluateScoreForProvider(ctx context.Conte
 			Where("log_time_millis >= ?", evaluationWindowStartMillis).
 			Fields("DISTINCT postfix_message_id").
 			Count()
+
+		// Get complaintCount (FBL/abuse complaints)
+		complaintCount, _ = g.DB().Model("mailstat_complaints").
+			Ctx(ctx).
+			WhereIn("postfix_message_id", relevantPmids).
+			Where("log_time_millis >= ?", evaluationWindowStartMillis).
+			Fields("DISTINCT postfix_message_id").
+			Count()
 	}
 
 	currentScore := float64(providerStatus.Score)
@@ -217,13 +225,13 @@ func (s *SenderIpMailProviderService) EvaluateScoreForProvider(ctx context.Conte
 	} else if totalSent < minSendVolumeForProviderScoring && totalSent > 0 {
 		switch {
 		case hardBounces > 0:
-			currentScore -= 20 // Hard bounce penalty
+			currentScore -= 0.2 // Hard bounce penalty
 		case softBounces > 0:
-			currentScore -= 10 // Soft bounce penalty
+			currentScore -= 0.1 // Soft bounce penalty
 		case successfulSends > 0:
-			currentScore += 3 // Reward for successful sending
+			currentScore += 0.3 // Reward for successful sending
 		default:
-			currentScore -= 8 // Penalty for no sending records
+			currentScore -= 0.8 // Penalty for no sending records
 		}
 	} else if totalSent >= minSendVolumeForProviderScoring {
 		successRate := float64(successfulSends) / float64(totalSent)
@@ -231,10 +239,10 @@ func (s *SenderIpMailProviderService) EvaluateScoreForProvider(ctx context.Conte
 		softBounceRate := float64(softBounces) / float64(totalSent)
 		deferredRate := float64(deferredSends) / float64(totalSent) // deferredSends comes from overall statistics and needs adjustment
 
-		currentScore += (successRate - 0.85) * 40 // 85% success rate benchmark, affects 40 points
-		currentScore -= hardBounceRate * 150      // Higher penalty coefficient for hard bounces
-		currentScore -= softBounceRate * 70
-		currentScore -= deferredRate * 25 // Latency also affects provider score
+		currentScore += math.Max(0, successRate-0.85) * 40 // 85% success rate benchmark, affects 40 points
+		currentScore -= hardBounceRate * 1.5               // Higher penalty coefficient for hard bounces
+		currentScore -= softBounceRate * 0.7
+		currentScore -= deferredRate * 0.25 // Latency also affects provider score
 
 		if successfulSends > 0 {
 			openRate := float64(openedCount) / float64(successfulSends)
@@ -243,8 +251,15 @@ func (s *SenderIpMailProviderService) EvaluateScoreForProvider(ctx context.Conte
 				clickRate := float64(clickedCount) / float64(openedCount)
 				currentScore += clickRate * 20 // 2.5% click rate benchmark
 			}
+
+			// Complaint rate penalty
+			complaintRate := 0.0
+			if complaintCount > 0 {
+				complaintRate = float64(complaintCount) / float64(successfulSends)
+				// Penalty: each 0.1% complaint rate reduces score by 2 points (tunable)
+				currentScore -= complaintRate * 200
+			}
 		}
-		// TODO: complaintRate (complaintCount / successfulSends)
 	} else { // totalSent == 0 for this provider group
 		var warmupStatus *entity.SenderIpWarmup
 		warmupStatus, err = s.ipWarmupService.InitializeOrGetWarmupStatus(ctx, senderIp)
@@ -287,15 +302,15 @@ func (s *SenderIpMailProviderService) GetSendingRateFactorForProvider(ctx contex
 	minScore := float64(minScoreForSendingProvider)
 	score := float64(providerStatus.Score)
 
-	if score < minScore {
-		g.Log().Debugf(ctx, "GetSendingRateFactorForProvider: IP %s, Group %s PAUSED (Score %d < %d)", senderIp, mailProviderGroup, providerStatus.Score, int(minScore))
-		return 0.0, nil // Score is too low, pause sending to this provider group.
-	}
+	//if score < minScore {
+	//	g.Log().Debugf(ctx, "GetSendingRateFactorForProvider: IP %s, Group %s PAUSED (Score %d < %d)", senderIp, mailProviderGroup, providerStatus.Score, int(minScore))
+	//	return 0.0, nil // Score is too low, pause sending to this provider group.
+	//}
 
 	// Linearly map the score from minScore-100 to a rate factor of 0.1-1.0.
 	// Even at the lowest allowed score, a 10% rate is maintained.
 	factor := 0.1 + (score-minScore)/(100.0-minScore)*0.9
-	rateFactor = math.Max(0, math.Min(1, factor)) // Ensure the factor is between 0 and 1.
+	rateFactor = math.Max(0.05, math.Min(1, factor)) // Ensure the factor is between 0.05 and 1.
 
 	g.Log().Debugf(ctx, "GetSendingRateFactorForProvider: IP %s, Group %s (Prov Score %d) -> Rate Factor: %.3f", senderIp, mailProviderGroup, providerStatus.Score, rateFactor)
 	return rateFactor, nil

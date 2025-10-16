@@ -47,7 +47,6 @@ import type { Task, TaskParams } from './interface'
 
 import TaskDetail from './components/TaskDetail.vue'
 import TaskStatus from './components/TaskStatus.vue'
-
 const { t } = useI18n()
 
 const { loading, tableParams, tableList, tableTotal, getTableData } = useTableData<
@@ -199,7 +198,7 @@ const columns = ref<DataTableColumns<Task>>([
 		title: t('common.columns.actions'),
 		key: 'actions',
 		align: 'right',
-		width: 220,
+		width: 250,
 		render: row => (
 			<NFlex inline={true}>
 				{row.task_process !== 2 && (
@@ -214,6 +213,16 @@ const columns = ref<DataTableColumns<Task>>([
 							: t('market.task.actions.pause')}
 					</NButton>
 				)}
+				{row.task_process === 3 && (
+					<NButton
+						type="primary"
+						text={true}
+						onClick={() => {
+							handleEdit(row)
+						}}>
+						{t('common.actions.edit')}
+					</NButton>
+				)}
 				<NButton
 					type="primary"
 					text={true}
@@ -222,13 +231,23 @@ const columns = ref<DataTableColumns<Task>>([
 					}}>
 					{t('market.task.actions.analytics')}
 				</NButton>
+				{row.task_process === 2 && (
+					<NButton
+						type="primary"
+						text={true}
+						onClick={() => {
+							handleDetail(row)
+						}}>
+						{t('market.task.actions.detail')}
+					</NButton>
+				)}
 				<NButton
 					type="primary"
 					text={true}
 					onClick={() => {
-						handleDetail(row)
+						handleCopy(row)
 					}}>
-					{t('market.task.actions.detail')}
+					{t('common.actions.copy')}
 				</NButton>
 				<NButton
 					type="error"
@@ -253,6 +272,11 @@ const handleAdd = () => {
 // 前往分析
 const handleGoAnalytics = (row: Task) => {
 	router.push(`/market/task/analytics/${row.id}`)
+}
+
+// 复制任务
+const handleCopy = (row: Task) => {
+	router.push(`/market/task/edit?task_id=${row.id}`)
 }
 
 // 暂停/发送任务
@@ -306,6 +330,10 @@ const handleDelete = (row: Task) => {
 			getTableData()
 		},
 	})
+}
+
+const handleEdit = (row: Task) => {
+	router.push(`/market/task/edit?task_id=${row.id}&type=edit`)
 }
 </script>
 

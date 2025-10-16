@@ -18,8 +18,14 @@
 		<div class="smtp-info">
 			<div class="info-row">
 				<span class="info-label">{{ $t('smtp.card.domain') }}：</span>
-				<span class="info-value truncate">
-					<n-ellipsis>{{ service.sender_domain }}</n-ellipsis>
+				<span class="info-value flex flex-wrap gap-8px">
+					<n-tag v-for="domain in service.sender_domains" :key="domain" :bordered="false">{{ domain }}</n-tag>
+					<n-tag v-if="service.check_spf === 1" type="warning" class="cursor-pointer" :bordered="false" @click="handleShowDns">
+						<div class="flex items-center gap-4px">
+							<i class="i-carbon:warning-filled text-16px"></i>
+							<span>{{ $t('smtp.card.dnsUpdateRequired') }}</span>
+						</div>
+					</n-tag>
 				</span>
 			</div>
 			<div class="info-row">
@@ -38,6 +44,7 @@
 			</div>
 		</div>
 		<div class="action-buttons">
+			
 			<n-button secondary class="action-btn" @click="handleEdit">
 				<template #icon>
 					<i class="i-mdi-edit"></i>
@@ -72,7 +79,8 @@ const { service } = defineProps({
 
 const emit = defineEmits<{
 	edit: [service: SmtpService],
-	delete: [service: SmtpService]
+	delete: [service: SmtpService],
+	showDns: [service: SmtpService]
 }>()
 
 const iconSrc = computed(() => {
@@ -100,6 +108,10 @@ const handleEdit = () => {
 
 const handleDelete = () => {
 	emit('delete', service)
+}
+
+const handleShowDns = () => {
+	emit('showDns', service)
 }
 
 const handleUpdateActive = async (val: number) => {

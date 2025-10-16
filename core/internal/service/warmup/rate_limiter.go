@@ -106,7 +106,7 @@ func (s *RateLimiterService) Allow(ctx context.Context, senderIp string, recipie
 	}
 
 	if dailyLimit <= 0 || hourlyLimit <= 0 {
-		g.Log().Warningf(ctx, "RateLimiter: Sending denied for IP %s, Group %s because limits are zero (Daily: %d, Hourly: %d)", senderIp, mailProviderGroup, dailyLimit, hourlyLimit)
+		g.Log().Debugf(ctx, "RateLimiter: Sending denied for IP %s, Group %s because limits are zero (Daily: %d, Hourly: %d)", senderIp, mailProviderGroup, dailyLimit, hourlyLimit)
 		return
 	}
 

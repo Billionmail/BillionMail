@@ -3,6 +3,7 @@ package cmd
 import (
 	"billionmail-core/internal/consts"
 	"billionmail-core/internal/controller/abnormal_recipient"
+	"billionmail-core/internal/controller/askai"
 	"billionmail-core/internal/controller/batch_mail"
 	"billionmail-core/internal/controller/campaign"
 	"billionmail-core/internal/controller/contact"
@@ -13,10 +14,14 @@ import (
 	"billionmail-core/internal/controller/languages"
 	"billionmail-core/internal/controller/mail_boxes"
 	"billionmail-core/internal/controller/mail_services"
+	"billionmail-core/internal/controller/middleware"
+	"billionmail-core/internal/controller/operation_log"
 	"billionmail-core/internal/controller/overview"
 	"billionmail-core/internal/controller/rbac"
 	"billionmail-core/internal/controller/relay"
 	"billionmail-core/internal/controller/settings"
+	"billionmail-core/internal/controller/subscribe_list"
+	"billionmail-core/internal/controller/tags"
 	"billionmail-core/internal/service/database_initialization"
 	docker "billionmail-core/internal/service/dockerapi"
 	"billionmail-core/internal/service/maillog_stat"
@@ -28,18 +33,19 @@ import (
 	"billionmail-core/internal/service/rspamd"
 	"billionmail-core/internal/service/timers"
 	"context"
+	"crypto/tls"
 	"fmt"
+	"net/http"
+	"net/http/httputil"
+	"net/url"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/net/ghttp"
 	"github.com/gogf/gf/v2/os/gcmd"
 	"github.com/gogf/gf/v2/util/gconv"
-	"net/http"
-	"net/http/httputil"
-	"net/url"
-	"path/filepath"
-	"strings"
-	"sync"
-	"time"
 )
 
 var (
@@ -94,7 +100,7 @@ var (
 
 			defer dk.Close()
 
-			containerName := "billionmail-core-billionmail-1"
+			containerName := consts.SERVICES.Core
 			container, err := dk.GetContainerByName(ctx, containerName)
 			if err == nil {
 				if container.Labels != nil {
@@ -106,6 +112,9 @@ var (
 					}
 				}
 			}
+
+			// Operation log type
+			public.LogTypeMap = consts.GetLogTypeMap()
 
 			// Init Rspamd worker-controller
 			err = rspamd.InitWorkerController()
@@ -122,16 +131,26 @@ var (
 			// s.SetSessionStorage(gsession.NewStorageRedis(g.Redis()))
 
 			// ip whitelist middleware
-			//s.Use(middleware.IPWhitelist)
+			s.Use(middleware.IPWhitelist)
 
 			// Define excluded URIs
 			excludesURIs := map[string]struct{}{
-				"/favicon.ico":                {},
-				"/robots.txt":                 {},
-				"/unsubscribe.html":           {},
-				"/api/unsubscribe/user_group": {},
-				"/api/unsubscribe":            {},
-				"/api/batch_mail/api/send":    {},
+				"/favicon.ico":                   {},
+				"/robots.txt":                    {},
+				"/unsubscribe.html":              {},
+				"/unsubscribe_new.html":          {},
+				"/api/unsubscribe/user_group":    {},
+				"/api/unsubscribe":               {},
+				"/api/unsubscribe_new":           {},
+				"/api/batch_mail/api/send":       {},
+				"/api/batch_mail/api/batch_send": {},
+				"/api/subscribe/confirm":         {},
+				"/api/subscribe/submit":          {},
+				"/api/languages/get":             {},
+				"/already_subscribed.html":       {},
+				"/subscribe_confirm.html":        {},
+				"/subscribe_form.html":           {},
+				"/subscribe_success.html":        {},
 			}
 
 			// Bind Server Hooks
@@ -163,6 +182,10 @@ var (
 
 						if !r.Session.MustGet("safe_path_pass", false).Bool() {
 							if strings.HasPrefix(r.URL.Path, "/api/") {
+								// Check if the request is an API token request
+								if claims, err := rbac2.JWT().ParseTokenByRequest(r); err == nil && claims != nil && claims.ApiToken {
+									return
+								}
 								resp := public.CodeMap[404]
 								resp.Msg = "access denied"
 								r.Response.WriteJson(resp)
@@ -233,6 +256,10 @@ var (
 					mail_services.NewV1(),
 					relay.NewV1(),
 					settings.NewV1(),
+					subscribe_list.NewV1(),
+					operation_log.NewV1(),
+					askai.NewV1(),
+					tags.NewV1(),
 				)
 			})
 
@@ -273,7 +300,7 @@ var (
 			var rspamdProxy *httputil.ReverseProxy
 			rspamdProxyMutex := sync.Mutex{}
 			s.BindHandler("/rspamd/*any", func(r *ghttp.Request) {
-				if !r.Session.MustGet("UserLogin", false).Bool() {
+				if _, err := rbac2.JWT().ParseToken(r.Session.MustGet("SignedToken", "").String()); err != nil {
 					r.Response.WriteHeader(403)
 					r.Response.Write([]byte("Access denied"))
 					return
@@ -351,7 +378,52 @@ var (
 			public.SelfSignedCert().Generate()
 
 			// Enable HTTPS
-			s.EnableHTTPS(public.AbsPath(filepath.Join(consts.SSL_PATH, "cert.pem")), public.AbsPath(filepath.Join(consts.SSL_PATH, "key.pem")))
+			defaultCrtPair, _ := tls.LoadX509KeyPair(public.AbsPath(consts.SSL_PATH, "cert.pem"), public.AbsPath(consts.SSL_PATH, "key.pem"))
+			crtMap := make(map[string]*tls.Certificate)
+			crtMapMutex := sync.RWMutex{}
+			s.EnableHTTPS(public.AbsPath(consts.SSL_PATH, "cert.pem"), public.AbsPath(consts.SSL_PATH, "key.pem"), &tls.Config{
+				GetCertificate: func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
+					domain := info.ServerName
+
+					crtMapMutex.RLock()
+					if crtPair, ok := crtMap[domain]; ok {
+						crtMapMutex.RUnlock()
+						return crtPair, nil
+					}
+					crtMapMutex.RUnlock()
+
+					if exists, _ := g.DB().Model("domain").Where("a_record", public.FormatMX(domain)).Exist(); !exists {
+						return &defaultCrtPair, nil
+					}
+
+					g.Log().Debug(ctx, "Get TLS certificate for domain", domain)
+
+					crtMapMutex.Lock()
+					defer crtMapMutex.Unlock()
+
+					if crt, ok := crtMap[domain]; ok {
+						return crt, nil
+					}
+
+					crtPath := public.AbsPath(consts.SSL_PATH, public.FormatMX(domain), "fullchain.pem")
+					keyPath := public.AbsPath(consts.SSL_PATH, public.FormatMX(domain), "privkey.pem")
+
+					if !public.FileExists(crtPath) || !public.FileExists(keyPath) {
+						return &defaultCrtPair, nil
+					}
+
+					crtPair, err := tls.LoadX509KeyPair(crtPath, keyPath)
+
+					if err != nil {
+						g.Log().Warning(ctx, "Failed to load TLS certificate for domain", domain, err)
+						return &defaultCrtPair, nil
+					}
+
+					crtMap[domain] = &crtPair
+
+					return &crtPair, nil
+				},
+			})
 
 			// attempt add http port
 			if httpPort, err := public.DockerEnv("HTTP_PORT"); err == nil && httpPort != "" {
@@ -364,19 +436,27 @@ var (
 				s.SetHTTPSPort(gconv.Int(httpsPort))
 			}
 
-			//s.SetHTTPSPort(82)
-			//s.SetPort(81)
+			var apiDocEnabled bool
+			err = public.OptionsMgrInstance.GetOption(ctx, "API_DOC_ENABLED", &apiDocEnabled)
+			if err != nil {
+				apiDocEnabled = false
+			}
+
+			if apiDocEnabled {
+				s.SetOpenApiPath("/api.json")
+				s.SetSwaggerPath("/swagger")
+			}
 
 			s.SetSwaggerUITemplate(`<!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <title>openAPI UI</title>
-  </head>
-  <body>
-    <div id="openapi-ui-container" spec-url="{SwaggerUIDocUrl}" theme="light"></div>
-    <script src="https://cdn.jsdelivr.net/npm/openapi-ui-dist@latest/lib/openapi-ui.umd.js"></script>
-  </body>
+ <head>
+   <meta charset="UTF-8" />
+   <title>openAPI UI</title>
+ </head>
+ <body>
+   <div id="openapi-ui-container" spec-url="{SwaggerUIDocUrl}" theme="light"></div>
+   <script src="https://cdn.jsdelivr.net/npm/openapi-ui-dist@latest/lib/openapi-ui.umd.js"></script>
+ </body>
 </html>`)
 
 			s.Run()

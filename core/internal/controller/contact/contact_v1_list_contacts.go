@@ -58,7 +58,7 @@ func (c *ControllerV1) ListContacts(ctx context.Context, req *v1.ListContactsReq
 	for email, contactInfo := range emailMap {
 		groups, err := contact.GetContactGroupsInfo(ctx, email, req.Status)
 		if err != nil {
-			g.Log().Warningf(ctx, "Failed to get groups for contact %s: %v", email, err)
+			g.Log().Debugf(ctx, "Failed to get groups for contact %s: %v", email, err)
 			continue
 		}
 

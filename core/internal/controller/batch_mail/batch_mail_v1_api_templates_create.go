@@ -2,6 +2,7 @@ package batch_mail
 
 import (
 	"billionmail-core/api/batch_mail/v1"
+	"billionmail-core/internal/consts"
 	"billionmail-core/internal/service/public"
 	"context"
 	"crypto/rand"
@@ -63,7 +64,6 @@ func (c *ControllerV1) ApiTemplatesCreate(ctx context.Context, req *v1.ApiTempla
 		"active":               req.Active,
 		"expire_time":          0,
 		"last_key_update_time": time.Now().Unix(),
-		//"ip_whitelist_enabled": req.IpWhitelistEnabled,
 	})
 
 	if err != nil {
@@ -101,6 +101,11 @@ func (c *ControllerV1) ApiTemplatesCreate(ctx context.Context, req *v1.ApiTempla
 	if err = tx.Commit(); err != nil {
 		return nil, err
 	}
+	_ = public.WriteLog(ctx, public.LogParams{
+		Type: consts.LOGTYPE.SendAPI,
+		Log:  "Create API template :" + req.ApiName + " successfully",
+		Data: req,
+	})
 
 	res.SetSuccess(public.LangCtx(ctx, "Create API successfully"))
 	return res, nil

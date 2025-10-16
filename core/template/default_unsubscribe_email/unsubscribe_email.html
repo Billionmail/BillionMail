@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>You're Unsubscribed</title>
+    <style>
+        p {
+            margin: 0;
+        }
+        body {
+            background: #f5f5f5;
+            margin: 0;
+            padding: 20px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .container {
+            max-width: 500px;
+            margin: 40px auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        .header {
+            text-align: center;
+            padding: 40px 30px 30px;
+            background: linear-gradient(135deg, #fef3f2, #fdf2f8);
+        }
+        .unsubscribe-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #dc2626, #b91c1c);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
+            box-shadow: 0 4px 15px rgba(220, 38, 38, 0.3);
+        }
+        .content {
+            padding: 32px 40px;
+            text-align: center;
+        }
+        .content h2 {
+            margin-top: 0;
+            margin-bottom: 32px;
+            color: #1f2937;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        .content p {
+            margin-top: 12px;
+            color: #6b7280;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .button {
+            display: inline-block;
+            background: #20a53a;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 500;
+            transition: background-color 0.2s ease;
+        }
+        .button:hover {
+            background: #18802a;
+        }
+        .footer {
+            text-align: center;
+            padding: 20px 30px 30px;
+            color: #9ca3af;
+            font-size: 12px;
+            background: #f9fafb;
+            border-top: 1px solid #f3f4f6;
+        }
+        .footer a {
+            color: #9ca3af;
+            text-decoration: underline;
+        }
+        .footer a:hover {
+            color: #6b7280;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <div class="unsubscribe-icon">
+            <svg t="1757406170819" viewBox="0 0 1092 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="8066" width="40" height="40">
+                <path
+                        d="M819.2 477.867c-150.187 0-273.067 122.88-273.067 273.066S669.013 1024 819.2 1024s273.067-122.88 273.067-273.067S969.387 477.867 819.2 477.867zM614.4 750.933c0-40.96 13.653-85.333 37.547-119.466l286.72 286.72c-92.16 64.853-218.454 44.373-286.72-47.787-23.894-34.133-37.547-75.093-37.547-119.467zM986.453 870.4l-286.72-286.72c92.16-64.853 218.454-44.373 286.72 47.787 51.2 71.68 51.2 167.253 0 238.933z"
+                        fill="#ffffff"
+                        p-id="8067"
+                ></path>
+                <path
+                        d="M477.867 614.4h-409.6v-512l477.866 314.027L1024 98.987V409.6h68.267V0H0v682.667h477.867V614.4z m68.266-279.893L143.36 68.267h805.547l-402.774 266.24z"
+                        fill="#ffffff"
+                        p-id="8068"
+                ></path>
+            </svg>
+        </div>
+    </div>
+    <div class="content">
+        <h2>You're Unsubscribed</h2>
+
+        <a href="{{ ResubscribeLink . }}" class="button">Resubscribe</a>
+
+        <p>If you unsubscribed by mistake, click the resubscribe button above to rejoin our mailing list.</p>
+    </div>
+    <div class="footer">
+        <div>
+            <span>Powered by </span>
+            <a href="https://www.billionmail.com/" target="_blank">BillionMail</a>
+        </div>
+    </div>
+</div>
+</body>
+</html>

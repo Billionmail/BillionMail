@@ -14,6 +14,7 @@ type EmailTemplate struct {
 	Render     string `json:"drag_data"      description:"Render Data"     orm:"render"`
 	CreateTime int    `json:"create_time" description:"Create Time"     orm:"create_time"`
 	UpdateTime int    `json:"update_time" description:"Update Time"     orm:"update_time"`
+	Chat_id    string `json:"chat_id"     description:"Exclusive AI Email"   orm:"chat_id"`
 }
 
 // CreateTemplateReq Create template request
@@ -21,9 +22,10 @@ type CreateTemplateReq struct {
 	g.Meta        `path:"/email_template/create" method:"post" tags:"EmailTemplate" summary:"Create email template"`
 	Authorization string `json:"authorization" dc:"Authorization" in:"header"`
 	TempName      string `json:"temp_name" v:"required" dc:"Template Name"`
-	AddType       int    `json:"add_type" v:"required|in:0,1" dc:"Add Type(0:HTML 1:Drag )"`
+	AddType       int    `json:"add_type" v:"required|in:0,1,2" dc:"Add Type(0:HTML 1:Drag 2:AI)"`
 	Content       string `json:"html_content" dc:"HTML Content(Required when add_type=0,1)"`
 	Render        string `json:"drag_data" dc:"Drag and Drop Render Data(Required when add_type=1)"`
+	Chat_id       string `json:"chat_id" dc:"Exclusive AI Email"`
 }
 
 type CreateTemplateRes struct {
@@ -65,7 +67,7 @@ type ListTemplatesReq struct {
 	Page          int    `json:"page" v:"required|min:1" dc:"Page Number"`
 	PageSize      int    `json:"page_size" v:"required|min:1" dc:"Page Size"`
 	Keyword       string `json:"keyword" dc:"Search Keyword(Template Name)"`
-	AddType       int    `json:"add_type" dc:"Add Type Filter(0:Upload 1:Drag and Drop -1:All)" default:"-1"`
+	AddType       int    `json:"add_type" dc:"Add Type Filter(0:Upload 1:Drag and Drop 2:AI -1:All)" default:"-1"`
 }
 
 type ListTemplatesRes struct {
@@ -81,6 +83,7 @@ type CopyTemplateReq struct {
 	g.Meta        `path:"/email_template/copy" method:"post" tags:"EmailTemplate" summary:"Copy email template"`
 	Authorization string `json:"authorization" dc:"Authorization" in:"header"`
 	Id            int    `json:"id" v:"required" dc:"Template ID"`
+	Chat_id       string `json:"chat_id" dc:"Exclusive AI Email"`
 }
 
 type CopyTemplateRes struct {

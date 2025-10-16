@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Unsubscribe Confirmation</title>
+    <style>
+        p {
+            margin: 0;
+        }
+        body {
+            background: #f5f5f5;
+            margin: 0;
+            padding: 20px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .container {
+            max-width: 500px;
+            margin: 40px auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        .header {
+            text-align: center;
+            padding: 40px 30px 30px;
+            background: linear-gradient(135deg, #fefce8, #fef3c7);
+        }
+        .confirm-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
+            box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
+        }
+        .content {
+            padding: 32px 40px;
+            text-align: center;
+        }
+        .content h2 {
+            margin-top: 0;
+            margin-bottom: 24px;
+            color: #1f2937;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        .content p {
+            margin-top: 12px;
+            color: #6b7280;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .content .warning {
+            color: #dc2626;
+            font-weight: 500;
+            margin: 20px 0;
+        }
+        .button-group {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            margin-top: 32px;
+        }
+        .button {
+            display: inline-block;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            border: none;
+        }
+        .button-confirm {
+            background: #dc2626;
+            color: white;
+        }
+        .button-confirm:hover {
+            background: #b91c1c;
+        }
+        .button-cancel {
+            background: #f3f4f6;
+            color: #4b5563;
+        }
+        .button-cancel:hover {
+            background: #e5e7eb;
+        }
+        .footer {
+            text-align: center;
+            padding: 20px 30px 30px;
+            color: #9ca3af;
+            font-size: 12px;
+            background: #f9fafb;
+            border-top: 1px solid #f3f4f6;
+        }
+        .footer a {
+            color: #9ca3af;
+            text-decoration: underline;
+        }
+        .footer a:hover {
+            color: #6b7280;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <div class="confirm-icon">
+            <svg t="1757409014232" class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="12359" width="36" height="36">
+                <path
+                        d="M500.382 0.006c-177.646 19.719-276.341 96.721-296.085 230.93-3.949 43.437 17.757 67.13 65.143 71.066 23.667 3.961 43.411-13.808 59.207-53.296 23.692-82.9 80.862-124.35 171.735-124.35 110.479 7.885 169.698 63.156 177.671 165.8 0 94.759-64.313 110.202-99.248 138.774-44.267 36.218-73.217 72.952-108.655 135.216-29.779 52.314-34.91 164.227-34.91 164.227 0 47.373 21.655 71.066 65.143 71.066 39.413 0 61.194-23.693 65.155-71.066 0 0 5.219-125.594 55.925-181.129 57.472-62.942 194.749-107.071 198.698-268.922C804.365 108.561 697.772 15.789 500.382 0.006zM500.382 859.162c-45.524 0-82.409 36.91-82.409 82.41 0 45.523 36.885 82.422 82.409 82.422s82.422-36.898 82.422-82.422c0-45.5-36.898-82.41-82.422-82.41z"
+                        fill="#ffffff"
+                        p-id="12360"
+                ></path>
+            </svg>
+        </div>
+    </div>
+    <div class="content">
+        <h2>Unsubscribe Confirmation</h2>
+
+        <p>Are you sure you want to unsubscribe from this mailing list?</p>
+
+        <div class="button-group">
+            <button class="button button-confirm" id="unsubscribe-btn" onclick="confirmUnsubscribe()">Yes, Unsubscribe</button>
+            <button class="button button-cancel" onclick="window.close()">Cancel</button>
+        </div>
+    </div>
+    <div class="email-info" id="email-info" style="display: none">
+        <strong>Email:</strong> <span id="user-email"></span><br />
+        <strong>Group:</strong> <span id="group-name"></span>
+    </div>
+    <div class="footer">
+        <div>
+            <span>Powered by </span>
+            <a href="https://www.billionmail.com/" target="_blank">BillionMail</a>
+        </div>
+    </div>
+</div>
+<script>
+    let params = {};
+    let jwtClaims = null;
+
+    // 显示成功消息
+    function showSuccess(message, data) {
+        // 构建成功页面的URL参数
+        const successPageUrl = new URL('/unsubscribe_success.html', window.location.origin);
+
+        // 添加基本参数
+        if (data) {
+            if (data.email) {
+                successPageUrl.searchParams.set('email', data.email);
+            }
+            if (data.group_name) {
+                successPageUrl.searchParams.set('group_name', data.group_name);
+            }
+            if (data.redirect_url) {
+                successPageUrl.searchParams.set('redirect_url', data.redirect_url);
+                successPageUrl.searchParams.set('redirect_delay', '3'); // 3秒后跳转
+            }
+        }
+
+        // 添加成功消息
+        if (message) {
+            successPageUrl.searchParams.set('message', message);
+        }
+
+        // 生成重新订阅链接（如果有组token）
+        if (jwtClaims && jwtClaims.group_id) {
+            const resubscribeUrl = `/subscribe_form.html?token=group_${jwtClaims.group_id}`;
+            successPageUrl.searchParams.set('resubscribe_url', resubscribeUrl);
+        }
+
+        // 直接跳转到成功页面
+        window.location.href = successPageUrl.toString();
+    }
+
+    // 显示错误消息
+    function showError(message) {
+        window.alert(message);
+    }
+
+    // 显示加载状态
+    function showLoading(show = true) {
+        document.getElementById('loading').style.display = show ? 'flex' : 'none';
+    }
+
+    // 获取URL参数
+    function getQueryParams() {
+        const urlParams = {};
+        const queryString = window.location.search.substring(1);
+        const regex = /([^&=]+)=([^&]*)/g;
+        let m;
+        while ((m = regex.exec(queryString))) {
+            urlParams[decodeURIComponent(m[1])] = decodeURIComponent(m[2]);
+        }
+        return urlParams;
+    }
+
+    // 解析JWT令牌（客户端简单解析，仅用于显示）
+    function parseJWTPayload(token) {
+        try {
+            const base64Url = token.split('.')[1];
+            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            const jsonPayload = decodeURIComponent(
+                atob(base64)
+                    .split('')
+                    .map(function (c) {
+                        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                    })
+                    .join('')
+            );
+            return JSON.parse(jsonPayload);
+        } catch (e) {
+            return null;
+        }
+    }
+
+    // 初始化页面
+    window.onload = function () {
+        params = getQueryParams();
+
+        if (!params.jwt) {
+            showError('Invalid or missing authentication token');
+            return;
+        }
+
+        // 尝试解析JWT显示用户信息
+        jwtClaims = parseJWTPayload(params.jwt);
+        if (jwtClaims && jwtClaims.email) {
+            document.getElementById('user-email').textContent = jwtClaims.email;
+            // document.getElementById('email-info').style.display = 'block';
+
+            // 如果能解析到组信息，可以显示组名（需要后端提供或从JWT中获取）
+            if (jwtClaims.group_id) {
+                document.getElementById('group-name').textContent = `Group ID: ${jwtClaims.group_id}`;
+            }
+        }
+    };
+
+    // 确认退订
+    function confirmUnsubscribe() {
+        if (!params.jwt) {
+            showError('Invalid authentication token');
+            return;
+        }
+
+        // showLoading(true);
+
+        const requestData = {
+            jwt: params.jwt,
+        };
+
+        // 发送退订请求
+        fetch('/api/unsubscribe_new', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestData),
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showSuccess(data.msg || 'You have been successfully unsubscribed', data.data);
+                } else {
+                    showError(data.msg || 'Failed to unsubscribe. Please try again.');
+                }
+            })
+            .catch(err => {
+                showError('Error processing unsubscribe request: ' + err.message);
+            })
+            .finally(() => {
+                // showLoading(false);
+            });
+    }
+</script>
+</body>
+</html>

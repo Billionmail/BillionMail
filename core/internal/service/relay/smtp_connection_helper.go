@@ -5,12 +5,10 @@ import (
 	"billionmail-core/internal/service/mail_service"
 	"billionmail-core/internal/service/public"
 	"context"
-	"encoding/hex"
 	"fmt"
-	"github.com/gogf/gf/v2/crypto/gaes"
-	"github.com/gogf/gf/v2/errors/gerror"
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/os/gcache"
+	"strings"
 	"sync"
 	"time"
 )
@@ -58,16 +56,38 @@ func TestSmtpConnection(host, port, user, password string) *SmtpConnectionTestRe
 
 	startTime := time.Now()
 
+	// Validate basic required parameters
+	host = strings.TrimSpace(host)
+	port = strings.TrimSpace(port)
+	user = strings.TrimSpace(user)
+	password = strings.TrimSpace(password)
+
+	if host == "" || port == "" {
+		result.Message = public.Lang("SMTP host and port are required.")
+		return result
+	}
+
+	// Validate authentication parameters - if user is provided, password must also be provided
+	if user != "" && password == "" {
+		result.Message = public.Lang("Password is required when username is provided.")
+		return result
+	}
+
 	sender := mail_service.NewEmailSender()
 	sender.Host = host
 	sender.Port = port
 	sender.Email = "test_connection@billionmail.com" // Temporary email for testing
-	sender.UserName = user
-	sender.Password = password
 
-	if !sender.IsConfigured() {
-		result.Message = public.Lang("SMTP configuration is incomplete.")
-		return result
+	// Handle authentication based on whether credentials are provided
+	isAuthRequired := user != "" && password != ""
+	if isAuthRequired {
+		sender.UserName = user
+		sender.Password = password
+	} else {
+		// For no-auth relays, ensure UserName and Password are empty
+		// This should signal the mail service not to attempt SASL authentication
+		sender.UserName = ""
+		sender.Password = ""
 	}
 
 	defer sender.Close()
@@ -76,6 +96,37 @@ func TestSmtpConnection(host, port, user, password string) *SmtpConnectionTestRe
 	err := sender.Connect()
 
 	if err != nil {
+		// Check if this is an authentication-related error for a no-auth relay
+		if !isAuthRequired {
+			authErrorPatterns := []string{
+				"authentication not enabled",
+				"AUTH not enabled",
+				"503 5.5.1",
+				"AUTH command not supported",
+			}
+
+			errorMsg := strings.ToLower(err.Error())
+			isAuthError := false
+			for _, pattern := range authErrorPatterns {
+				if strings.Contains(errorMsg, strings.ToLower(pattern)) {
+					isAuthError = true
+					break
+				}
+			}
+
+			if isAuthError {
+				// This is expected for no-auth relays, treat as success
+				result.Success = true
+				result.Message = "SMTP connection test succeeded (no authentication required)."
+				result.AuthStatus = "No authentication (server has authentication disabled)."
+				result.ConnectionTime = time.Since(startTime).Milliseconds()
+				if result.ConnectionTime < 1000 {
+					result.RecommendConfig = true
+				}
+				return result
+			}
+		}
+
 		result.Message = public.Lang("SMTP connection failed: {}", err.Error())
 		return result
 	}
@@ -88,8 +139,15 @@ func TestSmtpConnection(host, port, user, password string) *SmtpConnectionTestRe
 	result.Success = true
 	result.Message = "SMTP connection test succeeded."
 
-	// Provide configuration recommendations based on connection time and authentication status
-	if connectionTime < 1000 && result.AuthStatus == "Authentication succeeded." {
+	// Set authentication status based on whether credentials were used
+	if isAuthRequired {
+		result.AuthStatus = "Authentication succeeded."
+	} else {
+		result.AuthStatus = "No authentication (direct connection)."
+	}
+
+	// Provide configuration recommendations based on connection time and setup
+	if connectionTime < 1000 {
 		result.RecommendConfig = true
 	}
 
@@ -207,53 +265,4 @@ func DecryptPassword1(ctx context.Context, encryptedHex string) (string, error) 
 		password = "********"
 	}
 	return password, err
-}
-
-func DecryptPassword(ctx context.Context, encryptedHex string) (string, error) {
-	if encryptedHex == "" {
-		return "", nil
-	}
-
-	encryptedBytes, err := hex.DecodeString(encryptedHex)
-	if err != nil {
-		//g.Log().Errorf(ctx, "Decryption failed, invalid hex format: %v", err)
-		return "", gerror.Wrap(err, public.LangCtx(ctx, "Password format is incorrect"))
-	}
-
-	relayEncryptionKey, err := GetRelayEncryptionKey()
-	if err != nil {
-		return "", gerror.Wrap(err, public.LangCtx(ctx, "Failed to retrieve encryption key"))
-	}
-
-	keyBytes, err := hex.DecodeString(relayEncryptionKey)
-	if err != nil {
-		return "", gerror.Wrap(err, public.LangCtx(ctx, "Failed to parse encryption key"))
-	}
-
-	if len(keyBytes) < 16 {
-		return "", gerror.New(public.LangCtx(ctx, "Encryption key length is insufficient"))
-	}
-	keyBytes = keyBytes[:16]
-
-	decrypted, err := gaes.Decrypt(encryptedBytes, keyBytes)
-	if err != nil {
-		//g.Log().Errorf(ctx, "Password decryption failed: %v", err)
-		return "", gerror.Wrap(err, public.LangCtx(ctx, "Password decryption failed"))
-	}
-
-	return string(decrypted), nil
-}
-
-func GetRelayEncryptionKey() (string, error) {
-
-	val, _ := g.DB().Model("bm_options").
-		Where("name", "relay_encryption_key").
-		Value("value")
-
-	if val != nil && val.String() != "" {
-		return val.String(), nil
-	} else {
-		return "", gerror.New("Failed to insert new key and retrieve key again")
-	}
-
 }

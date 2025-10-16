@@ -2,6 +2,13 @@
 
 trap "postfix stop" EXIT
 
+if ! grep -q "rotate_log.sh" /var/spool/cron/crontabs/root; then
+    chmod +x /rotate_log.sh
+    echo "00 00 * * * bash /rotate_log.sh >> /var/log/mail/rotate_log.log 2>&1" >> /var/spool/cron/crontabs/root
+    chmod 600 /var/spool/cron/crontabs/root
+    chown root:crontab /var/spool/cron/crontabs/root     
+    /usr/bin/supervisorctl restart cron
+fi
 
 cat <<EOF > /etc/postfix/btrule.cf
 
@@ -52,7 +59,7 @@ password = ${DBPASS}
 hosts = pgsql
 dbname = ${DBNAME}
 
-query = SELECT goto FROM alias WHERE address='%s' AND active = 1
+query = (select username from mailbox where username like '%s' and active = 1 limit 1) union (select goto from alias where address like '%s' and active = 1 limit 1)
 
 EOF
 

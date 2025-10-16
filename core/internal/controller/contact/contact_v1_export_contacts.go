@@ -4,6 +4,7 @@ package contact
 import (
 	"archive/zip"
 	"billionmail-core/api/contact/v1"
+	"billionmail-core/internal/consts"
 	"billionmail-core/internal/model/entity"
 	"billionmail-core/internal/service/contact"
 	"billionmail-core/internal/service/public"
@@ -13,11 +14,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gogf/gf/v2/errors/gerror"
-	"github.com/gogf/gf/v2/os/gfile"
+	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/os/gtime"
-	"io"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 )
@@ -31,12 +29,11 @@ func (c *ControllerV1) ExportContacts(ctx context.Context, req *v1.ExportContact
 		req.IncludeInactive = true
 	}
 
-	// Create temporary directory
-	tempDir := filepath.Join(gfile.MainPkgPath(), "temp", "exports")
-	if err = gfile.Mkdir(tempDir); err != nil {
-		//fmt.Printf("Failed to create directory: %v, path: %s\n", err, tempDir)
+	// Get request object
+	r := g.RequestFromCtx(ctx)
+	if r == nil {
 		res.Code = 500
-		res.SetError(gerror.New(public.LangCtx(ctx, "Failed to create temp directory")))
+		res.SetError(gerror.New(public.LangCtx(ctx, "Unable to obtain the request context")))
 		return
 	}
 
@@ -72,35 +69,41 @@ func (c *ControllerV1) ExportContacts(ctx context.Context, req *v1.ExportContact
 			}
 		}
 
-		// Generate filename
-		timestamp := gtime.Now().Format("YmdHis")
-		fileName := fmt.Sprintf("contacts_export_%s.%s", timestamp, req.Format)
-		filePath := filepath.Join(tempDir, fileName)
-		fmt.Println("File path: ", filePath)
-
 		// Export file based on format
-		var fileContent []byte
-		fileContent, err = exportContactFile1(allContacts, req.Format)
+		var content string
+		var fileName string
+		timestamp := gtime.Now().Format("YmdHis")
+
+		switch req.Format {
+		case "csv":
+			content, err = exportContactsToCSV(allContacts)
+			fileName = fmt.Sprintf("contacts_export_%s.csv", timestamp)
+		case "txt":
+			content, err = exportContactsToTXT(allContacts)
+			fileName = fmt.Sprintf("contacts_export_%s.txt", timestamp)
+		case "excel":
+			res.Code = 500
+			res.SetError(gerror.New(public.LangCtx(ctx, "Excel format not implemented")))
+			return
+		default:
+			res.Code = 400
+			res.SetError(gerror.New(public.LangCtx(ctx, "Unsupported format")))
+			return
+		}
+
 		if err != nil {
-			fmt.Println("Export file error: ", err)
 			res.Code = 500
 			res.SetError(gerror.New(public.LangCtx(ctx, "Failed to export contacts")))
 			return
 		}
 
-		// Write file
-		if err = gfile.PutBytes(filePath, fileContent); err != nil {
-			fmt.Println("Write file error: ", err)
-			res.Code = 500
-			res.SetError(gerror.New(public.LangCtx(ctx, "Failed to save file")))
-			return
-		}
+		// Set response headers for file download
+		r.Response.Header().Set("Content-Type", "application/octet-stream")
+		r.Response.Header().Set("Content-Disposition", "attachment; filename="+fileName)
+		r.Response.Write([]byte(content))
 
-		res.Data.FileUrl = filePath
-
-	} else { // Separate export
+	} else { // Separate export - ZIP file
 		var files []ExportFile
-		totalContacts := 0
 
 		// Create file for each group
 		for _, groupId := range req.GroupIds {
@@ -126,193 +129,185 @@ func (c *ControllerV1) ExportContacts(ctx context.Context, req *v1.ExportContact
 				continue
 			}
 
-			// Generate filename
-			fileName := fmt.Sprintf("%s.%s", group.Name, req.Format)
-			filePath := filepath.Join(tempDir, fileName)
+			// Export file content
+			var content string
+			switch req.Format {
+			case "csv":
+				content, err = exportContactsToCSV(filteredContacts)
+			case "txt":
+				content, err = exportContactsToTXT(filteredContacts)
+			case "excel":
+				res.Code = 500
+				res.SetError(gerror.New(public.LangCtx(ctx, "Excel format not implemented")))
+				return nil, nil
+			default:
+				res.Code = 400
+				res.SetError(gerror.New(public.LangCtx(ctx, "Unsupported format")))
+				return nil, nil
+			}
 
-			// Export file
-			fileContent, err := exportContactFile1(filteredContacts, req.Format)
 			if err != nil {
 				continue
 			}
 
-			// Write file
-			if err = gfile.PutBytes(filePath, fileContent); err != nil {
-				continue
-			}
-
+			fileName := fmt.Sprintf("%s.%s", group.Name, req.Format)
 			files = append(files, ExportFile{
-				Path:     filePath,
 				Name:     fileName,
+				Content:  content,
 				Contacts: len(filteredContacts),
 			})
-			totalContacts += len(filteredContacts)
 		}
 
 		if len(files) == 0 {
-			// fmt.Println("No contacts found")
 			res.Code = 400
 			res.SetError(gerror.New(public.LangCtx(ctx, "No contacts to export")))
-			return
+			return nil, nil
 		}
 
-		// Create ZIP file
+		// Create ZIP file in memory
 		timestamp := gtime.Now().Format("YmdHis")
 		zipFileName := fmt.Sprintf("contacts_export_%s.zip", timestamp)
-		zipPath := filepath.Join(tempDir, zipFileName)
 
-		if err = createZipFile(files, zipPath); err != nil {
-			fmt.Println("Create ZIP file error: ", err)
+		zipContent, err := createZipFileInMemory(files)
+		if err != nil {
 			res.Code = 500
 			res.SetError(gerror.New(public.LangCtx(ctx, "Failed to create zip file")))
-			return
+			return nil, nil
 		}
 
-		// Clean up temporary files
-		for _, file := range files {
-			os.Remove(file.Path)
-		}
-
-		res.Data.FileUrl = zipPath
+		// Set response headers for ZIP file download
+		r.Response.Header().Set("Content-Type", "application/octet-stream")
+		r.Response.Header().Set("Content-Disposition", "attachment; filename="+zipFileName)
+		r.Response.Write(zipContent)
 	}
 
+	var groups []*entity.ContactGroup
+	err = g.DB().Model("bm_contact_groups").Ctx(ctx).WhereIn("id", req.GroupIds).Scan(&groups)
+	groupNames := make([]string, 0, len(groups))
+	for _, group := range groups {
+		groupNames = append(groupNames, group.Name)
+	}
+	groupNamesStr := strings.Join(groupNames, ", ")
+
+	_ = public.WriteLog(ctx, public.LogParams{
+		Type: consts.LOGTYPE.ContactsGroup,
+		Log:  fmt.Sprintf("Contacts Group exported successfully: %s ", groupNamesStr),
+	})
+
 	res.SetSuccess(public.LangCtx(ctx, "Contacts exported successfully"))
-	return
+	return res, nil
 }
 
 // ExportFile Export file information
 type ExportFile struct {
-	Path     string // File path
 	Name     string // File name
+	Content  string // File content
 	Contacts int    // Contact count
 }
 
-// createZipFile Create ZIP file
-func createZipFile(files []ExportFile, zipPath string) error {
-	// Create zip file
-	zipFile, err := os.Create(zipPath)
-	if err != nil {
-		return fmt.Errorf("failed to create zip file: %v", err)
-	}
-	defer zipFile.Close()
+// createZipFileInMemory creates a ZIP file in memory
+func createZipFileInMemory(files []ExportFile) ([]byte, error) {
+	var buf bytes.Buffer
+	zipWriter := zip.NewWriter(&buf)
 
-	// Create zip writer
-	zipWriter := zip.NewWriter(zipFile)
-	defer zipWriter.Close()
-
-	// Iterate through source files
 	for _, file := range files {
-		// Open source file
-		srcFile, err := os.Open(file.Path)
-		if err != nil {
-			return fmt.Errorf("failed to open source file %s: %v", file.Path, err)
-		}
-		defer srcFile.Close()
-
 		// Create zip entry
 		zipEntry, err := zipWriter.Create(file.Name)
 		if err != nil {
-			return fmt.Errorf("failed to create zip entry for %s: %v", file.Name, err)
+			return nil, fmt.Errorf("failed to create zip entry for %s: %v", file.Name, err)
 		}
 
-		// Copy file content to zip
-		if _, err := io.Copy(zipEntry, srcFile); err != nil {
-			return fmt.Errorf("failed to copy file content to zip for %s: %v", file.Name, err)
+		// Write file content to zip
+		_, err = zipEntry.Write([]byte(file.Content))
+		if err != nil {
+			return nil, fmt.Errorf("failed to write content to zip for %s: %v", file.Name, err)
 		}
 	}
 
-	return nil
+	err := zipWriter.Close()
+	if err != nil {
+		return nil, fmt.Errorf("failed to close zip writer: %v", err)
+	}
+
+	return buf.Bytes(), nil
 }
 
-// exportContactFile1
-func exportContactFile1(contacts []*entity.Contact, format string) ([]byte, error) {
-	var content []byte
-	switch format {
-	case "csv":
-		// Create CSV writer
-		var csvData [][]string
+// exportContactsToCSV exports contacts to CSV format
+func exportContactsToCSV(contacts []*entity.Contact) (string, error) {
+	var buf bytes.Buffer
+	writer := csv.NewWriter(&buf)
 
-		// Add CSV headers
-		headers := []string{
-			"email",       // Email address
-			"attributes",  // Attributes
-			"active",      // Active status
-			"create_time", // Create time
-		}
-		csvData = append(csvData, headers)
-
-		// Add data rows
-		for _, c := range contacts {
-			if c.Attribs == nil {
-				c.Attribs = make(map[string]string)
-			}
-			// Convert attributes to JSON string
-			attribsJSON, err := json.Marshal(c.Attribs)
-			if err != nil {
-				attribsJSON = []byte("{}")
-			}
-
-			// Format time
-			createdAt := ""
-			if c.CreateTime != 0 {
-				// Convert timestamp to time string
-				t := time.Unix(int64(c.CreateTime), 0)
-				createdAt = t.Format("2006-01-02 15:04:05")
-			}
-
-			row := []string{
-				c.Email,
-				string(attribsJSON),
-				fmt.Sprintf("%d", c.Active),
-				createdAt,
-			}
-			csvData = append(csvData, row)
-		}
-
-		// Write CSV data
-		buf := &bytes.Buffer{}
-		writer := csv.NewWriter(buf)
-		err := writer.WriteAll(csvData)
-		if err != nil {
-			return nil, err
-		}
-		content = buf.Bytes()
-
-	case "txt":
-		var lines []string
-		for _, c := range contacts {
-			// Convert attributes to JSON string
-			attribsJSON, err := json.Marshal(c.Attribs)
-			if err != nil {
-				attribsJSON = []byte("{}")
-			}
-
-			// Format create time
-			createdAt := ""
-			if c.CreateTime != 0 {
-				// Convert timestamp to time string
-				t := time.Unix(int64(c.CreateTime), 0)
-				createdAt = t.Format("2006-01-02 15:04:05")
-			}
-
-			// Format: email,attributes,active,created_at
-			line := fmt.Sprintf("%s,%s,%d,%s",
-				c.Email,
-				string(attribsJSON),
-				c.Active,
-				createdAt,
-			)
-			lines = append(lines, line)
-		}
-		content = []byte(strings.Join(lines, "\n"))
-
-	case "excel":
-
-		return nil, fmt.Errorf("excel format not implemented")
-
-	default:
-		return nil, fmt.Errorf("unsupported format: %s", format)
+	// Write CSV headers
+	headers := []string{
+		"email",       // Email address
+		"attributes",  // Attributes
+		"active",      // Active status
+		"create_time", // Create time
+	}
+	if err := writer.Write(headers); err != nil {
+		return "", err
 	}
 
-	return content, nil
+	// Write data rows
+	for _, c := range contacts {
+		if c.Attribs == nil {
+			c.Attribs = make(map[string]string)
+		}
+		// Convert attributes to JSON string
+		attribsJSON, err := json.Marshal(c.Attribs)
+		if err != nil {
+			attribsJSON = []byte("{}")
+		}
+
+		// Format time
+		createdAt := ""
+		if c.CreateTime != 0 {
+			// Convert timestamp to time string
+			t := time.Unix(int64(c.CreateTime), 0)
+			createdAt = t.Format("2006-01-02 15:04:05")
+		}
+
+		row := []string{
+			c.Email,
+			string(attribsJSON),
+			fmt.Sprintf("%d", c.Active),
+			createdAt,
+		}
+		if err := writer.Write(row); err != nil {
+			return "", err
+		}
+	}
+
+	writer.Flush()
+	return buf.String(), nil
+}
+
+// exportContactsToTXT exports contacts to TXT format
+func exportContactsToTXT(contacts []*entity.Contact) (string, error) {
+	var lines []string
+	for _, c := range contacts {
+		// Convert attributes to JSON string
+		attribsJSON, err := json.Marshal(c.Attribs)
+		if err != nil {
+			attribsJSON = []byte("{}")
+		}
+
+		// Format create time
+		createdAt := ""
+		if c.CreateTime != 0 {
+			// Convert timestamp to time string
+			t := time.Unix(int64(c.CreateTime), 0)
+			createdAt = t.Format("2006-01-02 15:04:05")
+		}
+
+		// Format: email,attributes,active,created_at
+		line := fmt.Sprintf("%s,%s,%d,%s",
+			c.Email,
+			string(attribsJSON),
+			c.Active,
+			createdAt,
+		)
+		lines = append(lines, line)
+	}
+	return strings.Join(lines, "\n"), nil
 }

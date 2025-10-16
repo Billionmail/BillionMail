@@ -46,7 +46,9 @@
 			"preview": "预览",
 			"modify": "修改",
 			"config": "配置",
-			"help": "Help"
+			"help": "Help",
+			"settings": "设置",
+			"clear": "清空"
 		},
 		"useCopy": {
 			"noText": "没有要复制的文本",
@@ -89,7 +91,11 @@
 			"common": "常用设置",
 			"bcc": "BCC",
 			"forward": "邮件转发",
-			"logout": "退出"
+			"logout": "退出",
+			"service": "服务",
+			"logs": "日志",
+			"operation_logs": "操作日志",
+			"error_logs": "错误日志"
 		}
 	},
 	"login": {
@@ -131,6 +137,7 @@
 		"opened": "已打开",
 		"clicked": "已点击",
 		"bounced": "已退回",
+		"delayedQueue": "延迟队列",
 		"mailProviders": "邮件提供商",
 		"sendStats": "发送统计",
 		"provider": {
@@ -162,6 +169,72 @@
 				"status": "状态",
 				"relay": "中继",
 				"details": "详情"
+			}
+		},
+		"sendQueue": {
+			"title": "发送队列",
+			"breadcrumb": "发送队列",
+			"buttons": {
+				"refresh": "刷新队列",
+				"quickClear": "快速清理",
+				"paramConfig": "队列参数配置",
+				"resend": "重新发送",
+				"batchDelete": "批量删除",
+				"batchResend": "重新发送"
+			},
+			"table": {
+				"columns": {
+					"sender": "发件人",
+					"recipient": "收件人",
+					"arrivalTime": "入队时间",
+					"messageSize": "邮件大小",
+					"delayReason": "延迟原因",
+					"action": "操作"
+				}
+			},
+			"confirm": {
+				"quickClear": {
+					"title": "快速清理",
+					"content": "确认快速清理队列吗？"
+				},
+				"resend": {
+					"title": "重新发送",
+					"content": "确认重新发送队列吗？"
+				},
+				"delete": {
+					"title": "删除队列",
+					"content": "确认删除该队列吗？"
+				},
+				"batchDelete": {
+					"title": "批量删除",
+					"content": "确认删除 {count} 个发送队列吗？"
+				},
+				"batchResend": {
+					"title": "批量重新发送",
+					"content": "确认重新发送 {count} 个发送队列吗？"
+				}
+			},
+			"paramConfig": {
+				"title": "队列参数配置",
+				"fields": {
+					"bounceQueueLifetime": "退回队列生存时间",
+					"maximalQueueLifetime": "最大队列生存时间",
+					"minimalBackoffTime": "最小退避时间",
+					"maximalBackoffTime": "最大退避时间",
+					"queueRunDelay": "队列运行延迟",
+					"triggerTimeout": "触发超时"
+				}
+			},
+			"queueLogs": {
+				"title": "队列日志"
+			}
+		},
+		"api": {
+			"loading": {
+				"resendQueue": "正在重新发送队列中，请稍候...",
+				"deleteQueue": "正在删除队列中，请稍候...",
+				"setQueueConfig": "正在设置队列参数中，请稍候...",
+				"clearQueue": "正在清理队列中，请稍候..."
 			}
 		}
 	},
@@ -224,6 +297,7 @@
 			},
 			"edit": {
 				"addTitle": "添加任务",
+				"editTitle": "编辑任务",
 				"from": "发件人",
 				"to": "收件人",
 				"displayName": "显示名称",
@@ -250,6 +324,8 @@
 				"testEmailPlaceholder": "请输入测试邮箱",
 				"sendTest": "发送测试邮件",
 				"viewCase": "查看案例",
+				"tags": "标签",
+				"tagLogic": "标签关系",
 				"preview": {
 					"empty": "请选择邮件模板查看预览"
 				},
@@ -277,6 +353,7 @@
 			},
 			"loading": {
 				"creating": "正在创建任务，请稍候...",
+				"updating": "正在编辑任务中，请稍候...",
 				"deleting": "正在删除任务，请稍候...",
 				"pausing": "正在暂停任务，请稍候...",
 				"resuming": "正在恢复任务，请稍候...",
@@ -300,6 +377,15 @@
 				"name": "模板名称",
 				"type": "类型",
 				"createdAt": "创建时间"
+			},
+			"types": {
+				"drag": "拖拽",
+				"html": "HTML",
+				"ai": "AI"
+			},
+			"edit": {
+				"confirm": "确认",
+				"cancel": "取消"
 			},
 			"search": {
 				"namePlaceholder": "搜索模板名称"
@@ -334,26 +420,101 @@
 			}
 		}
 	},
+	"template": {
+		"template": "模板",
+		"createTpl": {
+			"sourceUrl": "引用域名",
+			"useAiTools": "使用人工智能工具帮您自动生成邮件内容，提升工作您的效率",
+			"create": "创建",
+			"notices": {
+				"domainListEmpty": "请先为BillionMail创建第一个用于发件的域名",
+				"aiConfigurationInvalid": "当前并未配置AI大模型，您无法使用AI模型创建邮件模板",
+				"invalidBrandDomain": "请先为域名创建品牌信息"
+			},
+			"buttons": {
+				"createNow": "立即创建",
+				"configureNow": "立即配置"
+			}
+		},
+		"ai": {
+			"title": "AI 模板",
+			"welcomeMessage": "您可以说：创建一份欢迎用户加入{domain}的欢迎邮件",
+			"greeting": "让我们创建一个漂亮的邮件模板。",
+			"brandName": "BillionMail",
+			"buttons": {
+				"regenerate": "重新生成",
+				"info": "信息",
+				"view": "预览",
+				"edit": "编辑",
+				"copy": "复制",
+				"copied": "已复制",
+				"apply": "应用模板"
+			},
+			"spintax": {
+				"instruction": "使用Spintax语法，要求包含{count}个变体"
+			},
+			"tips": {
+				"saveShortcut": "通过 [Ctrl + s] 保存您的修改"
+			},
+			"loading": {
+				"message": "加载中... 请稍后"
+			},
+			"send": "发送"
+		}
+	},
 	"contacts": {
 		"subscribers": {
+			"joinGroup": "加入分组",
+			"tags": "标签",
+			"selectGroupHint": "请在右侧选择一个分组",
+			"trends": {
+				"title": "订阅趋势",
+				"subscriber": "订阅者"
+			},
 			"search": {
 				"emailPlaceholder": "请输入邮箱地址搜索"
 			},
 			"columns": {
 				"email": "邮箱",
 				"name": "分组名称",
-				"createdAt": "创建时间"
+				"createdAt": "创建时间",
+				"lastActiveAt": "上次活动时间"
+			},
+			"activeSelect": {
+				"options": {
+					"all": "所有",
+					"yes": "是",
+					"no": "否"
+				},
+				"timeOptions": {
+					"past7Days": "过去7天",
+					"pastMonth": "过去1个月",
+					"past90Days": "过去90天",
+					"pastHalfYear": "过去6个月",
+					"pastYear": "过去1年"
+				}
 			},
 			"status": {
 				"subscribed": "订阅",
-				"unsubscribed": "取消订阅"
+				"unsubscribed": "取消订阅",
+				"unconfirmed": "未确认"
+			},
+			"labels": {
+				"status": "状态：",
+				"tags": "标签：",
+				"active": "活跃："
 			},
 			"actions": {
-				"changeGroup": "更改分组"
+				"changeGroup": "更改分组",
+				"setTag": "设置标签"
 			},
 			"delete": {
 				"title": "删除订阅者",
 				"confirm": "确定要删除订阅者 {email} 吗？"
+			},
+			"batchDelete": {
+				"title": "批量删除",
+				"confirm": "确定要删除选中的订阅者吗？"
 			},
 			"select": {
 				"prefix": "分组："
@@ -362,6 +523,12 @@
 				"title": "更改分组",
 				"email": "邮箱",
 				"group": "分组",
+				"status": "状态",
+				"attributes": "属性",
+				"statusOptions": {
+					"subscribe": "订阅",
+					"unsubscribe": "退订"
+				},
 				"validation": {
 					"emailRequired": "请填写邮箱",
 					"groupRequired": "请选择分组"
@@ -381,26 +548,27 @@
 				"fileTypeHint": "文件类型：csv，不超过5 MB",
 				"overwriteLabel": "覆盖现有用户",
 				"overwriteDescription": "在导入时是否按照导入数据来覆盖列表中存在的客户信息",
-				"subscriptionStatus": "订阅状态",
-				"status": "状态",
-				"exampleCsvLabel": "CSV示例",
-				"overwriteOptions": {
-					"no": "否",
-					"yes": "是"
+				"subscriptionStatus": "订阅状态"
+			},
+			"batchSetTag": {
+				"title": "批量设置标签",
+				"labels": {
+					"tag": "标签",
+					"action": "操作"
 				},
-				"subscriptionOptions": {
-					"subscribe": "订阅",
-					"unsubscribe": "取消订阅"
-				},
-				"statusOptions": {
-					"confirmed": "已确认",
-					"unconfirmed": "未确认"
-				},
-				"validation": {
-					"groupRequired": "请选择分组",
-					"dataRequired": "请粘贴数据，每行一个邮箱",
-					"fileRequired": "请上传文件"
+				"actions": {
+					"add": "添加",
+					"remove": "移除"
 				}
+			},
+			"tagSelect": {
+				"manageTags": "管理标签"
+			},
+			"loading": {
+				"importSubscribers": "正在导入联系人，请稍候...",
+				"updateSubscriberGroup": "正在更新分组，请稍候...",
+				"deleteSubscriber": "正在删除联系人，请稍候...",
+				"batchSetTag": "正在处理中，请稍候..."
 			}
 		},
 		"group": {
@@ -411,7 +579,16 @@
 				"name": "分组名称",
 				"subscribers": "订阅者数量",
 				"unsubscribe": "取消订阅",
-				"createdAt": "创建时间"
+				"createdAt": "创建时间",
+				"type": "类型"
+			},
+			"type": {
+				"doubleOptin": "双重确认",
+				"singleOptin": "单次确认"
+			},
+			"export": {
+				"title": "导出分组",
+				"confirm": "导出 {count} 个分组？"
 			},
 			"form": {
 				"name": "分组名称",
@@ -429,16 +606,177 @@
 				"confirm": "确定要删除分组 {name} 吗？"
 			},
 			"fileUpload": {
-				"hint": "文件类型：csv，不超过5 MB",
+				"hint": "文件类型：csv，不超过10MB",
 				"emptyHint": "文件传空时，会自动创建一个空分组"
 			},
 			"loading": {
 				"createGroup": "正在创建分组，请稍候...",
 				"updateGroup": "正在更新分组，请稍候...",
 				"deleteGroup": "正在删除分组，请稍候...",
-				"importSubscribers": "正在导入联系人，请稍候...",
-				"updateSubscriberGroup": "正在修改分组，请稍候...",
-				"deleteSubscriber": "正在删除联系人，请稍候..."
+				"exportGroup": "正在导出，请稍候...",
+				"saveSettings": "正在保存，请稍候..."
+			}
+		},
+		"settings": {
+			"title": "设置",
+			"tabs": {
+				"subscribeForm": "订阅表单",
+				"subscribeSettings": "订阅设置",
+				"unsubscribeSettings": "取消订阅设置"
+			},
+			"subscribeForm": {
+				"separateSubscriptionPage": {
+					"title": "分离订阅页面",
+					"description": "简单复制并与用户分享此URL - 订阅表单已准备就绪。"
+				},
+				"embeddableForm": {
+					"title": "可嵌入表单",
+					"description": "轻松将此订阅表单嵌入到您的网站页面中。"
+				}
+			},
+			"subscribeSettings": {
+				"listType": {
+					"label": "列表类型",
+					"placeholder": "请选择列表类型",
+					"options": {
+						"doubleOptin": "两次确认",
+						"singleOptin": "单次确认"
+					}
+				},
+				"confirmEmail": {
+					"subject": "二次确认邮件主题",
+					"redirectLink": "二次确认的跳转链接",
+					"redirectDescription": "在下方输入自定义链接，将用户重定向到\"双重确认\"订阅的确认页面",
+					"emailContent": "二次确认邮件",
+					"emailTip1": "如果您自定义确认邮件，请不要忘记包含确认链接",
+					"emailTip2": "在您的消息中的某个位置"
+				},
+				"welcomeEmail": {
+					"subject": "感谢邮件订阅主题",
+					"redirectLink": "感谢订阅的跳转链接",
+					"redirectDescription": "请在下方输入链接，在用户成功订阅后将其引导到自定义确认页面",
+					"emailContent": "感谢邮件订阅邮件",
+					"sendThroughTip": "消息通过",
+					"mailboxTip": "默认发送域的邮箱发送",
+					"enabledDescription": "启用后，当用户通过订阅表单或API订阅时，将向用户发送感谢邮件。手动添加的用户不会触发此功能。",
+					"templateVariablesTip": "您可以在感谢邮件的主题和消息中使用收集的信息，这些是模板变量。"
+				},
+				"alreadySubscribed": {
+					"redirectLink": "订阅已存在的跳转链接"
+				}
+			},
+			"unsubscribeSettings": {
+				"subject": "退订主题",
+				"redirectLink": "退订的跳转链接",
+				"emailPage": "退订邮件页面",
+				"enabledDescription": "启用后，当用户取消订阅或API取消订阅时，将向用户发送退订邮件。手动添加的用户不会触发此功能。"
+			}
+		},
+		"suspend": {
+			"title": "异常邮箱",
+			"buttons": {
+				"scanInvalidDomains": "扫描无效域名",
+				"scanLogs": "扫描日志",
+				"autoBlockFailedEmails": "自动阻止失败邮件"
+			},
+			"search": {
+				"emailPlaceholder": "请输入邮箱地址"
+			},
+			"columns": {
+				"email": "邮箱",
+				"description": "描述",
+				"status": "状态",
+				"addTime": "添加时间"
+			},
+			"status": {
+				"invalid": "无效",
+				"checking": "检查中"
+			},
+			"confirm": {
+				"clear": {
+					"title": "清空",
+					"content": "这将清空该类型下的所有数据，是否继续？"
+				},
+				"delete": {
+					"title": "删除",
+					"content": "确定要删除 [{email}] 吗？"
+				}
+			},
+			"scan": {
+				"title": "扫描无效域名",
+				"confirmText": "扫描",
+				"form": {
+					"group": "分组",
+					"method": "方法",
+					"groupRequired": "请选择分组"
+				},
+				"methods": {
+					"noOperation": "无操作",
+					"addToExceptionTable": "添加到异常防护表",
+					"deleteFromGroup": "从分组中删除异常邮箱"
+				}
+			},
+			"scanLogs": {
+				"title": "扫描日志",
+				"none": "无"
+			},
+			"api": {
+				"loading": {
+					"deleting": "正在删除，请稍候...",
+					"scanning": "正在扫描，请稍候...",
+					"clearing": "正在清理，请稍候...",
+					"setting": "正在设置，请稍候..."
+				}
+			}
+		},
+		"tags": {
+			"title": "标签管理",
+			"addTag": "添加标签",
+			"bulkTag": "批量标签",
+			"searchPlaceholder": "搜索标签",
+			"columns": {
+				"name": "标签名称",
+				"groupName": "分组名称",
+				"createTime": "创建时间",
+				"actions": "操作"
+			},
+			"delete": {
+				"title": "删除标签",
+				"confirm": "确定要删除此标签【{name}】吗？"
+			},
+			"bulk": {
+				"title": "批量标记联系人",
+				"form": {
+					"group": "分组",
+					"tags": "标签",
+					"emails": "邮箱",
+					"action": "操作",
+					"emailsPlaceholder": "请粘贴邮箱，一行一个"
+				},
+				"actions": {
+					"tagThese": "标记这些邮箱",
+					"tagExcept": "标记除这些邮箱外的所有人"
+				}
+			},
+			"form": {
+				"title": {
+					"create": "创建标签",
+					"edit": "编辑标签"
+				},
+				"fields": {
+					"name": "标签名称",
+					"group": "分组"
+				},
+				"validation": {
+					"nameRequired": "请输入标签名称",
+					"groupRequired": "请选择分组"
+				}
+			},
+			"loading": {
+				"creating": "正在创建标签中，请稍候...",
+				"deleting": "正在删除标签中，请稍候...",
+				"updating": "正在编辑标签中，请稍候...",
+				"bulkSetting": "正在批量设置中，请稍候..."
 			}
 		}
 	},
@@ -451,35 +789,87 @@
 			"quota": "配额",
 			"mailboxes": "邮箱数量",
 			"defaultMailboxSize": "默认邮箱大小",
+			"dedicatedIp": "专用IP",
 			"actions": "操作"
 		},
+		"ipSet": {
+			"title": "专用IP设置",
+			"titleWithDomain": "专用IP设置【{domain}】",
+			"dedicatedIp": "专用IP：",
+			"configFile": "配置文件：",
+			"connectionStatus": "连接状态：",
+			"warning": "你可以通过手工在SSH终端执行以下命令使专用IP连接状态激活\n如果你有多个域名需要配置专用IP，我们建议你先把所有域名配\n置完成后在执行以下命令，避免邮件服务器多次中断",
+			"getCommand": "获取命令",
+			"copyCommand": "复制命令",
+			"operationReminder": "操作提醒",
+			"fixCommandTip": "如果执行命令失败，您可以执行该命令进行修复：",
+			"understood": "我知道了",
+			"validation": {
+				"getCommandFirst": "请先获取命令"
+			}
+		},
+		"status": {
+			"default": "默认"
+		},
 		"actions": {
-			"dnsRecord": "DNS记录"
+			"dnsRecord": "DNS记录",
+			"setDefault": "设为默认"
+		},
+		"setDefault": {
+			"title": "设为默认 [{domain}]",
+			"confirm": "确定要将此域名设为默认域名吗？"
 		},
 		"delete": {
 			"title": "删除域名",
 			"confirm": "确定要删除域名【{domain}】吗？",
 			"confirmButton": "删除"
 		},
+		"waitAndCheckDomainStatus": {
+			"success": "品牌信息初始化成功",
+			"error": "品牌信息初始化失败",
+			"loading": "正在初始化品牌信息，请稍后..."
+		},
 		"form": {
 			"addTitle": "添加域名",
 			"editTitle": "编辑域名",
 			"domain": "域名",
 			"domainPlaceholder": "请输入域名，例如：billionmail.com",
+			"urlsPlacement": "请输入域名，例如：http://billionmail.com",
 			"aRecord": "A记录",
 			"aRecordPlaceholder": "请输入A记录，例如：mailAapanelCom",
 			"quota": "域名配额",
 			"mailboxCount": "邮箱数量",
-			"globalCatch": "全局捕获",
+			"globalCatch": "Catch All",
 			"globalCatchPlaceholder": "捕获不存在的邮件，转发至此邮件",
 			"validation": {
-				"domainRequired": "邮箱域名不能为空!"
+				"domainRequired": "邮箱域名不能为空!",
+				"domainInputRequired": "请先输入域名",
+				"dedicatedIpRequired": "请先输入域名专用IP"
 			},
 			"tips": {
 				"aRecordFailed": "提示A记录解析失败。请检查填写的A记录域名是否已解析到服务器 IP",
 				"dnsSetup": "需要在您的DNS服务提供商控制台添加A记录",
 				"cloudflare": "如果使用CloudFlare，请在添加记录时选择【仅DNS】"
-			}
+			},
+			"createBrandInfo": "自动创建品牌信息",
+			"modelNotice": "要使用此功能，您需要先进行大模型配置",
+			"integrateImmediately": "立即配置",
+			"modelDescription": "AI驱动的信息导入会自动分析并从邮件域名创建品牌信息。创建后，您可以根据需要进行修改",
+			"extractBrand": "提取品牌和颜色",
+			"analyzeStructure": "分析内容结构",
+			"importContent": "导入图片和内容",
+			"customLogo": "使用自定义徽标（可选）",
+			"specifyDomain": "指定域名",
+			"addMoreUrls": "添加更多URL",
+			"maxUrl": "最多只能填写3个URL",
+			"createImmediately": "立即创建",
+			"brandInfo": "品牌信息",
+			"noBrandInfo": "暂无品牌信息",
+			"fillDomain": "请填写域名",
+			"fillValidDomain": "请填写正确的域名",
+			"dedicatedIp": "域名专用IP",
+			"notSet": "未设置",
+			"testConnection": "连接测试"
 		},
 		"dns": {
 			"title": "DNS 记录",
@@ -541,21 +931,159 @@
 				"defaultSite": "当未指定 SSL 默认站点时，未配置 SSL 的站点将使用 HTTPS 访问启用了 SSL 的站点"
 			}
 		},
+		"edit": {
+			"pageTitle": "域名 / 编辑域名",
+			"save": "保存",
+			"tabs": {
+				"domainConfiguration": "域名配置",
+				"projectDetails": "项目详情",
+				"companyProfile": "公司资料",
+				"styling": "样式设置",
+				"sitemap": "站点地图",
+				"footerSettings": "页脚设置",
+				"aiSettings": "AI设置"
+			},
+			"domainConfiguration": {
+				"title": "邮件域名配置",
+				"domain": "域名",
+				"domainQuota": "域名配额",
+				"mailboxCount": "邮箱数量",
+				"catchAll": "Catch all",
+				"autoCreateBrand": "自动创建品牌信息",
+				"aiIntegrationWarning": "要使用此功能，您需要先集成AI模型。",
+				"integrateImmediately": "立即集成",
+				"aiDescription": "AI驱动的信息导入会自动分析并从邮件域名创建品牌信息。创建后，您可以根据需要进行修改。",
+				"features": {
+					"extractBrand": "提取品牌和颜色",
+					"analyzeStructure": "分析内容结构",
+					"importContent": "导入图片和内容",
+					"customLogo": "使用自定义徽标（可选）"
+				},
+				"specifyDomain": "指定域名",
+				"addMoreUrls": "添加更多URL",
+				"createNow": "Create Immediately",
+				"brandInfo": "Brand information",
+				"noBrandInfo": "No brand information available.",
+				"fillDomain": "请填写域名",
+				"fillValidDomain": "请填写有效的域名",
+				"dedicatedIp": "域名专用IP",
+				"dedicatedIpDesc": "域名 {domain} 发送和接受邮件时会在iptables处指定此专属IP，如果你的服务器只有一个IP的话不需要设置此功能",
+				"notSet": "未设置",
+				"testConnection": "连接测试",
+				"catchAllDesc": "在您这里填写邮箱后，这个域名下所有未知的邮箱收到邮件将会转发到这个邮箱里面",
+				"domainQuotaDesc": "设置此域名的可用空间",
+				"mailboxCountDesc": "设置此域名可以创建多少个邮箱",
+				"validation": {
+					"setDedicatedIpFirst": "请先设置域名专用IP"
+				},
+				"api": {
+					"testingConnection": "正在测试连接中，请稍候..."
+				}
+			},
+			"projectDetails": {
+				"title": "项目详情",
+				"projectName": "项目名称",
+				"description": "描述",
+				"brandLogos": "品牌徽标",
+				"logoSystem": "徽标系统",
+				"logoSystemDesc": "上传您品牌的徽标系统，以在整个项目中保持一致的品牌形象",
+				"primaryLogo": "主要徽标",
+				"primaryLogoDesc": "用于页眉的水平版本",
+				"secondaryLogo": "次要徽标",
+				"secondaryLogoDesc": "垂直/堆叠版本",
+				"favicon": "网站图标",
+				"faviconDesc": "浏览器标签页图标",
+				"loadingFailed": "加载失败",
+				"knowledgeBase": "知识库",
+				"newFile": "新建文件",
+				"edit": "编辑",
+				"preview": "预览",
+				"newKnowledgeFile": "新建知识文件",
+				"fileName": "文件名",
+				"day": "天",
+				"hour": "小时",
+				"minute": "分",
+				"ago": "前",
+				"justNow": "刚刚",
+				"close": "关闭",
+				"cancel": "取消",
+				"create": "创建",
+				"notice": "提示",
+				"sureDel": "是否确认删除?"
+			},
+			"companyProfile": {
+				"title": "公司详情",
+				"legalCompanyName": "法定公司名称",
+				"website": "网站",
+				"organizationNumber": "组织编号",
+				"additionalInfo": "附加公司信息",
+				"contactInfo": "联系信息",
+				"contactEmail": "联系邮箱",
+				"phoneNumber": "电话号码",
+				"supportUrl": "支持URL"
+			},
+			"styling": {
+				"colorPalette": "调色板",
+				"accentColor": "强调色",
+				"textColor": "文本颜色",
+				"pageBackground": "页面背景",
+				"containerBackground": "容器背景",
+				"linkFooterColor": "页脚链接颜色",
+				"linkSocialColor": "社交链接颜色",
+				"typography": "字体排版",
+				"headingFont": "标题字体",
+				"bodyFont": "正文字体",
+				"preview": "预览：",
+				"previewText": "快速的棕色狐狸跳过懒惰的狗",
+				"typographyGuidelines": "字体排版指南：",
+				"webSafeFonts": "使用网络安全字体以获得更好的兼容性",
+				"fallbackFonts": "始终包含备用字体以获得更好的性能"
+			},
+			"sitemap": {
+				"title": "站点地图",
+				"addLink": "添加链接"
+			},
+			"footerSettings": {
+				"title": "页脚设置",
+				"additionalContent": "附加内容",
+				"copyrightText": "版权文本"
+			},
+			"aiSettings": {
+				"title": "AI设置",
+				"defaultInstructions": "默认AI指令",
+				"emailGenerationInstructions": "邮件生成指令",
+				"instructionsDescription": "这些指令将用作生成新邮件时的默认指南。您可以根据需要为单个邮件覆盖这些指令。"
+			},
+			"breadcrumb": {
+				"domain": "域名",
+				"editDomain": "编辑域名"
+			},
+			"common": {
+				"daysAgo": "天前",
+				"noBrandInfo": "暂无品牌信息"
+			}
+		},
 		"api": {
 			"loading": {
 				"creating": "正在创建域名，请稍候...",
 				"updating": "正在更新域名，请稍候...",
 				"deleting": "正在删除域名，请稍候...",
-				"settingSSL": "正在设置 SSL，请稍候...",
-				"applyingCert": "正在申请 SSL 证书，请稍候...",
-				"refreshingDns": "正在刷新DNS记录，请稍候..."
+				"settingSSL": "正在设置SSL证书，请稍候...",
+				"refreshingDns": "正在刷新DNS记录，请稍候...",
+				"applyingCert": "正在申请证书，请稍候...",
+				"settingDefault": "正在设置默认域名，请稍候...",
+				"settingBrandInfo": "正在设置域名品牌信息，请稍候...",
+				"testingConnection": "正在测试连接，请稍候..."
 			}
 		}
 	},
 	"mailbox": {
 		"title": "邮箱管理",
 		"actions": {
-			"add": "添加邮箱"
+			"add": "添加邮箱",
+			"batchAdd": "批量添加",
+			"batchDelete": "批量删除",
+			"exportAll": "导出全部"
 		},
 		"search": {
 			"usernamePlaceholder": "搜索用户名"
@@ -566,7 +1094,7 @@
 		"columns": {
 			"username": "用户名",
 			"password": "密码",
-			"loginInfo": "登录信息",
+			"loginInfo": "登录信息（WebMail / SMTP）",
 			"quota": "配额",
 			"type": "类型",
 			"status": "状态"
@@ -578,21 +1106,32 @@
 		"form": {
 			"addTitle": "添加邮箱",
 			"editTitle": "编辑邮箱",
+			"batchAddTitle": "批量添加",
+			"exportTitle": "导出邮箱",
+			"importTitle": "导入邮箱",
 			"emailAddress": "邮箱地址",
 			"password": "密码",
 			"passwordPlaceholder": "请输入您的邮箱密码",
 			"quota": "配额",
 			"userType": "用户类型",
-			"status": "状态"
+			"status": "状态",
+			"domain": "域名",
+			"prefix": "邮箱前缀",
+			"count": "邮箱数量"
 		},
 		"validation": {
 			"emailRequired": "请输入邮箱地址",
 			"passwordLength": "密码长度少于8位，请重新输入",
-			"passwordFormat": "密码必须包含至少一个大写字母、一个小写字母和数字，请重新输入"
+			"passwordFormat": "密码必须包含至少一个大写字母、一个小写字母和数字，请重新输入",
+			"domainRequired": "请选择域名",
+			"prefixRequired": "请输入邮箱前缀",
+			"countRequired": "请输入邮箱数量",
+			"fileRequired": "请选择上传文件"
 		},
 		"delete": {
 			"title": "删除邮箱",
-			"confirm": "确定要删除邮箱【{name}】吗？"
+			"confirm": "确定要删除邮箱【{name}】吗？",
+			"batchConfirm": "确定删除{count}个邮箱？"
 		},
 		"loginInfo": {
 			"template": "WebMail: {webmail}\n用户名: {username}\n密码: {password}\nPOP service [ Address: {mx} Port: 110/995 ]\nIMAP service [ Address: {mx} Port: 143/993 ]\nSMTP service [ Address: {mx} Port: 25/465/587 ]"
@@ -601,7 +1140,9 @@
 			"loading": {
 				"creating": "正在创建邮箱，请稍候...",
 				"updating": "正在更新邮箱，请稍候...",
-				"deleting": "正在删除邮箱，请稍候..."
+				"deleting": "正在删除邮箱，请稍候...",
+				"exporting": "正在导出邮箱，请稍候...",
+				"importing": "正在导入邮箱，请稍候..."
 			}
 		}
 	},
@@ -620,7 +1161,8 @@
 			"domain": "绑定域名",
 			"server": "服务器",
 			"port": "端口",
-			"username": "用户名"
+			"username": "用户名",
+			"dnsUpdateRequired": "DNS记录需要更新"
 		},
 		"form": {
 			"addTitle": "添加SMTP",
@@ -631,8 +1173,15 @@
 			"port": "SMTP端口",
 			"username": "用户名",
 			"password": "密码",
+			"authMethod": "身份验证",
+			"advancedFeatures": "高级选项",
 			"testConnection": "测试链接",
 			"bind": "【已绑定】",
+			"skipTlsVerify": "是否跳过TLS验证",
+			"tlsOptions": {
+				"skip": "跳过",
+				"noSkip": "不跳过"
+			},
 			"validation": {
 				"nameRequired": "请输入中继名称",
 				"domainRequired": "请选择绑定域名",
@@ -790,13 +1339,101 @@
 				"commandCopied": "命令已复制到剪贴板",
 				"timezone": "时区设置",
 				"currentTime": "当前系统时区"
+			},
+			"ipWhitelist": {
+				"title": "IP白名单",
+				"enable": "启用",
+				"disable": "关闭",
+				"add": "添加",
+				"clear": "清空",
+				"description": "仅允许列表中的IP访问，终端命令关闭: bm.sh cancel-ip-limit",
+				"placeholder": "请输入IP地址",
+				"validation": {
+					"ipRequired": "请输入IP地址"
+				},
+				"confirm": {
+					"deleteTitle": "删除IP白名单",
+					"deleteContent": "确认删除IP白名单: {ip}",
+					"enableTitle": "开启IP白名单",
+					"disableTitle": "关闭IP白名单",
+					"enableContent": "确认开启IP白名单, 开启后只有白名单中的IP地址可以访问",
+					"disableContent": "确认关闭IP白名单, 关闭后所有IP地址都可以访问",
+					"clearTitle": "清空IP白名单",
+					"clearContent": "确认清空IP白名单, 清空后所有IP地址都可以访问"
+				}
+			},
+			"proxy": {
+				"title": "反向代理",
+				"description": "反向代理地址，用于对外暴露地址时使用，例如：订阅列表、退订邮件等",
+				"placeholder": "请输入反向代理地址",
+				"formatTip": "格式为：https://example.com",
+				"reset": "重置",
+				"resetConfirm": {
+					"title": "重置反向代理",
+					"content": "确认重置反向代理吗？"
+				}
+			},
+			"api": {
+				"title": "API Settings",
+				"enableApi": "开启API",
+				"apiDocUrl": "API文档地址",
+				"swaggerUrl": "Swagger地址",
+				"token": "Token",
+				"confirm": {
+					"enable": "开启API",
+					"disable": "关闭API",
+					"enableContent": "是否开启API设置？",
+					"disableContent": "是否关闭API设置？"
+				}
 			}
 		},
 		"api": {
 			"loading": {
 				"restarting": "正在重启服务，请稍候...",
-				"saving": "正在保存配置，请稍候..."
+				"saving": "正在保存配置，请稍候...",
+				"setting": "正在设置，请稍候...",
+				"settingSSL": "正在设置SSL，请稍候...",
+				"applyingCert": "正在申请证书，请稍候...",
+				"adding": "正在添加，请稍候...",
+				"deleting": "正在删除，请稍候...",
+				"clearing": "正在清空，请稍候..."
 			}
+		},
+		"aiModel": {
+			"modelId": "模型ID",
+			"modelAlias": "模型别名",
+			"modelFeature": "模型功能",
+			"contentLength": "最大上下文长度",
+			"supplierTitle": "服务商标题",
+			"supplierName": "服务商名称",
+			"cancel": "取消",
+			"confirm": "确认",
+			"aPIKey": "API密钥",
+			"apiPath": "API地址",
+			"check": "检查",
+			"getKey": "点击获取API密钥",
+			"example": "示例",
+			"saveAPI": "保存API",
+			"model": "模型",
+			"byDefault": "默认从/models获取所有模型",
+			"addModel": "添加模型"
+		}
+	},
+	"logs": {
+		"title": "日志",
+		"table": {
+			"columns": {
+				"username": "用户名",
+				"type": "类型",
+				"operatingTime": "操作时间",
+				"details": "详情"
+			}
+		},
+		"filter": {
+			"all": "全部"
+		},
+		"search": {
+			"placeholder": "请输入详情/IP搜索"
 		}
 	},
 	"api": {

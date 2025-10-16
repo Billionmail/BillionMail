@@ -1,12 +1,17 @@
 package maillog_stat
 
 import (
+	"billionmail-core/internal/consts"
+	docker "billionmail-core/internal/service/dockerapi"
 	"billionmail-core/internal/service/public"
 	"context"
+	"fmt"
 	"github.com/gogf/gf/v2/database/gdb"
+	"github.com/gogf/gf/v2/encoding/gjson"
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/util/gconv"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -28,31 +33,52 @@ func (o *Overview) filterAndPrepareTimeSection(startTime, endTime int64) (int64,
 		panic(public.Lang("end_time must greater than start_time"))
 	}
 
+	// Maximum time range is 1 year
+	if endTime-startTime > 31622400 {
+		startTime = endTime - 31622400 // 1 year
+	}
+
 	return startTime, endTime
 }
 
 // buildBaseQuery build basic query
 func (o *Overview) buildBaseQuery(campaignID int64, domain string, startTime, endTime int64) *gdb.Model {
-	query := g.DB().Model("mailstat_send_mails sm")
+	subQuery := "SELECT * FROM mailstat_send_mails WHERE true"
+
+	if startTime > 0 {
+		subQuery += fmt.Sprintf(" AND log_time_millis > %d", startTime*1000)
+	}
+
+	if endTime > 0 {
+		subQuery += fmt.Sprintf(" AND log_time_millis < %d", endTime*1000)
+	}
+
+	query := g.DB().Model("(" + subQuery + ") sm")
 	query.LeftJoin("mailstat_senders s", "sm.postfix_message_id=s.postfix_message_id")
 	query.Where("s.postfix_message_id is not null")
+
+	if campaignID > 0 {
+		query.InnerJoin("mailstat_message_ids mi", "sm.postfix_message_id=mi.postfix_message_id")
+		query.InnerJoin(fmt.Sprintf("(SELECT message_id FROM recipient_info WHERE task_id = %d) r", campaignID), "mi.message_id=r.message_id")
+		// query.Where("r.task_id = ?", campaignID)
+	}
 
 	if domain != "" {
 		query.Where("s.sender LIKE ?", "%@"+domain)
 	}
 
-	if startTime > 0 {
-		query.Where("sm.log_time_millis > ?", startTime*1000-1)
-	}
-
-	if endTime > 0 {
-		query.Where("sm.log_time_millis < ?", endTime*1000+1)
-	}
+	//if startTime > 0 {
+	//	query.Where("sm.log_time_millis > ?", startTime*1000-1)
+	//}
+	//
+	//if endTime > 0 {
+	//	query.Where("sm.log_time_millis < ?", endTime*1000+1)
+	//}
 
 	return query
 }
 
-// Overview overview the maillog
+// Overview the maillog
 func (o *Overview) Overview(campaignID int64, domain string, startTime, endTime int64) map[string]interface{} {
 	startTime, endTime = o.filterAndPrepareTimeSection(startTime, endTime)
 
@@ -70,21 +96,33 @@ func (o *Overview) Overview(campaignID int64, domain string, startTime, endTime 
 func (o *Overview) overviewDashboard(campaignID int64, domain string, startTime, endTime int64) map[string]interface{} {
 	query := o.buildBaseQuery(campaignID, domain, startTime, endTime)
 
-	query.LeftJoin("mailstat_opened o", "sm.postfix_message_id=o.postfix_message_id")
-	query.LeftJoin("mailstat_clicked c", "sm.postfix_message_id=c.postfix_message_id")
+	query.LeftJoin(`LATERAL(
+	SELECT id
+	FROM mailstat_opened
+	WHERE sm.postfix_message_id = postfix_message_id
+	LIMIT 1
+) as o`, "true")
+
+	query.LeftJoin(`LATERAL(
+	SELECT id
+	FROM mailstat_clicked
+	WHERE sm.postfix_message_id = postfix_message_id
+	LIMIT 1
+) as c`, "true")
 
 	query.Fields("count(*) as sends")
 	query.Fields("coalesce(sum(case when status='sent' and dsn like '2.%' then 1 else 0 end), 0) as delivered")
-	query.Fields("count(distinct o.postfix_message_id) as opened")
-	query.Fields("count(distinct c.postfix_message_id) as clicked")
+	query.Fields("count(o.id) as opened")
+	query.Fields("count(c.id) as clicked")
 	query.Fields("coalesce(sum(case when status='bounced' then 1 else 0 end), 0) as bounced")
 
 	aggregate := map[string]interface{}{
-		"sends":     0,
-		"delivered": 0,
-		"opened":    0,
-		"clicked":   0,
-		"bounced":   0,
+		"sends":         0,
+		"delivered":     0,
+		"opened":        0,
+		"clicked":       0,
+		"bounced":       0,
+		"delayed_queue": 0,
 	}
 
 	result, err := query.One()
@@ -102,21 +140,75 @@ func (o *Overview) overviewDashboard(campaignID int64, domain string, startTime,
 
 	if aggregate["sends"].(int) > 0 {
 		aggregate["delivery_rate"] = public.Round(float64(aggregate["delivered"].(int))/float64(aggregate["sends"].(int))*100, 2)
-	} else {
-		aggregate["delivery_rate"] = 0
-	}
-
-	if aggregate["sends"].(int) > 0 {
 		aggregate["bounce_rate"] = public.Round(float64(aggregate["bounced"].(int))/float64(aggregate["sends"].(int))*100, 2)
 		aggregate["open_rate"] = public.Round(float64(aggregate["opened"].(int))/float64(aggregate["sends"].(int))*100, 2)
 		aggregate["click_rate"] = public.Round(float64(aggregate["clicked"].(int))/float64(aggregate["sends"].(int))*100, 2)
 	} else {
+		aggregate["delivery_rate"] = 0
 		aggregate["bounce_rate"] = 0
 		aggregate["open_rate"] = 0
 		aggregate["click_rate"] = 0
 	}
 
+	// delayed_queue
+	aggregate["delayed_queue"] = 0
+	delayedCount, err := o.getPostfixDeferredQueueCount(context.Background())
+	if err == nil {
+		aggregate["delayed_queue"] = delayedCount
+	}
+
 	return aggregate
+}
+
+// OverviewDashboard dashboard data
+func (o *Overview) OverviewDashboard(campaignID int64, domain string, startTime, endTime int64) map[string]interface{} {
+	aggregate := o.overviewDashboard(campaignID, domain, startTime, endTime)
+	return aggregate
+}
+
+// Obtain the number of deferred queues with cache
+func (o *Overview) getPostfixDeferredQueueCount(ctx context.Context) (int, error) {
+	cacheKey := "postfix_deferred_queue_count"
+	v := public.GetCache(cacheKey)
+	if v != nil {
+		if num, ok := v.(int); ok {
+			return num, nil
+		} else {
+			return 0, nil
+		}
+	}
+
+	dk, err := docker.NewDockerAPI()
+	if err != nil {
+		return 0, err
+	}
+	defer dk.Close()
+
+	cmd := []string{"postqueue", "-j"}
+	result, err := dk.ExecCommandByName(ctx, consts.SERVICES.Postfix, cmd, "root")
+	if err != nil || result == nil || result.ExitCode != 0 {
+		return 0, err
+	}
+
+	lines := strings.Split(result.Output, "\n")
+	count := 0
+	for _, line := range lines {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		var item struct {
+			QueueName string `json:"queue_name"`
+		}
+		if err := gjson.Unmarshal([]byte(line), &item); err != nil {
+			continue
+		}
+		if item.QueueName == "deferred" {
+			count++
+		}
+	}
+
+	public.SetCache(cacheKey, count, 120)
+	return count, nil
 }
 
 // overviewProviders statistic mail provider
@@ -125,17 +217,28 @@ func (o *Overview) overviewProviders(campaignID int64, domain string, startTime,
 
 	query := o.buildBaseQuery(campaignID, domain, startTime, endTime)
 
-	query = query.LeftJoin("mailstat_opened o", "sm.postfix_message_id=o.postfix_message_id")
-	query = query.LeftJoin("mailstat_clicked c", "sm.postfix_message_id=c.postfix_message_id")
+	query.LeftJoin(`LATERAL(
+	SELECT id
+	FROM mailstat_opened
+	WHERE sm.postfix_message_id = postfix_message_id
+	LIMIT 1
+) as o`, "true")
 
-	query = query.Fields("sm.mail_provider")
-	query = query.Fields("count(*) as sends")
-	query = query.Fields("coalesce(sum(case when status='sent' and dsn like '2.%' then 1 else 0 end), 0) as delivered")
-	query = query.Fields("count(distinct o.postfix_message_id) as opened")
-	query = query.Fields("count(distinct c.postfix_message_id) as clicked")
-	query = query.Fields("coalesce(sum(case when status='bounced' then 1 else 0 end), 0) as bounced")
+	query.LeftJoin(`LATERAL(
+	SELECT id
+	FROM mailstat_clicked
+	WHERE sm.postfix_message_id = postfix_message_id
+	LIMIT 1
+) as c`, "true")
 
-	query = query.Group("sm.mail_provider")
+	query.Fields("sm.mail_provider")
+	query.Fields("count(*) as sends")
+	query.Fields("coalesce(sum(case when status='sent' and dsn like '2.%' then 1 else 0 end), 0) as delivered")
+	query.Fields("count(o.id) as opened")
+	query.Fields("count(c.id) as clicked")
+	query.Fields("coalesce(sum(case when status='bounced' then 1 else 0 end), 0) as bounced")
+
+	query.Group("sm.mail_provider")
 
 	lst := make([]map[string]interface{}, 0)
 
@@ -198,6 +301,8 @@ func (o *Overview) overviewProviders(campaignID int64, domain string, startTime,
 
 func (o *Overview) fillChartData(data []map[string]interface{}, fillItem map[string]interface{}, fillType, fillKey string, startTime, endTime int64) []map[string]interface{} {
 	switch fillType {
+	case "monthly":
+		return o.fillChartDataMonthly(data, fillItem, fillKey, startTime, endTime)
 	case "daily":
 		return o.fillChartDataDaily(data, fillItem, fillKey, startTime, endTime)
 	case "hourly":
@@ -276,15 +381,52 @@ func (o *Overview) fillChartDataDaily(data []map[string]interface{}, fillItem ma
 	return lst
 }
 
+func (o *Overview) fillChartDataMonthly(data []map[string]interface{}, fillItem map[string]interface{}, fillKey string, startTime, endTime int64) []map[string]interface{} {
+	if startTime < 0 || endTime < 0 {
+		return data
+	}
+
+	if startTime > endTime {
+		return data
+	}
+
+	m := make(map[string]map[string]interface{}, len(data))
+	for _, item := range data {
+		m[gconv.String(item[fillKey])] = item
+	}
+
+	lst := make([]map[string]interface{}, 0, (endTime-startTime)/2592000+1)
+	for i := startTime; i <= endTime; i += 2592000 {
+		monthDateObj := time.Unix(i, 0)
+		monthDate := monthDateObj.Format("2006-01")
+		monthTime := time.Date(monthDateObj.Year(), monthDateObj.Month(), 1, 0, 0, 0, 0, time.Local).Unix()
+
+		if item, ok := m[monthDate]; ok {
+			item[fillKey] = monthTime
+			lst = append(lst, item)
+			continue
+		}
+
+		item := make(map[string]interface{}, len(fillItem))
+		for k, v := range fillItem {
+			item[k] = v
+		}
+		item[fillKey] = monthTime
+		lst = append(lst, item)
+	}
+
+	return lst
+}
+
 // sendMailDashboard dashboard data for send mail
 func (o *Overview) sendMailDashboard(campaignID int64, domain string, startTime, endTime int64) map[string]interface{} {
 	startTime, endTime = o.filterAndPrepareTimeSection(startTime, endTime)
 
 	query := o.buildBaseQuery(campaignID, domain, startTime, endTime)
 
-	query = query.Fields("count(*) as sends")
-	query = query.Fields("coalesce(sum(case when status='sent' and dsn like '2.%' then 1 else 0 end), 0) as delivered")
-	query = query.Fields("count(*) - coalesce(sum(case when status='sent' and dsn like '2.%' then 1 else 0 end), 0) as failed")
+	query.Fields("count(*) as sends")
+	query.Fields("coalesce(sum(case when status='sent' and dsn like '2.%' then 1 else 0 end), 0) as delivered")
+	query.Fields("count(*) - coalesce(sum(case when status='sent' and dsn like '2.%' then 1 else 0 end), 0) as failed")
 
 	aggregate := map[string]interface{}{
 		"sends":     0,
@@ -316,11 +458,16 @@ func (o *Overview) sendMailDashboard(campaignID int64, domain string, startTime,
 func (o *Overview) prepareChartData(startTime, endTime int64) (string, string) {
 	columnType := "daily"
 	secs := endTime - startTime
-	xAxisField := "to_char(to_timestamp(sm.log_time_millis / 1000), 'YYYY-MM-DD') as x"
+	xAxisField := "TO_CHAR(TO_TIMESTAMP(sm.log_time_millis / 1000), 'YYYY-MM-DD') as x"
 
 	if secs < 86400 {
 		columnType = "hourly"
-		xAxisField = "to_char(to_timestamp(sm.log_time_millis / 1000), 'HH24')::integer as x"
+		xAxisField = "TO_CHAR(TO_TIMESTAMP(sm.log_time_millis / 1000), 'HH24')::integer as x"
+	}
+
+	if secs >= 2592000 {
+		columnType = "monthly"
+		xAxisField = "TO_CHAR(TO_TIMESTAMP(sm.log_time_millis / 1000), 'YYYY-MM') as x"
 	}
 
 	return columnType, xAxisField
@@ -333,13 +480,13 @@ func (o *Overview) chartSendMail(campaignID int64, domain string, startTime, end
 
 	columnType, xAxisField := o.prepareChartData(startTime, endTime)
 
-	query = query.Fields(xAxisField)
-	query = query.Fields("count(*) as sends")
-	query = query.Fields("coalesce(sum(case when status='sent' and dsn like '2.%' then 1 else 0 end), 0) as delivered")
-	query = query.Fields("count(*) - coalesce(sum(case when status='sent' and dsn like '2.%' then 1 else 0 end), 0) as failed")
+	query.Fields(xAxisField)
+	query.Fields("count(*) as sends")
+	query.Fields("coalesce(sum(case when status='sent' and dsn like '2.%' then 1 else 0 end), 0) as delivered")
+	query.Fields("count(*) - coalesce(sum(case when status='sent' and dsn like '2.%' then 1 else 0 end), 0) as failed")
 
-	query = query.Group("x")
-	query = query.Order("x")
+	query.Group("x")
+	query.Order("x")
 
 	rs, err := query.All()
 	if err != nil {
@@ -372,11 +519,11 @@ func (o *Overview) chartBounceRate(campaignID int64, domain string, startTime, e
 
 	columnType, xAxisField := o.prepareChartData(startTime, endTime)
 
-	query = query.Fields(xAxisField)
-	query = query.Fields(gdb.Raw("case when count(*) > 0 then round(1.0 * coalesce(sum(case when status='bounced' then 1 else 0 end), 0) / count(*) * 100.0, 2) else 0.0 end as bounce_rate"))
+	query.Fields(xAxisField)
+	query.Fields(gdb.Raw("case when count(*) > 0 then round(1.0 * coalesce(sum(case when status='bounced' then 1 else 0 end), 0) / count(*) * 100.0, 2) else 0.0 end as bounce_rate"))
 
-	query = query.Group("x")
-	query = query.Order("x")
+	query.Group("x")
+	query.Order("x")
 
 	rs, err := query.All()
 	if err != nil {
@@ -406,12 +553,17 @@ func (o *Overview) chartOpenRate(campaignID int64, domain string, startTime, end
 
 	columnType, xAxisField := o.prepareChartData(startTime, endTime)
 
-	query = query.LeftJoin("mailstat_opened o", "sm.postfix_message_id=o.postfix_message_id")
+	query.LeftJoin(`LATERAL(
+	SELECT id
+	FROM mailstat_opened
+	WHERE sm.postfix_message_id = postfix_message_id
+	LIMIT 1
+) as o`, "true")
 
-	query = query.Fields(xAxisField)
-	query = query.Fields("case when coalesce(sum(case when status='sent' and dsn like '2.%' then 1 else 0 end), 0) > 0 then round(1.0 * count(distinct o.postfix_message_id) / coalesce(sum(case when status='sent' and dsn like '2.%' then 1 else 0 end), 0) * 100, 2) else 0.0 end as open_rate")
+	query.Fields(xAxisField)
+	query.Fields("case when coalesce(sum(case when status='sent' and dsn like '2.%' then 1 else 0 end), 0) > 0 then round(1.0 * count(o.id) / coalesce(sum(case when status='sent' and dsn like '2.%' then 1 else 0 end), 0) * 100, 2) else 0.0 end as open_rate")
 
-	query = query.Group("x")
+	query.Group("x")
 
 	rs, err := query.All()
 	if err != nil {
@@ -441,12 +593,24 @@ func (o *Overview) chartClickRate(campaignID int64, domain string, startTime, en
 
 	columnType, xAxisField := o.prepareChartData(startTime, endTime)
 
-	query = query.LeftJoin("mailstat_clicked c", "sm.postfix_message_id=c.postfix_message_id")
+	query.LeftJoin(`LATERAL(
+	SELECT id
+	FROM mailstat_opened
+	WHERE sm.postfix_message_id = postfix_message_id
+	LIMIT 1
+) as o`, "true")
 
-	query = query.Fields(xAxisField)
-	query = query.Fields("case when coalesce(sum(case when status='sent' and dsn like '2.%' then 1 else 0 end), 0) > 0 then round(1.0 * count(distinct c.postfix_message_id) / coalesce(sum(case when status='sent' and dsn like '2.%' then 1 else 0 end), 0) * 100, 2) else 0.0 end as click_rate")
+	query.LeftJoin(`LATERAL(
+	SELECT id
+	FROM mailstat_clicked
+	WHERE sm.postfix_message_id = postfix_message_id
+	LIMIT 1
+) as c`, "true")
 
-	query = query.Group("x")
+	query.Fields(xAxisField)
+	query.Fields("case when count(o.id) > 0 then round(1.0 * count(c.id) / count(o.id) * 100, 2) else 0.0 end as click_rate")
+
+	query.Group("x")
 
 	rs, err := query.All()
 	if err != nil {
@@ -475,7 +639,13 @@ func (o *Overview) FailedList(campaignID int64, domain string, startTime, endTim
 
 	query := o.buildBaseQuery(campaignID, domain, startTime, endTime)
 
-	query.LeftJoin("mailstat_deferred_mails d", "sm.postfix_message_id=d.postfix_message_id")
+	query.LeftJoin(`LATERAL(
+	SELECT id, dsn, delay, delays, relay, description
+	FROM mailstat_deferred_mails
+	WHERE sm.postfix_message_id = postfix_message_id
+	ORDER BY id DESC
+	LIMIT 1
+) as d`, "true")
 
 	query.Fields("sm.postfix_message_id")
 	query.Fields("s.sender")

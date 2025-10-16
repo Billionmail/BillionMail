@@ -51,3 +51,51 @@ type DeleteAbnormalRecipientReq struct {
 type DeleteAbnormalRecipientRes struct {
 	api_v1.StandardRes
 }
+
+type CheckGroupReq struct {
+	g.Meta        `path:"/abnormal_recipient/check_group" method:"post" tags:"Abnormal Recipient" summary:"Check group emails and handle abnormal"`
+	Authorization string `json:"authorization" dc:"Authorization" in:"header"`
+	GroupId       int    `json:"group_id" v:"required|min:1" dc:"Contact Group ID"`
+	Oper          int    `json:"oper" v:"required|in:1,2,3" dc:"Operation type (1: only check, 2: add to exception table, 3: delete within group)"`
+}
+
+type CheckGroupRes struct {
+	api_v1.StandardRes
+}
+
+type AbnormalSwitchReq struct {
+	g.Meta        `path:"/abnormal_recipient/check_switch" method:"get" tags:"Abnormal Recipient" summary:"Abnormal Switch"`
+	Authorization string `json:"authorization" dc:"Authorization" in:"header"`
+}
+
+type AbnormalSwitchRes struct {
+	api_v1.StandardRes
+}
+
+type SetAbnormalSwitchReq struct {
+	g.Meta        `path:"/abnormal_recipient/set_check_switch" method:"post" tags:"Abnormal Recipient" summary:"Set Check Abnormal Switch"`
+	Authorization string `json:"authorization" dc:"Authorization" in:"header"`
+	Oper          int    `json:"oper" v:"required|in:0,1" dc:"Operation type (1 for on, 0 for off)"`
+}
+
+type SetAbnormalSwitchRes struct {
+	api_v1.StandardRes
+}
+
+type ClearabnormalRecipientReq struct {
+	g.Meta        `path:"/abnormal_recipient/clear_abnormal" method:"post" tags:"Abnormal Recipient" summary:"Check group emails and handle abnormal"`
+	Authorization string `json:"authorization" dc:"Authorization" in:"header"`
+}
+
+type ClearabnormalRecipientRes struct {
+	api_v1.StandardRes
+}
+
+type GetScanLogReq struct {
+	g.Meta        `path:"/abnormal_recipient/get_scan_log" method:"post" tags:"Abnormal Recipient" summary:"Get Scan Log"`
+	Authorization string `json:"authorization" dc:"Authorization" in:"header"`
+}
+
+type GetScanLogRes struct {
+	api_v1.StandardRes
+}

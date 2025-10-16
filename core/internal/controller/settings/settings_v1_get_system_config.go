@@ -2,6 +2,7 @@ package settings
 
 import (
 	"billionmail-core/api/settings/v1"
+	"billionmail-core/internal/service/domains"
 	"billionmail-core/internal/service/public"
 	"context"
 	"github.com/gogf/gf/v2/errors/gerror"
@@ -29,20 +30,67 @@ func (c *ControllerV1) GetSystemConfig(ctx context.Context, req *v1.GetSystemCon
 	}
 	config.ServerIP = serverIP
 
-	ipWhitelist, err := g.DB().Model("bm_console_ip_whitelist").Fields("ip").All()
+	whitelist, err := GetIPWhitelist()
 	if err != nil {
-		res.SetError(gerror.New(public.LangCtx(ctx, "Failed to read IP whitelist: {}", err)))
-		return res, nil
+		whitelist = []g.Map{}
 	}
-	if len(ipWhitelist) == 0 {
-		config.IPWhitelist = []string{}
-	} else {
-		for _, ip := range ipWhitelist {
-			config.IPWhitelist = append(config.IPWhitelist, ip["ip"].String())
-		}
+	config.IPWhitelist = whitelist
+
+	var reverseProxyDomain string
+	err = public.OptionsMgrInstance.GetOption(ctx, "reverse_proxy_domain", &reverseProxyDomain)
+	if err != nil {
+		reverseProxyDomain = ""
+	}
+	BaseURL := domains.GetBaseURL()
+	config.ReverseProxyDomain.ReverseProxy = reverseProxyDomain
+	config.ReverseProxyDomain.CurrentUrl = BaseURL
+
+	// Load API configuration
+	var apiDocEnabled bool
+	var apiToken string
+
+	err = public.OptionsMgrInstance.GetOption(ctx, "API_DOC_ENABLED", &apiDocEnabled)
+	if err != nil {
+		apiDocEnabled = false
 	}
 
+	err = public.OptionsMgrInstance.GetOption(ctx, "API_TOKEN", &apiToken)
+	if err != nil {
+		apiToken = ""
+	}
+
+	config.APIDocSwagger.APIDocEnabled = apiDocEnabled
+	config.APIDocSwagger.APIToken = apiToken
+	config.APIDocSwagger.APIDocURL = BaseURL + "/api.json"
+	config.APIDocSwagger.SwaggerURL = BaseURL + "/swagger"
+
 	res.Data = config
+
 	res.SetSuccess(public.LangCtx(ctx, "Successfully retrieved system configuration"))
 	return res, nil
+}
+
+func GetIPWhitelist() ([]g.Map, error) {
+
+	result, err := g.DB().Model("bm_console_ip_whitelist").
+		Fields("id, ip").
+		All()
+
+	if err != nil {
+		return nil, gerror.Wrap(err, "Failed to get IP whitelist")
+	}
+
+	if result.IsEmpty() {
+		return []g.Map{}, nil
+	}
+
+	var whitelist []g.Map
+	for _, record := range result.List() {
+		whitelist = append(whitelist, g.Map{
+			"id": record["id"],
+			"ip": record["ip"],
+		})
+	}
+
+	return whitelist, nil
 }

@@ -6,29 +6,46 @@ import (
 	"github.com/gogf/gf/v2/frame/g"
 )
 
+type TagInfo struct {
+	Id         int    `json:"id"          dc:"Tag ID"`
+	Name       string `json:"name"        dc:"Tag Name"`
+	CreateTime int    `json:"create_time" dc:"Create Time"`
+}
+
 type EmailTask struct {
-	Id                      int    `json:"id"              dc:"task id"`
-	TaskName                string `json:"task_name"       dc:"task name"`
-	Addresser               string `json:"addresser"       dc:"addresser"`
-	Subject                 string `json:"subject"         dc:"subject"`
-	FullName                string `json:"full_name"       dc:"full name"`
-	RecipientCount          int    `json:"recipient_count" dc:"recipient count"`
-	TaskProcess             int    `json:"task_process"    dc:"task process"`
-	Pause                   int    `json:"pause"           dc:"pause"`
-	TemplateId              int    `json:"template_id"     dc:"template id"`
-	IsRecord                int    `json:"is_record"       dc:"is record"`
-	Unsubscribe             int    `json:"unsubscribe"     dc:"unsubscribe"`
-	Threads                 int    `json:"threads"         dc:"threads"`
-	Etypes                  string `json:"etypes"          dc:"etypes"`
-	TrackOpen               int    `json:"track_open"      dc:"track open"`
-	TrackClick              int    `json:"track_click"     dc:"track click"`
-	StartTime               int    `json:"start_time"      dc:"start time"`
-	CreateTime              int    `json:"create_time"     dc:"create time"`
-	UpdateTime              int    `json:"update_time"     dc:"update time"`
-	Remark                  string `json:"remark"          dc:"remark"`
-	Active                  int    `json:"active"          dc:"status"`
-	AddType                 int    `json:"add_type"        dc:"add type"`
-	EstimatedTimeWithWarmup int64  `json:"estimated_time_with_warmup" dc:"estimated time for warmup (if applicable)"`
+	Id             int    `json:"id"              dc:"task id"`
+	TaskName       string `json:"task_name"       dc:"task name"`
+	Addresser      string `json:"addresser"       dc:"addresser"`
+	Subject        string `json:"subject"         dc:"subject"`
+	FullName       string `json:"full_name"       dc:"full name"`
+	RecipientCount int    `json:"recipient_count" dc:"recipient count"`
+	TaskProcess    int    `json:"task_process"    dc:"task process"`
+	Pause          int    `json:"pause"           dc:"pause"`
+	TemplateId     int    `json:"template_id"     dc:"template id"`
+	IsRecord       int    `json:"is_record"       dc:"is record"`
+	Unsubscribe    int    `json:"unsubscribe"     dc:"unsubscribe"`
+	Threads        int    `json:"threads"         dc:"threads"`
+	//Etypes                  string `json:"etypes"          dc:"etypes"`
+	TrackOpen               int       `json:"track_open"      dc:"track open"`
+	TrackClick              int       `json:"track_click"     dc:"track click"`
+	StartTime               int       `json:"start_time"      dc:"start time"`
+	CreateTime              int       `json:"create_time"     dc:"create time"`
+	UpdateTime              int       `json:"update_time"     dc:"update time"`
+	Remark                  string    `json:"remark"          dc:"remark"`
+	Active                  int       `json:"active"          dc:"status"`
+	AddType                 int       `json:"add_type"        dc:"add type"`
+	EstimatedTimeWithWarmup int64     `json:"estimated_time_with_warmup" dc:"estimated time for warmup (if applicable)"`
+	SendsCount              int       `json:"sendsCount"       description:""`
+	DeliveredCount          int       `json:"deliveredCount"   description:""`
+	BouncedCount            int       `json:"bouncedCount"     description:""`
+	DeferredCount           int       `json:"deferredCount"    description:""`
+	StatsUpdateTime         int       `json:"statsUpdateTime"  description:""`
+	GroupId                 int       `json:"group_id"        dc:"Group ID"`
+	GroupName               string    `json:"group_name"      dc:"Group Name"`
+	Tags                    []TagInfo `json:"tags"           dc:"Task Tags"`
+	UseTagFilter            int       `json:"use_tag_filter" dc:"Whether to use tag filter (1: yes, 0: no)"`
+	TagLogic                string    `json:"tag_logic" dc:"Tag logic (AND: must have all tags, OR: have any tag)"`
+	TagIdsRaw               string    `json:"-"              dc:"Tag IDs raw data for internal processing"`
 }
 
 type GroupInfo struct {
@@ -40,14 +57,14 @@ type GroupInfo struct {
 
 type TaskDetail struct {
 	EmailTask
-	Groups       []*GroupInfo `json:"groups"         dc:"groups"`
-	SentCount    int          `json:"sent_count"     dc:"sent count"`
-	UnsentCount  int          `json:"unsent_count"   dc:"unsent count"`
-	Progress     int          `json:"progress"      dc:"progress"`
-	TemplateName string       `json:"template_name"  dc:"template name"`
-	SuccessCount int          `json:"success_count"  dc:"success count"`
-	ErrorCount   int          `json:"error_count"    dc:"error count"`
-	Deferred     int          `json:"deferred"       dc:"deferred count"`
+	Groups       GroupInfo `json:"groups"         dc:"groups"`
+	SentCount    int       `json:"sent_count"     dc:"sent count"`
+	UnsentCount  int       `json:"unsent_count"   dc:"unsent count"`
+	Progress     int       `json:"progress"      dc:"progress"`
+	TemplateName string    `json:"template_name"  dc:"template name"`
+	SuccessCount int       `json:"success_count"  dc:"success count"`
+	ErrorCount   int       `json:"error_count"    dc:"error count"`
+	Deferred     int       `json:"deferred"       dc:"deferred count"`
 	//Opened       int          `json:"opened"        dc:"opened count"`
 	//Clicked      int          `json:"clicked"       dc:"clicked count"`
 	//DeliveryRate float64      `json:"delivery_rate" dc:"delivery rate"`
@@ -125,7 +142,7 @@ type CreateTaskReq struct {
 	Subject       string `json:"subject" v:"required" dc:"subject"`
 	FullName      string `json:"full_name" dc:"full name"`
 	TemplateId    int    `json:"template_id" v:"required" dc:"template id"`
-	GroupIds      []int  `json:"group_ids" v:"required" dc:"group ids"`
+	GroupId       int    `json:"group_id" v:"required" dc:"group id"`
 	IsRecord      int    `json:"is_record" v:"in:0,1" dc:"is record" default:"1"`
 	Unsubscribe   int    `json:"unsubscribe" v:"in:0,1" dc:"unsubscribe" default:"1"`
 	Threads       int    `json:"threads" v:"min:0" dc:"threads" default:"5"`
@@ -134,6 +151,9 @@ type CreateTaskReq struct {
 	StartTime     int    `json:"start_time" v:"required" dc:"start time"`
 	Warmup        int    `json:"warmup" v:"in:0,1" dc:"warmup" default:"0"`
 	Remark        string `json:"remark" dc:"remark"`
+
+	TagIds   []int  `json:"tag_ids" dc:"tag ids for filtering contacts"`
+	TagLogic string `json:"tag_logic" v:"in:AND,OR" dc:"tag logic (AND: must have all tags, OR: have any tag)" default:"AND"`
 }
 
 type CreateTaskRes struct {
@@ -243,4 +263,24 @@ type TaskStatChartRes struct {
 		OpenRateChart   interface{} `json:"open_rate_chart" dc:"open rate chart"`
 		ClickRateChart  interface{} `json:"click_rate_chart" dc:"click rate chart"`
 	} `json:"data"`
+}
+
+type UpdateTaskInfoReq struct {
+	g.Meta        `path:"/batch_mail/task/update" method:"post" tags:"BatchMail" summary:"update task info"`
+	Authorization string `json:"authorization" dc:"Authorization" in:"header"`
+	TaskId        int    `json:"task_id" v:"required" dc:"task id"`
+	Addresser     string `json:"addresser" dc:"addresser"`
+	Subject       string `json:"subject" dc:"subject"`
+	FullName      string `json:"full_name" dc:"full name"`
+	Remark        string `json:"remark" dc:"remark"`
+	TemplateId    int    `json:"template_id" dc:"template id"`
+	Unsubscribe   int    `json:"unsubscribe" v:"in:0,1" dc:"unsubscribe"`
+	Warmup        int    `json:"warmup" v:"in:0,1" dc:"warmup"`
+	Threads       int    `json:"threads" v:"min:0" dc:"threads"`
+	StartTime     int    `json:"start_time" dc:"start time"`
+	TagIds        []int  `json:"tag_ids" dc:"tag ids for filtering contacts"`
+	TagLogic      string `json:"tag_logic" v:"in:AND,OR" dc:"tag logic (AND: must have all tags, OR: have any tag)"`
+}
+type UpdateTaskInfoRes struct {
+	api_v1.StandardRes
 }

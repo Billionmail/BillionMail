@@ -6,7 +6,6 @@ idea/*
 .cursor/
 test/*
 config/*
-core/data/*
 temp/
 ssl/*
 bm

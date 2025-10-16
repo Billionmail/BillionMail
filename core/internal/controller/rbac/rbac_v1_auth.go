@@ -2,6 +2,7 @@ package rbac
 
 import (
 	"billionmail-core/api/rbac/v1"
+	"billionmail-core/internal/consts"
 	"billionmail-core/internal/service/public"
 	service "billionmail-core/internal/service/rbac"
 	"context"
@@ -128,6 +129,11 @@ func (c *ControllerV1) Login(ctx context.Context, req *v1.LoginReq) (res *v1.Log
 
 	loginSuccessFlag = true
 
+	_ = public.WriteLog(ctx, public.LogParams{
+		Type: consts.LOGTYPE.Login,
+		Log:  "The user:" + req.Username + " login was successful",
+		Data: res.Data,
+	})
 	return
 }
 
@@ -148,6 +154,12 @@ func (c *ControllerV1) Logout(ctx context.Context, req *v1.LogoutReq) (res *v1.L
 		err = fmt.Errorf("Logout failed: %w", err)
 		return
 	}
+
+	// Destroy the session
+	_ = g.RequestFromCtx(ctx).Session.RemoveAll()
+
+	// reset the safe path pass
+	_ = g.RequestFromCtx(ctx).Session.Set("safe_path_pass", true)
 
 	res.Success = true
 	res.Code = 0

@@ -77,8 +77,22 @@ type SystemConfig struct {
 	SSL SSLConfig `json:"ssl" dc:"ssl certificate configuration"`
 
 	// IP whitelist configuration
-	IPWhitelist        []string `json:"ip_whitelist" dc:"ip whitelist"`
-	IPWhitelistEnabled bool     `json:"ip_whitelist_enable" dc:"ip whitelist enabled"`
+	IPWhitelist        []g.Map `json:"ip_whitelist" dc:"ip whitelist"`
+	IPWhitelistEnabled bool    `json:"ip_whitelist_enable" dc:"ip whitelist enabled"`
+	// Reverse proxy domain configuration
+
+	ReverseProxyDomain struct {
+		CurrentUrl   string `json:"current_url" dc:"current url"`
+		ReverseProxy string `json:"reverse_proxy" dc:"reverse proxy"`
+	} `json:"reverse_proxy_domain" dc:"reverse proxy domain"`
+
+	// API configuration
+	APIDocSwagger struct {
+		APIDocURL      string `json:"api_doc_url" dc:"api doc url"`
+		SwaggerURL     string `json:"swagger_url" dc:"swagger url"`
+		APIDocEnabled    bool   `json:"api_doc_enabled" dc:"enable API documentation and Swagger UI"`
+		APIToken       string `json:"api_token" dc:"API access token"`
+	} `json:"api_doc_swagger" dc:"API doc and Swagger UI configuration"`
 }
 
 type GetVersionReq struct {
@@ -153,5 +167,65 @@ type SetIPWhitelistReq struct {
 }
 
 type SetIPWhitelistRes struct {
+	api_v1.StandardRes
+}
+
+type DeleteIPWhitelistReq struct {
+	g.Meta `path:"/settings/delete_ip_whitelist" tags:"Settings" method:"post" summary:"Delete IP whitelist"`
+	ID     int `json:"id" dc:"ID"`
+}
+
+type DeleteIPWhitelistRes struct {
+	api_v1.StandardRes
+}
+
+type AddIPWhitelistReq struct {
+	g.Meta `path:"/settings/add_ip_whitelist" tags:"Settings" method:"post" summary:"Add IP whitelist"`
+	IP     string `json:"ip" dc:"IP"`
+}
+
+type AddIPWhitelistRes struct {
+	api_v1.StandardRes
+}
+
+type SetReverseProxyDomainReq struct {
+	g.Meta        `path:"/settings/set_reverse_proxy_domain" tags:"Settings" method:"post" summary:"Set reverse proxy domain"`
+	Authorization string `json:"authorization" in:"header" dc:"Authorization" v:"required"`
+	Domain        string `json:"domain" dc:"Domain" v:"required"`
+}
+
+type SetReverseProxyDomainRes struct {
+	api_v1.StandardRes
+}
+
+type DeleteReverseProxyDomainReq struct {
+	g.Meta        `path:"/settings/delete_reverse_proxy_domain" tags:"Settings" method:"post" summary:"Delete reverse proxy domain"`
+	Authorization string `json:"authorization" in:"header" dc:"Authorization" v:"required"`
+}
+type DeleteReverseProxyDomainRes struct {
+	api_v1.StandardRes
+}
+
+// Regenerate API Token request
+type RegenerateAPITokenReq struct {
+	g.Meta        `path:"/settings/regenerate_api_token" tags:"Settings" method:"post" summary:"Regenerate API Token"`
+	Authorization string `json:"authorization" in:"header" dc:"Authorization" v:"required"`
+}
+
+// Regenerate API Token response
+type RegenerateAPITokenRes struct {
+	api_v1.StandardRes
+	Data struct {
+		APIToken string `json:"api_token" dc:"New API Token"`
+	} `json:"data" dc:"Generated API Token"`
+}
+
+// 设置api文档和Swagger的开启状态
+type SetAPIDocSwaggerReq struct {
+	g.Meta        `path:"/settings/set_api_doc_swagger" tags:"Settings" method:"post" summary:"Set API Doc and Swagger UI configuration"`
+	Authorization string `json:"authorization" in:"header" dc:"Authorization" v:"required"`
+	APIDocEnabled bool   `json:"api_doc_enabled" dc:"Enable API documentation and Swagger UI"`
+}
+type SetAPIDocSwaggerRes struct {
 	api_v1.StandardRes
 }

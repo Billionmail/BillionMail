@@ -7,7 +7,7 @@
 
 [![][license-shield]][license-link] [![][docs-shield]][docs-link] [![][github-release-shield]][github-release-link] [![][github-stars-shield]][github-stars-link]
 
-[English](README.md) | 简体中文 | [日本語](README-ja.md)
+[English](README.md) | 简体中文 | [日本語](README-ja.md) | [Türkçe](README-ja.md)
 </div>
 <br/>
 

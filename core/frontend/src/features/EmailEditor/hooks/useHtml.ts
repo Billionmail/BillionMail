@@ -30,7 +30,9 @@ export const useHtml = () => {
 		const columnTrMap = columnToTr()
 		const table = document.createElement('table')
 		table.style.backgroundColor = pageConfig.value.style.backgroundColor || '#fff'
+		table.style.fontFamily = pageConfig.value.style.fontFamily || 'PingFang SC, Microsoft YaHei'
 		table.style.width = '100%'
+		table.style.borderSpacing = '0'
 		columnsSource.value.forEach(columnKey => {
 			if (columnTrMap[columnKey]) {
 				table.appendChild(columnTrMap[columnKey].dom)
@@ -47,11 +49,14 @@ export const useHtml = () => {
 			const tr = document.createElement('tr')
 			const td = document.createElement('td')
 			const div = document.createElement('div')
-			setElementStyle(div, columnsConfigMap.value[columnsKey].style)
+			const columnsConfig = columnsConfigMap.value[columnsKey]
+			setElementStyle(tr, columnsConfig.containerStyle)
+			setElementStyle(div, columnsConfig.style)
 			div.style.width = pageConfig.value.style.width || 'auto'
 			div.style.margin = '0 auto'
 			const childTable = document.createElement('table')
 			childTable.style.width = '100%'
+			childTable.style.borderSpacing = '0'
 			const childTableTr = document.createElement('tr')
 			columns.children.forEach(cellKey => {
 				childTableTr.appendChild(tdMap[cellKey].dom)

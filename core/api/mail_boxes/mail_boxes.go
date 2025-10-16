@@ -18,4 +18,6 @@ type IMailBoxesV1 interface {
 	GetMailbox(ctx context.Context, req *v1.GetMailboxReq) (res *v1.GetMailboxRes, err error)
 	GetAllMailbox(ctx context.Context, req *v1.GetAllMailboxReq) (res *v1.GetAllMailboxRes, err error)
 	GetAllEmail(ctx context.Context, req *v1.GetAllEmailReq) (res *v1.GetAllEmailRes, err error)
+	ExportMailbox(ctx context.Context, req *v1.ExportMailboxReq) (res *v1.ExportMailboxRes, err error)
+	ImportMailbox(ctx context.Context, req *v1.ImportMailboxReq) (res *v1.ImportMailboxRes, err error)
 }

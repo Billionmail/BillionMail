@@ -98,7 +98,7 @@ const closeModal = () => {
 const onCancel = () => {
 	const result = props.onCancel()
 	if (result === false) return
-	show.value = false
+	closeModal()
 }
 
 const onConfirm = () => {

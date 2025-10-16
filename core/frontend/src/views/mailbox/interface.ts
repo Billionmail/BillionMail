@@ -6,6 +6,7 @@ export interface MailBoxParams {
 }
 
 export interface MailBox {
+	name: string
 	username: string
 	password: string
 	password_encode: string
@@ -19,4 +20,6 @@ export interface MailBox {
 	create_time: number
 	update_time: number
 	active: number
+	used_quota: number
+	quota_active: number
 }

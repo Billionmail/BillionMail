@@ -26,22 +26,25 @@
 				<form-modal />
 				<ssl-modal />
 				<dns-modal />
+				<domain-ip-set-modal />
 			</template>
 		</bt-table-layout>
 	</div>
 </template>
 
 <script lang="tsx" setup>
-import { DataTableColumns, NFlex, NButton } from 'naive-ui'
+import { DataTableColumns, NFlex, NButton, NTag } from 'naive-ui'
 import { confirm, getByteUnit } from '@/utils'
 import { useModal } from '@/hooks/modal/useModal'
 import { useTableData } from '@/hooks/useTableData'
-import { deleteDomain, getDomainList } from '@/api/modules/domain'
+import { deleteDomain, getDomainList, setDefaultDomain } from '@/api/modules/domain'
 import type { MailDomain, MailDomainParams } from './interface'
 
 import DomainForm from './components/DomainForm.vue'
 import DomainSsl from './components/DomainSsl/index.vue'
 import DomainDns from './components/DomainDns.vue'
+import DomainIpSet from './components/DomainIpSet.vue'
+import IpStatus from './components/IpStatus.vue'
 
 const { t } = useI18n()
 
@@ -58,6 +61,7 @@ const { tableParams, tableList, loading, tableTotal, getTableData } = useTableDa
 	fetchFn: getDomainList,
 })
 
+const route = useRoute()
 const router = useRouter()
 
 // Table columns
@@ -69,19 +73,21 @@ const columns = ref<DataTableColumns<MailDomain>>([
 		ellipsis: {
 			tooltip: true,
 		},
-		render: row => (
-			<NButton
-				text
-				type="primary"
-				onClick={() => {
-					router.push({
-						path: '/mailbox',
-						state: { domain: row.domain },
-					})
-				}}>
-				{row.domain}
-			</NButton>
-		),
+		render: row => {
+			return (
+				<div class="inline-flex items-center">
+					{row.hasbrandinfo == 1 && <i class="i-domain:brand-info w-4 h-4 mr-4px"></i>}
+					<NButton text type="primary" onClick={() => handleEdit(row)}>
+						{row.domain}
+					</NButton>
+					{row.default === 1 && (
+						<NTag size="small" class="ml-8px" bordered={false}>
+							{t('domain.status.default')}
+						</NTag>
+					)}
+				</div>
+			)
+		},
 	},
 	{
 		key: 'quota',
@@ -91,6 +97,11 @@ const columns = ref<DataTableColumns<MailDomain>>([
 	{
 		key: 'mailboxes',
 		title: t('domain.columns.mailboxes'),
+	},
+	{
+		key: 'current_quota',
+		title: 'Current usage',
+		render: row => getByteUnit(row.current_usage),
 	},
 	{
 		key: 'mailbox_quota',
@@ -114,6 +125,25 @@ const columns = ref<DataTableColumns<MailDomain>>([
 	// 		/>
 	// 	),
 	// },
+	{
+		key: 'multi_ip_domains',
+		title: t('domain.columns.dedicatedIp'),
+		render: row => {
+			if (row.multi_ip_domains) {
+				return (
+					<div
+						class="flex items-center cursor-pointer"
+						onClick={() => {
+							handleMultiIpDomains(row)
+						}}>
+						<span class="leading-14px mr-6px">{row.multi_ip_domains.outbound_ip}</span>
+						<IpStatus status={row.multi_ip_domains.status}></IpStatus>
+					</div>
+				)
+			}
+			return '--'
+		},
+	},
 	{
 		key: 'ssl',
 		title: 'SSL',
@@ -148,6 +178,7 @@ const columns = ref<DataTableColumns<MailDomain>>([
 		title: t('domain.columns.actions'),
 		key: 'actions',
 		align: 'right',
+		width: 260,
 		render: row => (
 			<NFlex inline={true}>
 				<NButton
@@ -165,6 +196,15 @@ const columns = ref<DataTableColumns<MailDomain>>([
 						handleEdit(row)
 					}}>
 					{t('common.actions.edit')}
+				</NButton>
+				<NButton
+					type="primary"
+					text={true}
+					disabled={row.default === 1}
+					onClick={() => {
+						handleSetDefault(row)
+					}}>
+					{t('domain.actions.setDefault')}
 				</NButton>
 				<NButton
 					type="error"
@@ -233,13 +273,35 @@ const handleDNSRecord = (row: MailDomain) => {
 	dnsModalApi.open()
 }
 
+const handleSetDefault = (row: MailDomain) => {
+	confirm({
+		title: t('domain.setDefault.title', { domain: row.domain }),
+		content: t('domain.setDefault.confirm'),
+		onConfirm: async () => {
+			await setDefaultDomain({ domain: row.domain })
+			getTableData()
+		},
+	})
+}
+
 // Handle edit
 const handleEdit = (row: MailDomain) => {
-	formModalApi.setState({
-		row,
-		isEdit: true,
+	router.push({
+		name: 'EditDomain',
+		params: {
+			domain: row.domain,
+		},
 	})
-	formModalApi.open()
+}
+
+const [DomainIpSetModal, domainIpSetModalApi] = useModal({
+	component: DomainIpSet,
+})
+
+// Handle multi ip domains
+const handleMultiIpDomains = (row: MailDomain) => {
+	domainIpSetModalApi.setState({ row })
+	domainIpSetModalApi.open()
 }
 
 // Handle delete
@@ -255,6 +317,15 @@ const handleDelete = (row: MailDomain) => {
 		},
 	})
 }
+
+// Whether should open create modal automic
+const initDomainFlag = ref('')
+onMounted(() => {
+	initDomainFlag.value = route.query.init as string
+	if (initDomainFlag.value === 'init-domain') {
+		handleAddDomain()
+	}
+})
 </script>
 
 <style lang="scss" scoped>

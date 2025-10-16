@@ -1,6 +1,7 @@
 package contact
 
 import (
+	"billionmail-core/internal/consts"
 	"billionmail-core/internal/service/contact"
 	"billionmail-core/internal/service/public"
 	"context"
@@ -137,6 +138,18 @@ func (c *ControllerV1) EditContacts(ctx context.Context, req *v1.EditContactsReq
 		return
 	}
 
+	newContactInfo := map[string]interface{}{
+		"email":     req.Emails,
+		"group_ids": req.GroupIds,
+		"active":    req.Active,
+		"attribs":   attribs,
+	}
+
+	_ = public.WriteLog(ctx, public.LogParams{
+		Type: consts.LOGTYPE.Contacts,
+		Log:  fmt.Sprintf("Edit contact: %s successfully", req.Emails),
+		Data: newContactInfo,
+	})
 	res.SetSuccess(public.LangCtx(ctx, "Contact updated successfully"))
 	return
 }

@@ -1,6 +1,8 @@
 package timers
 
 import (
+	"billionmail-core/internal/service/abnormal_recipient"
+	"billionmail-core/internal/service/askai"
 	"billionmail-core/internal/service/batch_mail"
 	"billionmail-core/internal/service/collect"
 	"billionmail-core/internal/service/domains"
@@ -8,12 +10,14 @@ import (
 	"billionmail-core/internal/service/mail_boxes"
 	"billionmail-core/internal/service/mail_service"
 	"billionmail-core/internal/service/maillog_stat"
+	"billionmail-core/internal/service/multi_ip_domain"
 	"billionmail-core/internal/service/relay"
 	"billionmail-core/internal/service/warmup"
 	"context"
+	"time"
+
 	"github.com/gogf/gf/os/gtimer"
 	"github.com/gogf/gf/v2/frame/g"
-	"time"
 )
 
 // Start Start initializes and starts all the necessary timers for the service.
@@ -125,6 +129,55 @@ func Start(ctx context.Context) (err error) {
 
 	// fail2ban access logs detection
 	gtimer.AddOnce(800*time.Millisecond, fail2ban.NewAccessLogDetection().Start)
+
+	// askai timers
+	gtimer.Add(5*time.Second, askai.AutoGetProjectInfo)
+
+	gtimer.Add(30*time.Minute, func() {
+		abnormal_recipient.AbnormalRecipientAutoStat(context.Background())
+	})
+
+	// Regularly update the success and failure data of marketing tasks
+	gtimer.Add(1*time.Minute, func() {
+		batch_mail.UpdateTaskJoinMailstat(ctx)
+	})
+
+	// First sync of SMTP relay configurations to Postfix after refactoring
+	gtimer.AddOnce(3*time.Second, func() {
+		relay.CheckRelayFirstSync(ctx)
+	})
+
+	// update iptable
+	gtimer.AddOnce(3*time.Second, func() {
+		multi_ip_domain.ReapplyAllIptablesRules(ctx)
+	})
+
+	// Updated: Used space in the mailbox
+	gtimer.AddOnce(20*time.Second, func() {
+		mail_boxes.UpdateMailboxesUsedSpace()
+	})
+
+	gtimer.Add(60*time.Minute, func() {
+		mail_boxes.UpdateMailboxesUsedSpace()
+	})
+
+	// Check the email quota and the alert for exceeding the quota
+	gtimer.AddOnce(1*time.Minute, func() {
+		mail_boxes.CheckMailboxesQuotaAlerts(ctx)
+	})
+
+	gtimer.Add(60*time.Minute, func() {
+		mail_boxes.CheckMailboxesQuotaAlerts(ctx)
+	})
+
+	// Initialize the quota plugin and update the quota usage status of the domain name and email
+	gtimer.AddOnce(1*time.Second, func() {
+		err := mail_boxes.InitQuotaPluginAndUpdateUsedSpace(ctx)
+		if err != nil {
+			g.Log().Warning(ctx, "Initialize the quota plugin and update the quota usage status of the domain name and email,  failed: ", err)
+			err = nil
+		}
+	})
 
 	g.Log().Debug(ctx, "All timers started successfully")
 	return nil

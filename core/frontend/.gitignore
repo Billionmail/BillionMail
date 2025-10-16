@@ -2,6 +2,7 @@
 .DS_Store
 *.local
 *.log*
+!logs
 
 # Dist
 node_modules
@@ -13,3 +14,8 @@ dist/
 .idea
 
 deploy.js
+
+# build/config.ts
+
+pnpm-lock.yaml
+yarn.lock

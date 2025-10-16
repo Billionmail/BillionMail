@@ -1,0 +1,40 @@
+@use "@/styles/index" as base;
+
+@mixin wrapper {
+    display: grid;
+    grid-template-rows: 40px 1fr;
+    height: calc(100%);
+    box-sizing: border-box;
+    padding: 24px;
+
+
+}
+
+@mixin page-tit {
+    @include base.row-flex-start;
+    margin-bottom: 20px;
+    gap: 15px;
+
+    .back-tool {
+        color: var(--color-primary-1);
+        @include base.row-flex-start;
+        gap: 5px;
+        cursor: pointer;
+        @include base.transition-all;
+
+        &:hover {
+            color: var(--color-primary-3);
+        }
+
+        .back-btn {
+            font-size: 18px;
+        }
+    }
+
+    .tit-content {
+        font-size: 18px;
+        color: var(--color-text-1);
+        font-weight: bold;
+    }
+}
+

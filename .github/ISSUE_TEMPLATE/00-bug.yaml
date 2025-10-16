@@ -1,0 +1,116 @@
+# https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/configuring-issue-templates-for-your-repository#creating-issue-forms
+# https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-githubs-form-schema
+name: Bugs
+description: Report a bug to help us improve
+title: "Bug title"
+labels:
+  - bug
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping us improve! 🙏 Please answer these questions and provide as much information as possible about your problem.
+
+  # 1. Environment Information (Structured)
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      description: Select or specify the exact distribution
+      options:
+        - Windows
+        - macOS
+        - Linux
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: os_version
+    attributes:
+      label: OS Version
+      placeholder: e.g., "Ubuntu 22.04 LTS" or "Windows 11 23H2"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: arch
+    attributes:
+      label: System Architecture
+      options:
+        - x86_64
+        - ARM64
+        - Other
+    validations:
+      required: true
+
+  # 2. Docker Environment
+  - type: input
+    id: docker_version
+    attributes:
+      label: Docker Version
+      placeholder: Output of `docker --version`
+    validations:
+      required: true
+
+  - type: input
+    id: compose_version
+    attributes:
+      label: Docker Compose Version
+      placeholder: Output of `docker-compose --version`
+    validations:
+      required: false
+
+  - type: dropdown
+    id: reproduce_latest
+    attributes:
+      label: Reproducible in Latest Version?
+      options:
+        - "Yes, occurs in the latest stable release"
+        - "No, only in older versions (specify version)"
+    validations:
+      required: true
+
+  # 3. Core Bug Description (Required)
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction Steps
+      description: Clear sequence to trigger the bug (commands/operations)
+      placeholder: |
+        1. Run `docker-compose up -d`
+        2. Access http://localhost:8080
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: observed
+    attributes:
+      label: Observed Behavior
+      description: Error logs, screenshots, or unexpected behavior
+      placeholder: |
+        - Container logs show `ERROR: Permission denied`
+        - Service returns 500 error with headers...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: Correct behavior or suggested fix
+      placeholder: "Service should return 200 status with JSON output"
+    validations:
+      required: true
+
+  # 4. Additional Context (Optional)
+  - type: textarea
+    id: additional
+    attributes:
+      label: Supplemental Information
+      placeholder: Relevant config snippets, stack traces, etc.
+      render: markdown
+    validations:
+      required: false

@@ -7,7 +7,6 @@ const route: RouteRecordRaw = {
 	name: 'MarketLayout',
 	component: Layout,
 	meta: {
-		sort: 2,
 		key: 'market',
 		title: 'Email Marketing',
 		titleKey: 'layout.menu.market',
@@ -28,16 +27,10 @@ const route: RouteRecordRaw = {
 				{
 					path: 'template',
 					name: 'MarketTemplate',
-					meta: { title: 'Template', titleKey: 'layout.menu.template' },
+					meta: { title: 'Template', hidden: true, titleKey: 'layout.menu.template' },
 					component: () => import('@/views/market/template/index.vue'),
 				},
 			],
-		},
-		{
-			path: 'template/edit/:id',
-			name: 'MarketTemplateEdit',
-			meta: { title: 'Template', hidden: true },
-			component: () => import('@/views/market/template/edit.vue'),
 		},
 		{
 			path: 'task/edit',

@@ -1,5 +1,5 @@
 <template>
-	<div class="bt-title">{{ title }}</div>
+	<div class="bt-title mb-8px!">{{ title }}</div>
 	<n-tabs :value="activeTab" type="line" class="route-tabs" @update:value="handleUpdateTab">
 		<n-tab-pane v-for="tab in tabs" :key="tab.name" :name="tab.name" :tab="tab.title"> </n-tab-pane>
 	</n-tabs>
@@ -41,14 +41,19 @@ const addTab = (route: RouteLocationNormalized) => {
 	if (existTab) return
 
 	if (route.matched[1].children) {
-		tabs.value = route.matched[1].children.map(routeItem => {
-			const key = get(routeItem, 'meta.titleKey', '')
-			const title = get(routeItem, 'meta.title', '')
-			return {
-				title: `${key ? t(String(key)) : title}`,
-				name: String(routeItem.name),
-			}
-		})
+		tabs.value = route.matched[1].children
+			.filter(routeItem => {
+				const isHidden = get(routeItem, 'meta.hidden', false)
+				return !isHidden
+			})
+			.map(routeItem => {
+				const key = get(routeItem, 'meta.titleKey', '')
+				const title = get(routeItem, 'meta.title', '')
+				return {
+					title: `${key ? t(String(key)) : title}`,
+					name: String(routeItem.name),
+				}
+			})
 	}
 }
 

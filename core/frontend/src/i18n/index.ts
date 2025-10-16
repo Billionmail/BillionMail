@@ -21,3 +21,5 @@ export const setLanguage = (locale: string) => {
 }
 
 export default i18n
+
+export { i18n }

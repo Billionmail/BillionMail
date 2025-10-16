@@ -172,6 +172,17 @@ func init() {
 			"role_id":    adminRoleId,
 		})
 
+		// Generate default API Token
+		var api_token string
+		if err = public.OptionsMgrInstance.GetOption(context.Background(), "API_TOKEN", &api_token); err != nil || api_token == "" {
+			api_token, _, err = rbac.JWT().GenerateApiToken(adminId, adminUsername, []string{"admin"})
+			if err == nil {
+				if err = public.OptionsMgrInstance.SetOption(context.Background(), "API_TOKEN", api_token); err != nil {
+
+				}
+			}
+		}
+
 		g.Log().Info(context.Background(), "RBAC tables initialized successfully")
 	})
 }
