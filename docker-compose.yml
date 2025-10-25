@@ -142,7 +142,7 @@ services:
 
 
     webmail-billionmail:
-      image: roundcube/roundcubemail:1.6.10-fpm-alpine
+      image: roundcube/roundcubemail:1.6.11-fpm-alpine
       hostname: roundcube
       depends_on:
         - pgsql-billionmail
