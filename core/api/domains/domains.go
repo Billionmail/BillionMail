@@ -11,6 +11,8 @@ import (
 )
 
 type IDomainsV1 interface {
+	CheckBlacklist(ctx context.Context, req *v1.CheckBlacklistReq) (res *v1.CheckBlacklistRes, err error)
+	GetBlocklistCheckLogs(ctx context.Context, req *v1.GetBlocklistCheckLogsReq) (res *v1.GetBlocklistCheckLogsRes, err error)
 	AddDomain(ctx context.Context, req *v1.AddDomainReq) (res *v1.AddDomainRes, err error)
 	UpdateDomain(ctx context.Context, req *v1.UpdateDomainReq) (res *v1.UpdateDomainRes, err error)
 	UpdateDomainBrandinfo(ctx context.Context, req *v1.UpdateDomainBrandinfoReq) (res *v1.UpdateDomainBrandinfoRes, err error)
