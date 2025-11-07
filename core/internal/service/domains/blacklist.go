@@ -655,8 +655,7 @@ func buildBlacklistAlertEmailHTML(ip, domain string, result *model.BlacklistChec
 				border-left: 3px solid #dc2626;
 			}
 			.action-box {
-				background: #f0fdf4;
-				border: 1px solid #bbf7d0;
+				background: #f9fafb;
 				border-radius: 8px;
 				padding: 20px;
 				margin: 24px 0;
