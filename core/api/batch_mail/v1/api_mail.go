@@ -2,6 +2,7 @@ package v1
 
 import (
 	"billionmail-core/utility/types/api_v1"
+
 	"github.com/gogf/gf/v2/frame/g"
 )
 
@@ -100,6 +101,8 @@ type ApiTemplatesCreateReq struct {
 	ExpireTime    int    `json:"expire_time" dc:"expire time"` // 0 is a permanently valid unit of seconds
 	//IpWhitelistEnabled int      `json:"ip_whitelist_enabled" dc:"ip whitelist enabled"`
 	IpWhitelist []string `json:"ip_whitelist" dc:"ip whitelist"`
+	TrackOpen   int      `json:"track_open" v:"in:0,1" dc:"track open" default:"1"`
+	TrackClick  int      `json:"track_click" v:"in:0,1" dc:"track click" default:"1"`
 }
 
 type ApiTemplatesCreateRes struct {

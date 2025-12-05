@@ -9,10 +9,11 @@ import (
 	"billionmail-core/internal/service/public"
 	"context"
 	"fmt"
-	"github.com/gogf/gf/v2/frame/g"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/gogf/gf/v2/frame/g"
 )
 
 const (
@@ -334,8 +335,12 @@ func sendApiMailWithSender(ctx context.Context, apiTemplate *entity.ApiTemplates
 	baseURL := domains.GetBaseURL()
 	apiTemplate_id := apiTemplate.Id + 1000000000
 	mailTracker := maillog_stat.NewMailTracker(content, apiTemplate_id, messageId, log.Recipient, baseURL)
-	mailTracker.TrackLinks()
-	mailTracker.AppendTrackingPixel()
+	if apiTemplate.TrackOpen == 1 {
+		mailTracker.AppendTrackingPixel()
+	}
+	if apiTemplate.TrackClick == 1 {
+		mailTracker.TrackLinks()
+	}
 	content = mailTracker.GetHTML()
 
 	message := mail_service.NewMessage(subject, content)
@@ -489,7 +494,7 @@ func processMailContentAndSubject(ctx context.Context, content, subject string, 
 		if contact.GroupId > 0 {
 			unsubscribeJumpURL = fmt.Sprintf("%s/unsubscribe_new.html?jwt=%s",
 				domain, jwtToken)
-		
+
 		} else {
 			unsubscribeURL := fmt.Sprintf("%s/api/unsubscribe", domain)
 			groupURL := fmt.Sprintf("%s/api/unsubscribe/user_group", domain)

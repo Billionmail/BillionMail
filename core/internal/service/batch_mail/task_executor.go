@@ -10,16 +10,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/gogf/gf/util/grand"
-	"github.com/gogf/gf/v2/database/gdb"
-	"github.com/gogf/gf/v2/frame/g"
-	"github.com/gogf/gf/v2/os/gctx"
-	"github.com/panjf2000/ants/v2"
 	"regexp"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/gogf/gf/util/grand"
+	"github.com/gogf/gf/v2/database/gdb"
+	"github.com/gogf/gf/v2/frame/g"
+	"github.com/gogf/gf/v2/os/gctx"
+	"github.com/panjf2000/ants/v2"
 )
 
 var (
@@ -94,8 +95,8 @@ func ProcessEmailTasks(ctx context.Context) {
 	// get pending tasks
 	var tasks []*entity.EmailTask
 	err := g.DB().Model("email_tasks").
-		Where("task_process IN (0,1)").              // not started or running
-		Where("pause", 0).                           // not paused
+		Where("task_process IN (0,1)"). // not started or running
+		Where("pause", 0). // not paused
 		Where("start_time <= ?", time.Now().Unix()). // start time has arrived
 		Order("id ASC").
 		Scan(&tasks)
@@ -289,7 +290,7 @@ func (e *TaskExecutor) ProcessTask(ctx context.Context) error {
 			g.Log().Error(ctx, "Worker panic: %v", p)
 		}),
 		ants.WithMaxBlockingTasks(poolSize*100), // allow more waiting tasks
-		ants.WithNonblocking(false))             // blocking submit can improve stability
+		ants.WithNonblocking(false)) // blocking submit can improve stability
 
 	if err != nil {
 		g.Log().Error(ctx, "failed to create worker pool: %v", err)
@@ -1270,8 +1271,12 @@ func (e *TaskExecutor) sendEmailMock(ctx context.Context, task *entity.EmailTask
 	//baseURL := domains.GetBaseURLBySender(task.Addresser)
 	baseURL := domains.GetBaseURL()
 	mail_tracker := maillog_stat.NewMailTracker(renderedContent, task.Id, messageID, recipient.Recipient, baseURL)
-	mail_tracker.TrackLinks()
-	mail_tracker.AppendTrackingPixel()
+	if task.TrackClick == 1 {
+		mail_tracker.TrackLinks()
+	}
+	if task.TrackOpen == 1 {
+		mail_tracker.AppendTrackingPixel()
+	}
 	renderedContent = mail_tracker.GetHTML()
 
 	// Create email message with rendered subject
