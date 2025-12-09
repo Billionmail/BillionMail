@@ -170,3 +170,4 @@ See the [LICENSE](LICENSE) file for more details.
 [github-release-shield]: https://img.shields.io/github/v/release/aaPanel/BillionMail
 [github-stars-shield]: https://img.shields.io/github/stars/aaPanel/BillionMail?color=%231890FF&style=flat-square   
 [license-shield]: https://img.shields.io/github/license/aaPanel/BillionMail
+
