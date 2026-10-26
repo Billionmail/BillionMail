@@ -99,7 +99,7 @@ const handleGoVersion = () => {
 	window.open('https://github.com/aaPanel/BillionMail/releases')
 }
 
-const getLangOptions = async () => {
+const getLangOptions = () => {
 	langOptions.value = langList.value.map(item => {
 		return {
 			label: item.cn,
@@ -115,9 +115,10 @@ const getVersion = async () => {
 	}
 }
 
+watch(langList, getLangOptions, { immediate: true })
+
 onMounted(() => {
 	getVersion()
-	getLangOptions()
 })
 </script>
 
