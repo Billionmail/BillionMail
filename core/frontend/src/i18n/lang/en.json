@@ -340,7 +340,10 @@
 				"discard": {
 					"title": "Tips",
 					"content": "Do you want to discard your current edits?"
-				}
+				},
+				"logicOr": "OR",
+				"logicAnd": "AND",
+				"logicNot": "NOT"
 			},
 			"createGroup": {
 				"title": "Create Group",

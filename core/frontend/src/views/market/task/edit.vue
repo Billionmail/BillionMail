@@ -214,20 +214,11 @@ const form = reactive({
 	track_open: 1,
 })
 
-const logicOptions = [
-	{
-		label: 'OR',
-		value: 'OR',
-	},
-	{
-		label: 'AND',
-		value: 'AND',
-	},
-	{
-		label: 'NOT',
-		value: 'NOT',
-	},
-]
+const logicOptions = computed(() => [
+	{ label: t('market.task.edit.logicOr'), value: 'OR' },
+	{ label: t('market.task.edit.logicAnd'), value: 'AND' },
+	{ label: t('market.task.edit.logicNot'), value: 'NOT' },
+])
 
 const rules: FormRules = {
 	full_name: {

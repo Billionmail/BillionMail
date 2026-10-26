@@ -12,7 +12,7 @@
 
 <script lang="ts" setup>
 import { storeToRefs } from 'pinia'
-import { enUS, zhCN, jaJP, deDE, dateEnUS, dateZhCN, dateJaJP, dateDeDE, darkTheme } from 'naive-ui'
+import { enUS, zhCN, jaJP, deDE, dateEnUS, dateZhCN, dateJaJP, dateDeDE, ptBR, datePtBR, darkTheme } from 'naive-ui'
 import { useGlobalStore, useThemeStore } from '@/store'
 
 const globalStore = useGlobalStore()
@@ -22,6 +22,7 @@ const themeStore = useThemeStore()
 const { theme, themeOverrides } = storeToRefs(themeStore)
 
 const langMap = {
+	'pt-BR': { locale: ptBR, dateLocale: datePtBR },
 	zh: {
 		locale: zhCN,
 		dateLocale: dateZhCN,
@@ -49,12 +50,12 @@ const themeRef = computed(() => {
 
 const locale = computed(() => {
 	const langObj = langMap[lang.value as keyof typeof langMap]
-	return langObj.locale
+	return (langObj ?? langMap.en).locale
 })
 
 const dateLocale = computed(() => {
 	const langObj = langMap[lang.value as keyof typeof langMap]
-	return langObj.dateLocale
+	return (langObj ?? langMap.en).dateLocale
 })
 
 // const themeOverrides: GlobalThemeOverrides = {
