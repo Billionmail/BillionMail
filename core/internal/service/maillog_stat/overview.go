@@ -284,11 +284,15 @@ func (o *Overview) overviewProviders(campaignID int64, domain string, startTime,
 		if item["sends"].(int) > 0 {
 			item["delivery_rate"] = public.Round(float64(item["delivered"].(int))/float64(item["sends"].(int))*100, 2)
 			item["bounce_rate"] = public.Round(float64(item["bounced"].(int))/float64(item["sends"].(int))*100, 2)
-			item["open_rate"] = public.Round(float64(item["opened"].(int))/float64(item["sends"].(int))*100, 2)
-			item["click_rate"] = public.Round(float64(item["clicked"].(int))/float64(item["sends"].(int))*100, 2)
 		} else {
 			item["delivery_rate"] = 0
 			item["bounce_rate"] = 0
+		}
+		// Open and click rates are per delivered mail, as in overviewDashboard.
+		if item["delivered"].(int) > 0 {
+			item["open_rate"] = public.Round(float64(item["opened"].(int))/float64(item["delivered"].(int))*100, 2)
+			item["click_rate"] = public.Round(float64(item["clicked"].(int))/float64(item["delivered"].(int))*100, 2)
+		} else {
 			item["open_rate"] = 0
 			item["click_rate"] = 0
 		}
@@ -599,20 +603,16 @@ func (o *Overview) chartClickRate(campaignID int64, domain string, startTime, en
 
 	query.LeftJoin(`LATERAL(
 	SELECT id
-	FROM mailstat_opened
-	WHERE sm.postfix_message_id = postfix_message_id
-	LIMIT 1
-) as o`, "true")
-
-	query.LeftJoin(`LATERAL(
-	SELECT id
 	FROM mailstat_clicked
 	WHERE sm.postfix_message_id = postfix_message_id
 	LIMIT 1
 ) as c`, "true")
 
 	query.Fields(xAxisField)
-	query.Fields("case when count(o.id) > 0 then round(1.0 * count(c.id) / count(o.id) * 100, 2) else 0.0 end as click_rate")
+	// Same denominator as the dashboard's click_rate and the open-rate chart:
+	// delivered mail, not opens. Dividing by opens gave a click-to-open rate
+	// under the click_rate name, so the chart disagreed with the dashboard.
+	query.Fields("case when coalesce(sum(case when status='sent' and dsn like '2.%' then 1 else 0 end), 0) > 0 then round(1.0 * count(c.id) / coalesce(sum(case when status='sent' and dsn like '2.%' then 1 else 0 end), 0) * 100, 2) else 0.0 end as click_rate")
 
 	query.Group("x")
 
