@@ -1,9 +1,10 @@
 <template>
 	<n-layout-sider
 		collapse-mode="width"
-		:collapsed="isCollapse"
+		:collapsed="isMobile ? !mobileMenuOpen : isCollapse"
 		:width="200"
-		:collapsed-width="64"
+		:collapsed-width="isMobile ? 0 : 64"
+		:class="{ 'mobile-sider': isMobile }"
 		:content-style="{
 			display: 'flex',
 			flexDirection: 'column',
@@ -11,10 +12,10 @@
 			overflow: 'hidden',
 		}">
 		<!-- 应用标志和名称 -->
-		<div class="app-logo" :class="{ collapse: isCollapse }">
+		<div class="app-logo" :class="{ collapse: isCollapse && !isMobile }">
 			<a href="/">
 				<img class="icon" src="@/assets/images/logo.png"></img>
-				<span v-show="!isCollapse" class="app-name">BillionMail</span>
+				<span v-show="isMobile || !isCollapse" class="app-name">BillionMail</span>
 			</a>
 		</div>
 
@@ -22,7 +23,7 @@
 		<div class="nav-section">
 			<n-menu
 				:value="activeMenuKey"
-				:collapsed="isCollapse"
+				:collapsed="!isMobile && isCollapse"
 				:collapsed-width="64"
 				:options="menuOptions"
 				:root-indent="24"
@@ -33,7 +34,7 @@
 		<div class="footer-section">
 			<n-menu
 				value=""
-				:collapsed="isCollapse"
+				:collapsed="!isMobile && isCollapse"
 				:collapsed-width="64"
 				:options="logoutOptions"
 				:root-indent="24"
@@ -59,7 +60,7 @@ const menuStore = useMenuStore()
 const userStore = useUserStore()
 const globalStore = useGlobalStore()
 
-const { isCollapse } = storeToRefs(globalStore)
+const { isCollapse, isMobile, mobileMenuOpen } = storeToRefs(globalStore)
 
 // 当前菜单名称
 const activeMenuKey = computed(() => {
@@ -131,6 +132,9 @@ const handleUpdateMenu = (key: string) => {
 			window.open(href)
 		}
 	}
+	if (isMobile.value) {
+		globalStore.closeMobileMenu()
+	}
 }
 
 onMounted(() => {
@@ -199,6 +203,22 @@ onMounted(() => {
 			padding-right: 24px;
 			line-height: 24px;
 		}
+	}
+}
+
+// Below 768px the sidebar is a slide-in drawer rather than a permanent
+// column, so it doesn't have to share width with the page content.
+.mobile-sider.n-layout-sider {
+	position: fixed;
+	top: 0;
+	bottom: 0;
+	left: 0;
+	width: 240px !important;
+	max-width: 80vw;
+	transition: transform 0.25s ease;
+
+	&.n-layout-sider--collapsed {
+		transform: translateX(-100%);
 	}
 }
 </style>

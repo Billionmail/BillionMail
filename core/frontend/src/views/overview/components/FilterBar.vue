@@ -89,12 +89,27 @@ onMounted(() => {
 <style lang="scss" scoped>
 .filter-bar {
 	display: flex;
+	flex-wrap: wrap;
 	justify-content: space-between;
+	gap: 10px;
 	margin-bottom: 20px;
 }
 
 .date-filters {
 	display: flex;
+	flex-wrap: wrap;
 	gap: 10px;
+}
+
+@media (max-width: 768px) {
+	.filter-bar {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.w-260px,
+	.date-filters .w-240px {
+		width: 100%;
+	}
 }
 </style>

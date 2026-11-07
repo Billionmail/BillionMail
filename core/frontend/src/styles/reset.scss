@@ -11,12 +11,21 @@ body,
 }
 
 body {
-	min-width: 1100px;
 	margin: 0;
 	line-height: 1.2;
 	font-size: 12px;
 	color: var(--color-text-1);
 	font-family: 'Open Sans', sans-serif;
+}
+
+// The app's desktop layout assumes at least ~1100px to lay out sidebars,
+// tables and side-by-side cards without cramming. Below that we want
+// content free to shrink to the viewport instead (that's the whole point
+// of the mobile layout), so this only kicks in above the breakpoint.
+@media (min-width: 769px) {
+	body {
+		min-width: 1100px;
+	}
 }
 
 input[type='password']::-ms-reveal {
@@ -69,4 +78,57 @@ iframe {
 	margin-bottom: 20px;
 	font-size: 18px;
 	font-weight: bold;
+}
+
+// Naive UI components below assume desktop space and don't reflow on
+// their own. Rather than shrinking their columns/panels until the text
+// is unreadable, let them keep their natural width and scroll within
+// themselves — the standard mobile pattern for wide data tables.
+@media (max-width: 768px) {
+	.n-data-table-table {
+		// Naive UI sets `table-layout: fixed` and an explicit pixel width
+		// as an INLINE style on the <table> itself, which otherwise beats
+		// any non-!important rule here. With fixed layout and no room,
+		// columns without an explicit width collapse to 0 instead of
+		// reflowing — that's the actual cause of "missing" column text.
+		table-layout: auto !important;
+		width: max-content !important;
+		min-width: 100% !important;
+		// Naive UI sets word-break: break-word on table text by default,
+		// which lets the browser shrink the table's "natural" width down
+		// to almost nothing (any word can wrap anywhere) — defeating the
+		// width: max-content above. Keep column headers/cells on one line
+		// so the table's real content width is what drives the scrolling.
+		white-space: nowrap;
+		word-break: normal;
+	}
+
+	// table-layout: auto ignores the <col> width hints naive-ui renders,
+	// which is what we want on mobile, but a handful of columns pass an
+	// explicit min-width intended for desktop and would still clamp
+	// narrower text there — let auto-layout own it instead.
+	.n-data-table-table col {
+		width: auto !important;
+	}
+
+	// The date-range picker shows two calendars side by side (as a CSS
+	// grid); stack them instead of squeezing both into the viewport.
+	// Overriding `display` instead of `grid-template-columns` directly
+	// sidesteps whatever else in the app is pinning that property.
+	.n-date-panel--daterange {
+		display: block !important;
+		// Naive UI exposes the trigger input's width as this custom
+		// property on the popup wrapper; matching it makes the calendar
+		// feel like part of the input instead of an unrelated floating box.
+		width: var(--v-target-width, 100%) !important;
+	}
+
+	.n-date-panel__vertical-divider {
+		display: none !important;
+	}
+
+	.n-date-panel-calendar--start,
+	.n-date-panel-calendar--end {
+		width: 100% !important;
+	}
 }
