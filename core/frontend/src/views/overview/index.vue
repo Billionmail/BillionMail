@@ -173,6 +173,7 @@ onMounted(() => {
 
 .metrics-cards {
 	display: flex;
+	flex-wrap: wrap;
 	justify-content: space-between;
 	gap: 20px;
 	margin-bottom: 20px;
@@ -180,17 +181,44 @@ onMounted(() => {
 
 .detail-row {
 	display: flex;
+	flex-wrap: wrap;
 	gap: 20px;
 	margin-bottom: 20px;
 
 	.provider-table-card,
 	.send-today-card {
 		flex: 1;
+		min-width: 280px;
 	}
 }
 
 .rate-charts-card {
 	display: flex;
+	flex-wrap: wrap;
 	gap: 20px;
+}
+
+@media (max-width: 768px) {
+	.email-analytics-container {
+		padding: 12px;
+	}
+
+	.metrics-cards {
+		gap: 12px;
+	}
+
+	.metrics-cards :deep(.metric-card) {
+		flex: 1 1 calc(50% - 6px);
+	}
+
+	.detail-row,
+	.rate-charts-card {
+		gap: 12px;
+
+		:deep(> *) {
+			flex-basis: 100%;
+			min-width: 0;
+		}
+	}
 }
 </style>

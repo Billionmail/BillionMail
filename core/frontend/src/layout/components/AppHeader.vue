@@ -2,16 +2,18 @@
 	<n-layout-header ref="headerRef" :style="{ top: `${top}px` }">
 		<div class="header-left">
 			<n-button class="icon-btn" :bordered="false" @click="handleCollapse">
-				<i class="icon" :class="isCollapse ? 'i-mdi-menu-close' : 'i-mdi-menu-open'"></i>
+				<i
+					class="icon"
+					:class="(isMobile ? mobileMenuOpen : isCollapse) ? 'i-mdi-menu-close' : 'i-mdi-menu-open'"></i>
 			</n-button>
-			<n-button type="primary" text class="text-14px" @click="handleGoIssues">
+			<n-button type="primary" text class="text-14px hide-on-mobile" @click="handleGoIssues">
 				{{ t('layout.header.submit') }}
 				<i class="i-mdi:arrow-right ml-1px"></i>
 			</n-button>
 		</div>
 
 		<div class="header-right">
-			<n-button class="icon-btn" :bordered="false" @click="handleSetTheme">
+			<n-button class="icon-btn hide-on-mobile" :bordered="false" @click="handleSetTheme">
 				<i class="icon" :class="theme === 'light' ? 'i-ri-sun-line' : 'i-ri-moon-line'"></i>
 			</n-button>
 			<n-dropdown
@@ -19,7 +21,7 @@
 				size="large"
 				:options="langOptions"
 				@select="handleLangAction">
-				<n-button class="icon-btn" :bordered="false">
+				<n-button class="icon-btn hide-on-mobile" :bordered="false">
 					<i class="icon i-mdi-language text-20px"></i>
 				</n-button>
 			</n-dropdown>
@@ -28,7 +30,7 @@
 					<i class="icon i-mdi-user-outline"></i>
 				</n-button>
 			</n-dropdown>
-			<n-button type="primary" text class="text-14px" @click="handleGoVersion">
+			<n-button type="primary" text class="text-14px hide-on-mobile" @click="handleGoVersion">
 				{{ version }}
 			</n-button>
 		</div>
@@ -56,13 +58,13 @@ const version = ref('--')
 const userStore = useUserStore()
 
 const globalStore = useGlobalStore()
-const { isCollapse, langList } = storeToRefs(globalStore)
+const { isCollapse, isMobile, mobileMenuOpen, langList } = storeToRefs(globalStore)
 
 const themeStore = useThemeStore()
 const { theme } = storeToRefs(themeStore)
 
 const handleCollapse = () => {
-	globalStore.setCollapse()
+	globalStore.toggleSidebar()
 }
 
 const handleGoIssues = () => {
@@ -157,5 +159,15 @@ onMounted(() => {
 	--n-font-size: 22px;
 	--n-text-color: var(--color-text-4);
 	--n-ripple-color: none;
+}
+
+@media (max-width: 768px) {
+	.n-layout-header {
+		padding: 0 12px;
+	}
+
+	.hide-on-mobile {
+		display: none;
+	}
 }
 </style>

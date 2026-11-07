@@ -1,6 +1,6 @@
 <template>
 	<n-spin :show="loading">
-		<div class="flex gap-16px mb-24px">
+		<div class="flex gap-16px mb-24px stat-cards">
 			<n-card class="flex-1">
 				<div class="title">
 					<i class="i-fa:paper-plane"></i>
@@ -105,5 +105,15 @@ onMounted(() => {
 	margin-bottom: 4px;
 	font-family: 'Montserrat', sans-serif;
 	color: var(--color-text-1);
+}
+
+@media (max-width: 768px) {
+	.stat-cards {
+		flex-wrap: wrap;
+	}
+
+	.stat-cards :deep(.n-card) {
+		flex: 1 1 calc(50% - 8px);
+	}
 }
 </style>
