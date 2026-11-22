@@ -165,44 +165,34 @@ func GenerateSPFRecord(ip string, host string, domain string) string {
 		existingValue = "v=spf1 +a +mx"
 	}
 
-	// Analyze the existing record to avoid duplications
-	parts := strings.Split(existingValue, " ")
+	// Analyze the existing record to avoid duplications. Mechanisms written by an
+	// operator usually carry an explicit qualifier ("+ip4:..."), so compare on the
+	// mechanism with its qualifier removed.
 	existingParts := make(map[string]bool)
 	var allMechanism string
 
-	for _, part := range parts {
-		part = strings.TrimSpace(part)
-		if part == "" {
-			continue
-		}
-		existingParts[part] = true
-		if strings.HasSuffix(part, "all") {
+	for _, part := range strings.Fields(existingValue) {
+		_, mechanism := splitSPFQualifier(part)
+		if strings.EqualFold(mechanism, "all") {
 			allMechanism = part
 			continue
 		}
 
-		if !strings.HasPrefix(part, "include:") && !strings.HasPrefix(part, "ip4:") && !strings.HasPrefix(part, "ip6:") {
-			newSpfParts = append(newSpfParts, part)
-		}
+		existingParts[mechanism] = true
+		newSpfParts = append(newSpfParts, part)
 	}
+
 	// Add IP if provided and not duplicated
-	if ip != "" {
-		var ipPart string
-		if strings.Contains(ip, ":") {
-			ipPart = fmt.Sprintf("+ip6:%s", ip)
-		} else {
-			ipPart = fmt.Sprintf("+ip4:%s", ip)
-		}
-		if !existingParts[ipPart] {
-			newSpfParts = append(newSpfParts, ipPart)
+	if mechanism := normalizeSPFIP(ip); mechanism != "" {
+		if _, bare := splitSPFQualifier(mechanism); !existingParts[bare] {
+			newSpfParts = append(newSpfParts, mechanism)
 		}
 	}
 
 	// Add host if provided and not duplicated
-	if host != "" {
-		hostPart := fmt.Sprintf("include:%s", host)
-		if !existingParts[hostPart] {
-			newSpfParts = append(newSpfParts, hostPart)
+	if mechanism := normalizeSPFHost(host); mechanism != "" {
+		if _, bare := splitSPFQualifier(mechanism); !existingParts[bare] {
+			newSpfParts = append(newSpfParts, mechanism)
 		}
 	}
 
@@ -213,6 +203,50 @@ func GenerateSPFRecord(ip string, host string, domain string) string {
 	}
 
 	return strings.Join(newSpfParts, " ")
+}
+
+// splitSPFQualifier splits an SPF mechanism into its optional qualifier ("+", "-",
+// "~" or "?") and the mechanism itself ("ip4:1.2.3.4", "include:example.com", ...).
+func splitSPFQualifier(part string) (qualifier string, mechanism string) {
+	mechanism = part
+	if mechanism != "" && strings.ContainsRune("+-~?", rune(mechanism[0])) {
+		return mechanism[:1], mechanism[1:]
+	}
+	return "", mechanism
+}
+
+// normalizeSPFIP accepts a bare address or an already qualified ip4:/ip6:
+// mechanism and returns the mechanism to emit, or "" when ip is empty.
+func normalizeSPFIP(ip string) string {
+	ip = strings.TrimSpace(ip)
+	if ip == "" {
+		return ""
+	}
+
+	qualifier, mechanism := splitSPFQualifier(ip)
+	if strings.HasPrefix(mechanism, "ip4:") || strings.HasPrefix(mechanism, "ip6:") {
+		return qualifier + mechanism
+	}
+
+	if strings.Contains(ip, ":") {
+		return "+ip6:" + ip
+	}
+	return "+ip4:" + ip
+}
+
+// normalizeSPFHost accepts a bare host or an already prefixed include: mechanism
+// and returns the mechanism to emit, or "" when host is empty.
+func normalizeSPFHost(host string) string {
+	host = strings.TrimSpace(host)
+	if host == "" {
+		return ""
+	}
+
+	qualifier, mechanism := splitSPFQualifier(host)
+	if strings.HasPrefix(mechanism, "include:") {
+		return qualifier + mechanism
+	}
+	return "include:" + host
 }
 
 func CheckRelayFirstSync(ctx context.Context) {
