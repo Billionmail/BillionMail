@@ -274,7 +274,6 @@ func ProcessApiMailQueue(ctx context.Context) {
 									updateLogStatus(ctx, log.Id, StatusFailed, "Failed to get API template: "+err.Error())
 									continue
 								}
-								cache.ApiTemplates[log.ApiId] = apiTemplate
 							}
 							emailTemplate, ok := cache.EmailTemplates[apiTemplate.TemplateId]
 							if !ok {
@@ -283,7 +282,6 @@ func ProcessApiMailQueue(ctx context.Context) {
 									updateLogStatus(ctx, log.Id, StatusFailed, "Failed to get email template: "+err.Error())
 									continue
 								}
-								cache.EmailTemplates[apiTemplate.TemplateId] = emailTemplate
 							}
 							contact, ok := cache.Contacts[log.Recipient]
 							if !ok {
@@ -292,7 +290,6 @@ func ProcessApiMailQueue(ctx context.Context) {
 									updateLogStatus(ctx, log.Id, StatusFailed, "Failed to get contact info: "+err.Error())
 									continue
 								}
-								cache.Contacts[log.Recipient] = contact
 							}
 							content, subject := processMailContentAndSubject(ctx, emailTemplate.Content, apiTemplate.Subject, &apiTemplate, contact, log)
 							err := sendApiMailWithSender(ctx, &apiTemplate, subject, content, log, sender)
