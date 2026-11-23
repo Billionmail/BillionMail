@@ -779,7 +779,7 @@ func (e *TaskExecutor) processRecipientBatch(ctx context.Context, task *entity.E
 
 		// check if recipient is allowed to send with warmup
 		if warmupAssociated, ok := e.ctx.Value("warmupAssociated").(bool); ok && warmupAssociated {
-			if allow, waits, _ := warmup.RateLimiter().Allow(ctx, e.ctx.Value("serverIP").(string), public.GetMailProviderGroup(recipient.Recipient)); !allow {
+			if allow, waits, _ := warmup.RateLimiter().Allow(ctx, e.ctx.Value("serverIP").(string), recipient.Recipient); !allow {
 				if waits > 0 {
 					updates[recipient.Id] = waits * 2
 				}
