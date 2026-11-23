@@ -554,8 +554,11 @@ func AddContactToGroup(ctx context.Context, email string, groupId int) (*entity.
 		return nil, err
 	}
 
-	// If contact already exists, return it
+	// If contact already exists, return it (unless the contact has unsubscribed)
 	if existingContact.Id > 0 {
+		if existingContact.Active == 0 {
+			return nil, fmt.Errorf("the recipient has unsubscribed from the current group and cannot send")
+		}
 		return &existingContact, nil
 	}
 
